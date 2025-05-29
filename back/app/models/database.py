@@ -1,31 +1,21 @@
-import logging
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import logging
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# Create SQLAlchemy engine with encoding parameters
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    pool_recycle=300,
-    echo=True,  # Set to False in production
-    connect_args={
-        "client_encoding": "utf8",
-        "connect_timeout": 10
-    }
-)
+# Get database URL from settings (which loads from .env)
+DATABASE_URL = settings.database_url
 
+# Create engine with the URL from settings
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create declarative base here
 Base = declarative_base()
-metadata = MetaData()
 
 def get_db():
-    """Get database session"""
     db = SessionLocal()
     try:
         yield db
@@ -33,15 +23,12 @@ def get_db():
         db.close()
 
 def create_tables():
-    """Create all tables"""
+    """Create all database tables"""
     try:
-        # Test connection first
-        with engine.connect() as connection:
-            logger.info("Database connection successful")
-
-        # Import all models to ensure they're registered with Base
-        from app.models import models  # This ensures all models are loaded
-
+        # Import all models that inherit from Base
+        from app.models.models import Participant, Course, Module, ParticipantCourse
+        
+        logger.info("Creating database tables...")
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables created successfully")
     except Exception as e:

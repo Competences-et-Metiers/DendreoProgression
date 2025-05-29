@@ -1,157 +1,100 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
 from typing import Optional, List
-from enum import Enum
-
-class ActivityStatus(str, Enum):
-    INACTIVE = "inactive"
-    ACTIVE = "active"
-    COMPLETED = "completed"
-
-# Base schemas
-class ParticipantBase(BaseModel):
-    nom: str
-    prenom: str
-    email: EmailStr
-    portable: Optional[str] = None
-    civilite: Optional[str] = None
-    adresse: Optional[str] = None
-    code_postal: Optional[str] = None
-    ville: Optional[str] = None
-    pays: Optional[str] = None
-    entreprise: Optional[str] = None
-
-class ParticipantCreate(ParticipantBase):
-    id_participant: str
-
-class ParticipantResponse(ParticipantBase):
-    id: int
-    id_participant: str
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
 
 # Course schemas
 class CourseBase(BaseModel):
-    intitule: str
+    title: str
     description: Optional[str] = None
-    type_lam: Optional[str] = None
-    date_debut: Optional[datetime] = None
-    date_fin: Optional[datetime] = None
-    duree_heures: Optional[float] = None
-    prix: Optional[float] = None
+    course_type: Optional[str] = None
+    duration_hours: Optional[float] = 0.0
 
 class CourseCreate(CourseBase):
-    id_lam: str
+    dendreo_course_id: str
 
-class CourseResponse(CourseBase):
+class Course(CourseBase):
     id: int
-    id_lam: str
+    dendreo_course_id: str
+    source: str
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
 
-# Module schemas
-class ModuleBase(BaseModel):
-    intitule: str
-    description: Optional[str] = None
-    ordre: Optional[int] = None
-    duree_heures: Optional[float] = None
+# Participant schemas
+class ParticipantBase(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    company: Optional[str] = None
 
-class ModuleCreate(ModuleBase):
-    id_module: str
-    id_lam: str
+class ParticipantCreate(ParticipantBase):
+    dendreo_participant_id: str
 
-class ModuleResponse(ModuleBase):
+class Participant(ParticipantBase):
     id: int
-    id_module: str
-    id_lam: str
+    dendreo_participant_id: str
+    source: str
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
 
-# Progression schemas
-class ModuleProgressionBase(BaseModel):
-    progression: float = 0.0
-    date_derniere_connexion: Optional[datetime] = None
-    temps_passe_secondes: int = 0
-    is_completed: bool = False
+# ParticipantCourse schemas
+class ParticipantCourseBase(BaseModel):
+    status: Optional[str] = None
+    progression: Optional[float] = 0.0
+    score: Optional[float] = 0.0
+    time_spent_minutes: Optional[int] = 0
+    activity_status: Optional[str] = None
 
-class ModuleProgressionCreate(ModuleProgressionBase):
-    id_participant: str
-    id_module: str
+class ParticipantCourseCreate(ParticipantCourseBase):
+    participant_id: int
+    course_id: int
+    dendreo_lmp_id: str
 
-class ModuleProgressionResponse(ModuleProgressionBase):
+class ParticipantCourse(ParticipantCourseBase):
     id: int
-    id_participant: str
-    id_module: str
+    participant_id: int
+    course_id: int
+    dendreo_lmp_id: str
+    last_access: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    source: str
     created_at: datetime
     updated_at: datetime
+
+    # Include related objects
+    participant: Optional[Participant] = None
+    course: Optional[Course] = None
 
     class Config:
         from_attributes = True
 
-class CourseProgressionBase(BaseModel):
-    progression: float = 0.0
-    activity_status: ActivityStatus = ActivityStatus.INACTIVE
-    last_activity_date: Optional[datetime] = None
-    hubspot_contact_id: Optional[str] = None
-    hubspot_transaction_id: Optional[str] = None
+# API response schemas
+class ParticipantWithProgress(Participant):
+    courses: List[ParticipantCourse] = []
+    overall_progression: Optional[float] = 0.0
+    total_courses: int = 0
+    completed_courses: int = 0
+    active_courses: int = 0
 
-class CourseProgressionCreate(CourseProgressionBase):
-    id_participant: str
-    id_lam: str
+class CourseWithParticipants(Course):
+    participants: List[ParticipantCourse] = []
+    total_participants: int = 0
+    average_progression: float = 0.0
+    completion_rate: float = 0.0
 
-class CourseProgressionResponse(CourseProgressionBase):
-    id: int
-    id_participant: str
-    id_lam: str
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-# API Response schemas
-class ParticipantProgressResponse(BaseModel):
-    course_id: str
-    participant_id: str
-    progression: float
-    activity_status: ActivityStatus
-    last_activity_date: Optional[datetime] = None
-    course_title: Optional[str] = None
-
-class CourseProgressResponse(BaseModel):
-    course_id: str
-    course_title: str
-    participant_id: str
-    participant_name: str
-    participant_email: str
-    progression: float
-    activity_status: ActivityStatus
-    last_activity_date: Optional[datetime] = None
-    modules: Optional[List[ModuleProgressionResponse]] = None
-
+# Sync schemas
 class SyncResponse(BaseModel):
     status: str
-    message: str
-    participants_synced: int = 0
-    courses_synced: int = 0
-    modules_synced: int = 0
-    progressions_updated: int = 0
-    errors: List[str] = []
-
-class DendreoLMPData(BaseModel):
-    """Schema for raw Dendreo LMP data"""
-    id_lam: str
-    intitule: str
-    description: Optional[str] = None
-    type_lam: Optional[str] = None
-    participants: List[dict] = []
-    modules: List[dict] = []
+    courses_created: int = 0
+    courses_updated: int = 0
+    participants_created: int = 0
+    participants_updated: int = 0
+    participant_courses_created: int = 0
+    participant_courses_updated: int = 0
+    total_records: int = 0

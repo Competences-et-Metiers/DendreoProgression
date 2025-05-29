@@ -1,68 +1,114 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from typing import List
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session, joinedload
+from typing import List, Optional
 from app.models.database import get_db
-from app.models.models import Course, CourseProgression
+from app.models.models import Course, ParticipantCourse, Participant
+from app.models.schemas import CourseWithParticipants, ParticipantCourse as ParticipantCourseSchema
 
 router = APIRouter()
 
-@router.get("/")
-async def get_all_courses(db: Session = Depends(get_db)):
-    """Get all courses"""
+@router.get("/", response_model=List[CourseWithParticipants])
+async def get_courses(
+        skip: int = Query(0, ge=0),
+        limit: int = Query(100, ge=1, le=1000),
+        course_type: Optional[str] = Query(None),
+        title: Optional[str] = Query(None),
+        db: Session = Depends(get_db)
+):
+    """Get all courses with their participants"""
     try:
-        courses = db.query(Course).all()
-        return [
-            {
-                "id_lam": course.id_lam,
-                "intitule": course.intitule,
-                "description": course.description,
-                "type_lam": course.type_lam,
-                "date_debut": course.date_debut,
-                "date_fin": course.date_fin
-            }
-            for course in courses
-        ]
+        query = db.query(Course).options(
+            joinedload(Course.participant_courses).joinedload(ParticipantCourse.participant)
+        )
+
+        # Apply filters
+        if course_type:
+            query = query.filter(Course.course_type == course_type)
+        if title:
+            query = query.filter(Course.title.ilike(f"%{title}%"))
+
+        # Apply pagination
+        courses = query.offset(skip).limit(limit).all()
+
+        result = []
+        for course in courses:
+            course_data = CourseWithParticipants.model_validate(course)
+
+            # Calculate statistics
+            if course.participant_courses:
+                progressions = [pc.progression for pc in course.participant_courses if pc.progression is not None]
+                course_data.average_progression = sum(progressions) / len(progressions) if progressions else 0.0
+                course_data.total_participants = len(course.participant_courses)
+                completed_count = len([pc for pc in course.participant_courses if pc.activity_status == 'completed'])
+                course_data.completion_rate = (completed_count / len(course.participant_courses)) * 100 if course.participant_courses else 0.0
+                course_data.participants = [ParticipantCourseSchema.model_validate(pc) for pc in course.participant_courses]
+
+            result.append(course_data)
+
+        return result
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching courses: {str(e)}")
 
-@router.get("/{course_id}")
-async def get_course(course_id: str, db: Session = Depends(get_db)):
-    """Get a specific course"""
+@router.get("/{course_id}", response_model=CourseWithParticipants)
+async def get_course(course_id: int, db: Session = Depends(get_db)):
+    """Get a specific course with its participants"""
     try:
-        course = db.query(Course).filter(Course.id_lam == course_id).first()
+        course = db.query(Course).options(
+            joinedload(Course.participant_courses).joinedload(ParticipantCourse.participant)
+        ).filter(Course.id == course_id).first()
 
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
 
-        return {
-            "id_lam": course.id_lam,
-            "intitule": course.intitule,
-            "description": course.description,
-            "type_lam": course.type_lam,
-            "date_debut": course.date_debut,
-            "date_fin": course.date_fin,
-            "duree_heures": course.duree_heures,
-            "prix": course.prix
-        }
+        course_data = CourseWithParticipants.model_validate(course)
+
+        # Calculate statistics
+        if course.participant_courses:
+            progressions = [pc.progression for pc in course.participant_courses if pc.progression is not None]
+            course_data.average_progression = sum(progressions) / len(progressions) if progressions else 0.0
+            course_data.total_participants = len(course.participant_courses)
+            completed_count = len([pc for pc in course.participant_courses if pc.activity_status == 'completed'])
+            course_data.completion_rate = (completed_count / len(course.participant_courses)) * 100 if course.participant_courses else 0.0
+            course_data.participants = [ParticipantCourseSchema.model_validate(pc) for pc in course.participant_courses]
+
+        return course_data
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching course: {str(e)}")
 
-@router.get("/{course_id}/participants")
-async def get_course_participants(course_id: str, db: Session = Depends(get_db)):
-    """Get all participants for a specific course"""
+@router.get("/elearning/", response_model=List[CourseWithParticipants])
+async def get_elearning_courses(
+        skip: int = Query(0, ge=0),
+        limit: int = Query(100, ge=1, le=1000),
+        db: Session = Depends(get_db)
+):
+    """Get only e-learning courses"""
     try:
-        progressions = db.query(CourseProgression).filter(
-            CourseProgression.id_lam == course_id
-        ).all()
+        query = db.query(Course).options(
+            joinedload(Course.participant_courses).joinedload(ParticipantCourse.participant)
+        ).filter(Course.course_type == 'e-learning')
 
-        return [
-            {
-                "participant_id": prog.id_participant,
-                "progression": prog.progression,
-                "activity_status": prog.activity_status,
-                "last_activity_date": prog.last_activity_date
-            }
-            for prog in progressions
-        ]
+        courses = query.offset(skip).limit(limit).all()
+
+        result = []
+        for course in courses:
+            course_data = CourseWithParticipants.model_validate(course)
+
+            # Calculate statistics
+            if course.participant_courses:
+                progressions = [pc.progression for pc in course.participant_courses if pc.progression is not None]
+                course_data.average_progression = sum(progressions) / len(progressions) if progressions else 0.0
+                course_data.total_participants = len(course.participant_courses)
+                completed_count = len([pc for pc in course.participant_courses if pc.activity_status == 'completed'])
+                course_data.completion_rate = (completed_count / len(course.participant_courses)) * 100 if course.participant_courses else 0.0
+                course_data.participants = [ParticipantCourseSchema.model_validate(pc) for pc in course.participant_courses]
+
+            result.append(course_data)
+
+        return result
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching course participants: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching e-learning courses: {str(e)}")
