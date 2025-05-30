@@ -56,9 +56,9 @@ if __name__ == "__main__":
     # Run with logging
     uvicorn.run(
         "app.main:app",
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=8000,
         reload=True,
-        log_level="debug",
-        access_log=True
+        reload_excludes=["logs/*", "*.log"],  # Exclude log files from triggering reloads
+        log_level="info"
     )

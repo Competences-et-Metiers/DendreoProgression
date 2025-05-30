@@ -1,33 +1,36 @@
 from fastapi import APIRouter, Depends, HTTPException
-from app.services.dendreo_sync import DendreoSyncService
-import logging
+from app.services.dendreo_sync import DendreoSync
 from app.services.dendreo_client import DendreoClient
+from app.models.database import get_db
+from sqlalchemy.orm import Session
+from typing import Dict, Any
+import logging
 import httpx
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/sync-all")
-async def sync_all():
-    """Sync all data from Dendreo API"""
+async def sync_all(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Synchronize all data from Dendreo"""
     try:
-        service = DendreoSyncService()
-        result = await service.sync_all_data()
-        return result
+        client = DendreoClient()
+        sync_service = DendreoSync(db, client)
+        await sync_service.sync_all()
+        return {"status": "success", "message": "Sync completed successfully"}
     except Exception as e:
-        logger.error(f"Sync failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
-@router.post("/test-sync")
-async def test_sync():
-    """Test sync with small dataset"""
+@router.post("/sync-test")
+async def sync_test(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Test sync with a small dataset"""
     try:
-        service = DendreoSyncService()
-        result = await service.test_sync_small()
+        client = DendreoClient()
+        sync_service = DendreoSync(db, client)
+        result = await sync_service.test_sync_small()
         return result
     except Exception as e:
-        logger.error(f"Test sync failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Test sync failed: {str(e)}")
 
 @router.get("/test-api")
 async def test_api():

@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
+import os
+
+# Create logs directory if it doesn't exist
+os.makedirs("logs", exist_ok=True)
 
 # Configure logging
 logging.basicConfig(
@@ -8,7 +12,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),  # This sends logs to console
-        logging.FileHandler('app.log')  # This saves logs to a file
+        logging.FileHandler('logs/app.log')  # This saves logs to a file in the logs directory
     ]
 )
 

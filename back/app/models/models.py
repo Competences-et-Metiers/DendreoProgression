@@ -8,10 +8,11 @@ Base = declarative_base()
 class Participant(Base):
     __tablename__ = "participants"
 
-    id = Column(Integer, primary_key=True, index=True)
-    nom = Column(String(100), nullable=False)
-    prenom = Column(String(100), nullable=False)
-    email = Column(String(255), unique=True, index=True, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_participant = Column(String, unique=True)  # Dendreo participant ID
+    nom = Column(String)
+    prenom = Column(String)
+    email = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -21,9 +22,15 @@ class Participant(Base):
 class Course(Base):
     __tablename__ = "courses"
 
-    id = Column(Integer, primary_key=True, index=True)
-    id_lmp = Column(String(50), unique=True, index=True, nullable=False)
-    intitule = Column(String(255), nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_action_formation = Column(String, unique=True)  # ADF ID from Dendreo
+    id_lam = Column(String)  # LAM ID that groups modules
+    intitule = Column(String)  # Course name from ADF
+    status = Column(String)  # Based on id_etape_process
+    mode_organisation = Column(String)
+    hubspot_transaction_url = Column(String, nullable=True)
+    hubspot_transaction_id = Column(String, nullable=True)
+    total_modules = Column(Integer, default=0)  # Total number of e-learning modules
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -34,9 +41,10 @@ class Course(Base):
 class Module(Base):
     __tablename__ = "modules"
 
-    id = Column(Integer, primary_key=True, index=True)
-    id_lam = Column(String(50), unique=True, index=True, nullable=False)
-    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_lmp = Column(String, unique=True)  # Original module ID from Dendreo
+    id_lam = Column(String)  # LAM ID that links to course
+    course_id = Column(Integer, ForeignKey("courses.id"))
     participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
 
     # Module progression data
@@ -54,9 +62,9 @@ class Module(Base):
 class ParticipantCourse(Base):
     __tablename__ = "participant_courses"
 
-    id = Column(Integer, primary_key=True, index=True)
-    participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
-    course_id = Column(Integer, ForeignKey("courses.id"), nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    participant_id = Column(Integer, ForeignKey("participants.id"))
+    course_id = Column(Integer, ForeignKey("courses.id"))
 
     # Calculated fields
     overall_progression = Column(Float, default=0.0)
