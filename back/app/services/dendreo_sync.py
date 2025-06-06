@@ -79,11 +79,21 @@ class DendreoSync:
             for batch_num, lmp_batch in enumerate(lmp_batches, 1):
                 logger.info(f"Processing LMP batch {batch_num}/{len(lmp_batches)}")
                 await self._process_lmps(lmp_batch, active_courses)
+                # Note: _process_lmps now handles its own commit
+
+            # Final commit for any remaining changes
+            try:
                 self.db.commit()
+                logger.info("Final commit completed successfully")
+            except Exception as e:
+                logger.error(f"Error in final commit: {str(e)}")
+                self.db.rollback()
+                raise
 
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
+            logger.info(f"Sync completed successfully. Final stats: {self.stats}")
             return {
                 "status": "success",
                 "message": f"Sync completed successfully in {duration:.2f} seconds",
@@ -161,49 +171,60 @@ class DendreoSync:
                 continue
                 
             id_adf = adf.get('id_action_de_formation')
-            id_lam = adf.get('id_lam')
-            if not id_adf or not id_lam:
-                logger.warning("Skipping ADF - missing id_action_de_formation or id_lam")
+            if not id_adf:
+                logger.warning("Skipping ADF - missing id_action_de_formation")
                 continue
             
-            # Get LAPS data for HubSpot information
-            laps_data = await self.client.get_laps(id_adf)
+            # Get modules from the ADF
+            modules = adf.get('modules', [])
+            if not modules:
+                logger.debug(f"ADF {id_adf} has no modules, skipping")
+                continue
             
-            # Extract HubSpot data
-            hubspot_url = ''
-            hubspot_id = ''
-            if laps_data:
-                hubspot_url = laps_data.get('c_url_transaction_hubspot', '')
-                hubspot_id = laps_data.get('c_id_transaction_hubspot', '')
-            
-            # Create or update course
-            course = self.db.query(Course).filter(Course.id_action_formation == id_adf).first()
-            if not course:
-                course = Course(
-                    id_action_formation=id_adf,
-                    id_lam=id_lam,
-                    intitule=adf.get('intitule', ''),
-                    status=id_etape_process,
-                    mode_organisation=adf.get('mode_organisation', ''),
-                    hubspot_transaction_url=hubspot_url,
-                    hubspot_transaction_id=hubspot_id,
-                    total_modules=0  # Will be updated when processing LMPs
-                )
-                self.db.add(course)
-                self.stats["courses_created"] += 1
-                logger.debug(f"Created new course: {id_adf}")
-            else:
-                course.id_lam = id_lam
-                course.intitule = adf.get('intitule', '')
-                course.status = id_etape_process
-                course.mode_organisation = adf.get('mode_organisation', '')
-                course.hubspot_transaction_url = hubspot_url
-                course.hubspot_transaction_id = hubspot_id
-                self.stats["courses_updated"] += 1
-                logger.debug(f"Updated course: {id_adf}")
-            
-            # Store course by id_lam
-            active_courses[id_lam] = course
+            # Process each module in the ADF
+            for module in modules:
+                id_lam = module.get('id_lam')
+                if not id_lam:
+                    logger.debug(f"Module in ADF {id_adf} missing id_lam, skipping")
+                    continue
+                
+                # Get LAPS data for HubSpot information
+                laps_data = await self.client.get_laps(id_adf)
+                
+                # Extract HubSpot data
+                hubspot_url = ''
+                hubspot_id = ''
+                if laps_data:
+                    hubspot_url = laps_data.get('c_url_transaction_hubspot', '')
+                    hubspot_id = laps_data.get('c_id_transaction_hubspot', '')
+                
+                # Create or update course for this module
+                course = self.db.query(Course).filter(Course.id_action_formation == id_adf, Course.id_lam == id_lam).first()
+                if not course:
+                    course = Course(
+                        id_action_formation=id_adf,
+                        id_lam=id_lam,
+                        intitule=adf.get('intitule', ''),
+                        status=id_etape_process,
+                        mode_organisation=adf.get('mode_organisation', ''),
+                        hubspot_transaction_url=hubspot_url,
+                        hubspot_transaction_id=hubspot_id,
+                        total_modules=0  # Will be updated when processing LMPs
+                    )
+                    self.db.add(course)
+                    self.stats["courses_created"] += 1
+                    logger.debug(f"Created new course: {id_adf} - {id_lam}")
+                else:
+                    course.intitule = adf.get('intitule', '')
+                    course.status = id_etape_process
+                    course.mode_organisation = adf.get('mode_organisation', '')
+                    course.hubspot_transaction_url = hubspot_url
+                    course.hubspot_transaction_id = hubspot_id
+                    self.stats["courses_updated"] += 1
+                    logger.debug(f"Updated course: {id_adf} - {id_lam}")
+                
+                # Store course by id_lam
+                active_courses[id_lam] = course
             
         return active_courses
 
@@ -214,6 +235,12 @@ class DendreoSync:
         
         for lmp in lmp_batch:
             try:
+                # Filter out elearning_sync courses
+                mode_organisation = lmp.get('mode_organisation', '')
+                if mode_organisation == 'elearning_sync':
+                    logger.debug(f"Skipping LMP - elearning_sync mode not allowed")
+                    continue
+                
                 # Extract participant data
                 participant_data = lmp.get('participant')
                 if not participant_data:
@@ -222,130 +249,87 @@ class DendreoSync:
 
                 # Process participant
                 participant = await self._get_or_create_participant(participant_data)
+                if not participant:
+                    continue
                 
-                # Get module data
+                # Get LMP details
                 id_lmp = lmp.get('id_lmp')
                 id_lam = lmp.get('id_lam')
+                progression = float(lmp.get('lms_progression', 0))
                 
                 if not id_lmp or not id_lam:
-                    logger.warning(f"Skipping LMP - missing ID data")
+                    logger.debug(f"Skipping LMP - missing id_lmp or id_lam")
                     continue
                 
-                # Get course for this module
+                # Check if this LMP corresponds to an active course
                 course = active_courses.get(id_lam)
                 if not course:
-                    logger.debug(f"No active course found for LAM {id_lam}")
+                    logger.debug(f"Skipping LMP {id_lmp} - no active course found for id_lam {id_lam}")
                     continue
 
-                # Get progression data
-                progression_str = lmp.get('lms_progression', '')
-                progression = 0.0
-                
-                if progression_str:  # Only try to parse if not empty
-                    try:
-                        # Handle percentage format (e.g. "100.00")
-                        if '.' in progression_str:
-                            progression = float(progression_str)
-                        # Handle integer format (e.g. "100")
-                        else:
-                            progression = float(progression_str)
-                    except (ValueError, TypeError):
-                        logger.warning(f"Invalid progression value '{progression_str}' for module {id_lmp}, defaulting to 0")
-                
-                # Get last access time from both locations
+                # Parse last access date
                 last_access = None
-                last_access_candidates = []
-                
-                # Try root level last_access
-                root_last_access = lmp.get('lms_last_access_at')
-                if root_last_access:
+                module_data = lmp.get('module', {})
+                if module_data and module_data.get('lms_last_access_at'):
                     try:
-                        dt = datetime.fromisoformat(root_last_access.replace('Z', '+00:00'))
-                        last_access_candidates.append(dt)
-                    except (ValueError, TypeError):
-                        pass
-                
-                # Try custom_properties last_access
-                custom_props = lmp.get('custom_properties', {})
-                if isinstance(custom_props, dict):
-                    custom_last_access = custom_props.get('lms_last_access_at')
-                    if custom_last_access:
-                        try:
-                            dt = datetime.fromisoformat(custom_last_access.replace('Z', '+00:00'))
-                            last_access_candidates.append(dt)
-                        except (ValueError, TypeError):
-                            pass
-                
-                # Get existing module to check previous last_access
-                existing_module = self.db.query(Module).filter(
-                    Module.id_lmp == id_lmp,
-                    Module.participant_id == participant.id,
-                    Module.course_id == course.id
-                ).first()
-                
-                if existing_module and existing_module.lms_last_access_at:
-                    last_access_candidates.append(existing_module.lms_last_access_at)
-                
-                # Take the latest access time if module is incomplete or 100% complete
-                if last_access_candidates:
-                    if progression < 100 or progression == 100:
-                        last_access = max(last_access_candidates)
-                        logger.debug(f"Found last access time for module {id_lmp}: {last_access}")
-                
+                        last_access = datetime.strptime(
+                            module_data['lms_last_access_at'], 
+                            '%Y-%m-%d %H:%M:%S'
+                        )
+                    except ValueError as e:
+                        logger.warning(f"Invalid date format in module data: {e}")
+
                 # Create or update module
-                module = Module(
-                    id_lmp=id_lmp,
-                    id_lam=id_lam,
-                    course_id=course.id,
-                    participant_id=participant.id,
-                    lms_progression=progression,
-                    lms_last_access_at=last_access,
-                    mode_organisation='elearning_async'
-                )
-                
-                # Track module for course progression calculation
-                key = (participant.id, course.id)
-                if key not in participant_course_modules:
-                    participant_course_modules[key] = []
-                participant_course_modules[key].append((module.id_lmp, progression, last_access))
-                
-                # Add to database
-                self.db.merge(module)
-                
+                module = self.db.query(Module).filter(
+                    Module.id_lmp == id_lmp,
+                    Module.participant_id == participant.id
+                ).first()
+
+                if module:
+                    # Update existing module
+                    module.lms_progression = progression
+                    module.lms_last_access_at = last_access
+                    module.mode_organisation = mode_organisation
+                    module.updated_at = datetime.utcnow()
+                    self.stats['modules_updated'] += 1
+                else:
+                    # Create new module
+                    module = Module(
+                        id_lmp=id_lmp,
+                        id_lam=id_lam,
+                        course_id=course.id,
+                        participant_id=participant.id,
+                        lms_progression=progression,
+                        lms_last_access_at=last_access,
+                        mode_organisation=mode_organisation
+                    )
+                    self.db.add(module)
+                    self.stats['modules_created'] += 1
+
+                # Track for participant course creation
+                course_key = (participant.id, course.id)
+                if course_key not in participant_course_modules:
+                    participant_course_modules[course_key] = []
+                participant_course_modules[course_key].append((
+                    module.id if hasattr(module, 'id') else None,
+                    progression,
+                    last_access
+                ))
+
             except Exception as e:
-                logger.error(f"Error processing LMP: {str(e)}")
+                logger.error(f"Error processing LMP: {e}")
                 continue
-        
-        # Calculate and update course progressions
-        for (participant_id, course_id), modules in participant_course_modules.items():
-            if not modules:
-                continue
-                
-            # Calculate average progression
-            total_progression = sum(prog for _, prog, _ in modules)
-            avg_progression = total_progression / len(modules)
-            
-            # Get latest activity time from modules
-            module_access_times = [access for _, _, access in modules if access is not None]
-            latest_activity = max(module_access_times) if module_access_times else None
-            
-            # Update participant course
-            participant_course = ParticipantCourse(
-                participant_id=participant_id,
-                course_id=course_id,
-                overall_progression=avg_progression,
-                activity_status='completed' if avg_progression >= 100 else 'active',
-                last_activity=latest_activity
-            )
-            self.db.merge(participant_course)
-            
-        # Commit all changes
+
+        # Commit modules first
         try:
             self.db.commit()
         except Exception as e:
-            logger.error(f"Error committing changes: {str(e)}")
+            logger.error(f"Error committing modules: {e}")
             self.db.rollback()
-            raise
+            return
+
+        # Create or update participant courses
+        await self._create_participant_courses(participant_course_modules)
 
     async def _get_or_create_participant(self, participant_data: Dict) -> Participant:
         """Get or create a participant"""
@@ -512,10 +496,60 @@ class DendreoSync:
             # Reset stats
             self.stats = {key: 0 for key in self.stats}
             
-            # Process test data in a single batch
-            active_courses = await self._process_adfs(test_data)
-            await self._process_lmps(test_data, active_courses)
+            # Create courses from LMP data first (since test data doesn't have ADF structure)
+            active_courses = {}
+            course_data = {}  # {id_lam: course_info}
+            
+            # Extract unique courses from LMP data
+            for lmp in test_data:
+                id_lam = lmp.get('id_lam')
+                if id_lam and id_lam not in course_data:
+                    # Create a mock ADF structure from LMP data
+                    course_data[id_lam] = {
+                        'id_action_de_formation': f"test_adf_{id_lam}",
+                        'id_lam': id_lam,
+                        'intitule': lmp.get('module', {}).get('intitule', f'Test Course {id_lam}'),
+                        'id_etape_process': '5',  # Active status
+                        'mode_organisation': lmp.get('module', {}).get('mode_organisation', 'elearning_async')
+                    }
+            
+            logger.info(f"Found {len(course_data)} unique courses in test data")
+            
+            # Process courses
+            for id_lam, adf_data in course_data.items():
+                id_adf = adf_data['id_action_de_formation']
+                
+                # Create or update course
+                course = self.db.query(Course).filter(Course.id_action_formation == id_adf).first()
+                if not course:
+                    course = Course(
+                        id_action_formation=id_adf,
+                        id_lam=id_lam,
+                        intitule=adf_data['intitule'],
+                        status=adf_data['id_etape_process'],
+                        mode_organisation=adf_data['mode_organisation'],
+                        hubspot_transaction_url='',
+                        hubspot_transaction_id='',
+                        total_modules=0
+                    )
+                    self.db.add(course)
+                    self.stats["courses_created"] += 1
+                    logger.debug(f"Created test course: {id_adf}")
+                else:
+                    course.id_lam = id_lam
+                    course.intitule = adf_data['intitule']
+                    course.status = adf_data['id_etape_process']
+                    course.mode_organisation = adf_data['mode_organisation']
+                    self.stats["courses_updated"] += 1
+                    logger.debug(f"Updated test course: {id_adf}")
+                
+                active_courses[id_lam] = course
+            
+            # Commit courses first
             self.db.commit()
+            
+            # Process LMPs with the created courses
+            await self._process_lmps(test_data, active_courses)
 
             return {
                 "status": "success",

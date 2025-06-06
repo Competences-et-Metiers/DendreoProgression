@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -21,9 +21,10 @@ class Participant(Base):
 
 class Course(Base):
     __tablename__ = "courses"
+    __table_args__ = (UniqueConstraint('id_action_formation', 'id_lam', name='_adf_lam_uc'),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    id_action_formation = Column(String, unique=True)  # ADF ID from Dendreo
+    id_action_formation = Column(String)  # ADF ID from Dendreo (removed unique=True)
     id_lam = Column(String)  # LAM ID that groups modules
     intitule = Column(String)  # Course name from ADF
     status = Column(String)  # Based on id_etape_process
@@ -40,9 +41,10 @@ class Course(Base):
 
 class Module(Base):
     __tablename__ = "modules"
+    __table_args__ = (UniqueConstraint('id_lmp', 'participant_id', name='_lmp_participant_uc'),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    id_lmp = Column(String, unique=True)  # Original module ID from Dendreo
+    id_lmp = Column(String)  # Original module ID from Dendreo (removed unique=True)
     id_lam = Column(String)  # LAM ID that links to course
     course_id = Column(Integer, ForeignKey("courses.id"))
     participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False)

@@ -1,65 +1,39 @@
-from fastapi import APIRouter, Depends, HTTPException
-from app.services.dendreo_sync import DendreoSync
-from app.services.dendreo_client import DendreoClient
-from app.models.database import get_db
-from sqlalchemy.orm import Session
-from typing import Dict, Any
+#!/usr/bin/env python3
+"""
+Database cleanup script to remove all elearning_sync courses and related data
+"""
+
 import logging
-import httpx
+from sqlalchemy.orm import Session
+from app.models.database import get_db, engine
 from app.models.models import Participant, Course, Module, ParticipantCourse
 from sqlalchemy import text
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-router = APIRouter()
 
-@router.post("/sync-all")
-async def sync_all(db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """Synchronize all data from Dendreo"""
-    try:
-        client = DendreoClient()
-        sync_service = DendreoSync(db, client)
-        result = await sync_service.sync_all()
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
-
-@router.post("/sync-test")
-async def sync_test(db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """Test sync with a small dataset"""
-    try:
-        client = DendreoClient()
-        sync_service = DendreoSync(db, client)
-        result = await sync_service.test_sync_small()
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Test sync failed: {str(e)}")
-
-@router.post("/cleanup-elearning-sync")
-async def cleanup_elearning_sync(db: Session = Depends(get_db)) -> Dict[str, Any]:
+def cleanup_elearning_sync_data():
     """Remove all elearning_sync courses and related data from the database"""
+    db = next(get_db())
+    
     try:
-        logger.info("Starting cleanup of elearning_sync data via API...")
+        logger.info("Starting cleanup of elearning_sync data...")
         
         # First, let's see what we're dealing with
         sync_courses = db.query(Course).filter(Course.mode_organisation == 'elearning_sync').all()
         sync_course_ids = [course.id for course in sync_courses]
         
         if not sync_courses:
-            return {
-                "status": "success",
-                "message": "No elearning_sync courses found in database",
-                "stats": {
-                    "participant_courses_deleted": 0,
-                    "modules_deleted": 0,
-                    "courses_deleted": 0,
-                    "orphaned_participants": 0
-                }
-            }
+            logger.info("No elearning_sync courses found in database")
+            return
         
         logger.info(f"Found {len(sync_courses)} elearning_sync courses to clean up")
         
         # Also check for modules with elearning_sync mode_organisation
         sync_modules = db.query(Module).filter(Module.mode_organisation == 'elearning_sync').all()
+        sync_module_ids = [module.id for module in sync_modules]
+        
         logger.info(f"Found {len(sync_modules)} elearning_sync modules to clean up")
         
         # Step 1: Delete ParticipantCourse records for elearning_sync courses
@@ -114,7 +88,7 @@ async def cleanup_elearning_sync(db: Session = Depends(get_db)) -> Dict[str, Any
         
         logger.info(f"Deleted {courses_deleted} elearning_sync courses")
         
-        # Step 4: Find orphaned participants who no longer have any courses
+        # Step 4: Find and optionally delete participants who no longer have any courses
         orphaned_participants = db.execute(text("""
             SELECT p.id, p.id_participant, p.email
             FROM participants p
@@ -123,35 +97,46 @@ async def cleanup_elearning_sync(db: Session = Depends(get_db)) -> Dict[str, Any
             WHERE m.id IS NULL AND pc.id IS NULL
         """)).fetchall()
         
-        orphaned_count = len(orphaned_participants)
         if orphaned_participants:
-            logger.info(f"Found {orphaned_count} participants with no remaining courses/modules")
-            # Note: We don't auto-delete participants, just report them
+            logger.info(f"Found {len(orphaned_participants)} participants with no remaining courses/modules")
+            logger.info("Orphaned participants:")
+            for participant in orphaned_participants:
+                logger.info(f"  - ID: {participant.id}, Dendreo ID: {participant.id_participant}, Email: {participant.email}")
+            
+            # Uncomment the next lines if you want to delete orphaned participants
+            # orphaned_ids = [p.id for p in orphaned_participants]
+            # db.query(Participant).filter(Participant.id.in_(orphaned_ids)).delete(synchronize_session=False)
+            # logger.info(f"Deleted {len(orphaned_participants)} orphaned participants")
         
         # Commit all changes
         db.commit()
         
-        logger.info("✅ Cleanup completed successfully via API!")
+        logger.info("✅ Cleanup completed successfully!")
+        logger.info(f"Summary:")
+        logger.info(f"  - ParticipantCourses deleted: {participant_courses_deleted}")
+        logger.info(f"  - Modules deleted: {modules_deleted}")
+        logger.info(f"  - Courses deleted: {courses_deleted}")
+        logger.info(f"  - Orphaned participants found: {len(orphaned_participants)} (not deleted)")
         
         return {
             "status": "success",
-            "message": f"Successfully cleaned up elearning_sync data",
-            "stats": {
-                "participant_courses_deleted": participant_courses_deleted,
-                "modules_deleted": modules_deleted,
-                "courses_deleted": courses_deleted,
-                "orphaned_participants": orphaned_count
-            }
+            "participant_courses_deleted": participant_courses_deleted,
+            "modules_deleted": modules_deleted,
+            "courses_deleted": courses_deleted,
+            "orphaned_participants": len(orphaned_participants)
         }
         
     except Exception as e:
         logger.error(f"Error during cleanup: {str(e)}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+        raise
+    finally:
+        db.close()
 
-@router.get("/elearning-sync-stats")
-async def get_elearning_sync_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_elearning_sync_stats():
     """Get statistics about elearning_sync data in the database"""
+    db = next(get_db())
+    
     try:
         # Count elearning_sync courses
         sync_courses_count = db.query(Course).filter(Course.mode_organisation == 'elearning_sync').count()
@@ -171,32 +156,30 @@ async def get_elearning_sync_stats(db: Session = Depends(get_db)) -> Dict[str, A
             participant_courses_in_sync = db.query(ParticipantCourse).filter(ParticipantCourse.course_id.in_(sync_course_ids)).count()
         
         return {
-            "status": "success",
-            "stats": {
-                "elearning_sync_courses": sync_courses_count,
-                "elearning_sync_modules": sync_modules_count,
-                "modules_in_sync_courses": modules_in_sync_courses,
-                "participant_courses_in_sync": participant_courses_in_sync
-            }
+            "elearning_sync_courses": sync_courses_count,
+            "elearning_sync_modules": sync_modules_count,
+            "modules_in_sync_courses": modules_in_sync_courses,
+            "participant_courses_in_sync": participant_courses_in_sync
         }
         
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+    finally:
+        db.close()
 
-@router.get("/test-api")
-async def test_api():
-    """Test API connection"""
-    try:
-        client = DendreoClient()
-        url = f"{client.base_url}/lmps.php"
-        params = {'key': client.api_key, 'include': 'participant,module'}
-
-        async with httpx.AsyncClient() as http_client:
-            response = await http_client.head(url, params=params, timeout=10.0)
-            return {
-                "status": "success" if response.status_code == 200 else "error",
-                "status_code": response.status_code,
-                "message": "API connection test"
-            }
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+if __name__ == "__main__":
+    print("🔍 Getting current elearning_sync statistics...")
+    stats = get_elearning_sync_stats()
+    print(f"Current elearning_sync data in database:")
+    print(f"  - elearning_sync courses: {stats['elearning_sync_courses']}")
+    print(f"  - elearning_sync modules: {stats['elearning_sync_modules']}")
+    print(f"  - modules in sync courses: {stats['modules_in_sync_courses']}")
+    print(f"  - participant courses in sync courses: {stats['participant_courses_in_sync']}")
+    
+    if stats['elearning_sync_courses'] > 0 or stats['elearning_sync_modules'] > 0:
+        response = input("\n🗑️  Do you want to proceed with cleanup? (yes/no): ")
+        if response.lower() in ['yes', 'y']:
+            result = cleanup_elearning_sync_data()
+            print(f"\n✅ Cleanup completed: {result}")
+        else:
+            print("❌ Cleanup cancelled")
+    else:
+        print("\n✅ No elearning_sync data found to clean up") 

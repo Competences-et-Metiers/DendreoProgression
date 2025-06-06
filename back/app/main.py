@@ -6,19 +6,23 @@ import os
 # Create logs directory if it doesn't exist
 os.makedirs("logs", exist_ok=True)
 
-# Configure logging
+# Configure logging - both console and file output
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),  # This sends logs to console
-        logging.FileHandler('logs/app.log')  # This saves logs to a file in the logs directory
+        logging.StreamHandler(),  # Console logging restored
+        logging.FileHandler('logs/app.log')  # File logging
     ]
 )
 
 # Set specific logger levels
 logging.getLogger("app").setLevel(logging.INFO)
 logging.getLogger("uvicorn").setLevel(logging.INFO)
+
+# Silence noisy loggers that cause infinite loops (keep these silenced!)
+logging.getLogger('watchfiles').setLevel(logging.ERROR)
+logging.getLogger('watchfiles.main').setLevel(logging.ERROR)
 
 app = FastAPI(title="Dendreo Progression API", version="1.0.0")
 
