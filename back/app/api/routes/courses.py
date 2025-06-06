@@ -57,10 +57,13 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
             if not adf_course:
                 continue
             
-            # Count total participants in this ADF (across all courses/modules in the ADF)
-            participant_count = db.query(ParticipantCourse).join(Course).filter(
+            # Get all participants in this ADF (distinct to avoid duplicates)
+            participants_query = db.query(ParticipantCourse).join(Course).join(Participant).filter(
                 Course.id_action_formation == id_adf
-            ).count()
+            ).distinct(ParticipantCourse.participant_id).all()
+            
+            # Use the deduplicated participant count
+            participant_count = len(participants_query)
             
             # Count unique e-learning modules (by id_lam) in this ADF
             # Only count modules where mode_organisation indicates e-learning
@@ -73,11 +76,6 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
             # These courses can't have meaningful progression tracking
             if elearning_module_count == 0:
                 continue
-            
-            # Get all participants in this ADF (distinct to avoid duplicates)
-            participants_query = db.query(ParticipantCourse).join(Course).join(Participant).filter(
-                Course.id_action_formation == id_adf
-            ).distinct(ParticipantCourse.participant_id).all()
             
             participants_data = []
             for pc in participants_query:
@@ -143,12 +141,20 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
             raise HTTPException(status_code=404, detail="Course not found")
         
         # Get participant courses for this ADF (not just this specific course)
+        # Use distinct to avoid duplicates when the same participant appears multiple times
         participant_courses = db.query(ParticipantCourse).join(Course).filter(
             Course.id_action_formation == course.id_action_formation
-        ).all()
+        ).distinct(ParticipantCourse.participant_id).all()
         
         participants_data = []
+        seen_participants = set()  # Track participants we've already processed
+        
         for pc in participant_courses:
+            # Skip if we've already processed this participant
+            if pc.participant_id in seen_participants:
+                continue
+            seen_participants.add(pc.participant_id)
+            
             participant = db.query(Participant).filter(Participant.id == pc.participant_id).first()
             if not participant:
                 continue
