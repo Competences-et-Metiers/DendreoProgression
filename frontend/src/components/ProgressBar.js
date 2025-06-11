@@ -9,13 +9,13 @@ const ProgressBar = ({
   color = 'primary' 
 }) => {
   const sizeClasses = {
-    small: 'h-1',
-    medium: 'h-2',
-    large: 'h-3'
+    small: 'h-2',
+    medium: 'h-3',
+    large: 'h-4'
   };
 
   const colorClasses = {
-    primary: 'bg-primary-500',
+    primary: 'bg-blue-500',
     green: 'bg-green-500',
     yellow: 'bg-yellow-500',
     red: 'bg-red-500',
@@ -39,7 +39,7 @@ const ProgressBar = ({
       )}>
         <div
           className={clsx(
-            'progress-bar rounded-full',
+            'progress-bar rounded-full h-full transition-all duration-300',
             colorClasses[progressColor]
           )}
           style={{ width: `${Math.min(percentage, 100)}%` }}

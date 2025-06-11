@@ -18292,3 +18292,7 @@ DETAIL:  La clé « (participant_id, id_action_formation)=(13, 140) » existe déjà.
 2025-06-11 17:54:40,101 - app.services.dendreo_sync - INFO - Final commit completed successfully
 2025-06-11 17:54:40,101 - app.services.dendreo_sync - INFO - Sync completed successfully. Final stats: {'participants_created': 0, 'participants_updated': 3275, 'courses_created': 0, 'courses_updated': 752, 'modules_created': 0, 'modules_updated': 3251, 'participant_courses_created': 0, 'participant_courses_updated': 3251, 'hubspot_data_created': 0, 'hubspot_data_updated': 3}
 2025-06-11 18:09:06,793 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:15:42,073 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:15:50,776 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:16:33,502 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:16:57,511 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api

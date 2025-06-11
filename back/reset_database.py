@@ -8,8 +8,7 @@ USE WITH CAUTION - This will delete ALL data!
 import sys
 import logging
 from sqlalchemy import create_engine, text, inspect
-from app.models.database import get_database_url
-from app.models.models import Base
+from app.models.database import DATABASE_URL, Base
 from pathlib import Path
 
 # Add the app directory to the path
@@ -30,12 +29,13 @@ def reset_database():
     """
     
     try:
-        # Get database URL
-        database_url = get_database_url()
-        logger.info(f"Connecting to database...")
+        # Import all models to ensure they're registered with Base metadata
+        from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData
+        
+        logger.info(f"Connecting to database: {DATABASE_URL}")
         
         # Create engine
-        engine = create_engine(database_url)
+        engine = create_engine(DATABASE_URL)
         
         # Test connection
         with engine.connect() as connection:
