@@ -266,6 +266,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                         "id": module.id,
                         "id_lmp": module.id_lmp,
                         "id_lam": module.id_lam,
+                        "intitule": module.intitule,
                         "progression": module.lms_progression,
                         "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
                         "mode_organisation": module.mode_organisation

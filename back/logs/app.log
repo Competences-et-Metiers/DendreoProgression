@@ -18296,3 +18296,836 @@ DETAIL:  La clé « (participant_id, id_action_formation)=(13, 140) » existe déjà.
 2025-06-11 18:15:50,776 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
 2025-06-11 18:16:33,502 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
 2025-06-11 18:16:57,511 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:34:32,980 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:34:33,000 - app.models.database - INFO - Creating database tables...
+2025-06-11 18:34:33,244 - app.models.database - INFO - Database tables created successfully
+2025-06-11 18:34:34,461 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:46:12,298 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:46:32,707 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:46:43,847 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:46:53,384 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:47:00,772 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:47:03,906 - app.api.routes.courses - ERROR - Error fetching dashboard stats: (psycopg2.errors.UndefinedColumn) ERREUR:  la colonne modules.intitule n'existe pas
+LINE 2: ...modules_id_lmp, modules.id_lam AS modules_id_lam, modules.in...
+                                                             ^
+
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT modules.id AS modules_id, modules.id_lmp AS modules_id_lmp, modules.id_lam AS modules_id_lam, modules.intitule AS modules_intitule, modules.course_id AS modules_course_id, modules.participant_id AS modules_participant_id, modules.lms_progression AS modules_lms_progression, modules.lms_last_access_at AS modules_lms_last_access_at, modules.mode_organisation AS modules_mode_organisation, modules.created_at AS modules_created_at, modules.updated_at AS modules_updated_at 
+FROM modules) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-06-11 18:47:03,949 - app.api.routes.courses - ERROR - Error fetching courses: (psycopg2.errors.UndefinedColumn) ERREUR:  la colonne modules.intitule n'existe pas
+LINE 1: ...modules_id_lmp, modules.id_lam AS modules_id_lam, modules.in...
+                                                             ^
+
+[SQL: SELECT modules.id AS modules_id, modules.id_lmp AS modules_id_lmp, modules.id_lam AS modules_id_lam, modules.intitule AS modules_intitule, modules.course_id AS modules_course_id, modules.participant_id AS modules_participant_id, modules.lms_progression AS modules_lms_progression, modules.lms_last_access_at AS modules_lms_last_access_at, modules.mode_organisation AS modules_mode_organisation, modules.created_at AS modules_created_at, modules.updated_at AS modules_updated_at 
+FROM modules 
+WHERE modules.id_lam IN (%(id_lam_1_1)s) AND modules.mode_organisation = %(mode_organisation_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'mode_organisation_1': 'elearning_async', 'param_1': 1, 'id_lam_1_1': '702'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-06-11 18:47:04,039 - app.api.routes.courses - ERROR - Error fetching dashboard stats: (psycopg2.errors.UndefinedColumn) ERREUR:  la colonne modules.intitule n'existe pas
+LINE 2: ...modules_id_lmp, modules.id_lam AS modules_id_lam, modules.in...
+                                                             ^
+
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT modules.id AS modules_id, modules.id_lmp AS modules_id_lmp, modules.id_lam AS modules_id_lam, modules.intitule AS modules_intitule, modules.course_id AS modules_course_id, modules.participant_id AS modules_participant_id, modules.lms_progression AS modules_lms_progression, modules.lms_last_access_at AS modules_lms_last_access_at, modules.mode_organisation AS modules_mode_organisation, modules.created_at AS modules_created_at, modules.updated_at AS modules_updated_at 
+FROM modules) AS anon_1]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-06-11 18:47:04,052 - app.api.routes.courses - ERROR - Error fetching courses: (psycopg2.errors.UndefinedColumn) ERREUR:  la colonne modules.intitule n'existe pas
+LINE 1: ...modules_id_lmp, modules.id_lam AS modules_id_lam, modules.in...
+                                                             ^
+
+[SQL: SELECT modules.id AS modules_id, modules.id_lmp AS modules_id_lmp, modules.id_lam AS modules_id_lam, modules.intitule AS modules_intitule, modules.course_id AS modules_course_id, modules.participant_id AS modules_participant_id, modules.lms_progression AS modules_lms_progression, modules.lms_last_access_at AS modules_lms_last_access_at, modules.mode_organisation AS modules_mode_organisation, modules.created_at AS modules_created_at, modules.updated_at AS modules_updated_at 
+FROM modules 
+WHERE modules.id_lam IN (%(id_lam_1_1)s) AND modules.mode_organisation = %(mode_organisation_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'mode_organisation_1': 'elearning_async', 'param_1': 1, 'id_lam_1_1': '702'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2025-06-11 18:47:34,557 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:48:01,794 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:48:27,600 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:48:27,601 - app.services.dendreo_sync - INFO - Starting full sync from Dendreo API
+2025-06-11 18:48:27,601 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/lmps.php
+2025-06-11 18:48:37,850 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/lmps.php?include=participant%2Cmodule&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:38,612 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/actions_de_formation.php
+2025-06-11 18:48:39,667 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/actions_de_formation.php?include=modules%2Cparticipant%2CetapeProcess%2Cmode_organisation&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:39,713 - app.services.dendreo_sync - INFO - Filtering e-learning modules...
+2025-06-11 18:48:39,974 - app.services.dendreo_sync - INFO - Filtered 3283 e-learning records from 6724 total records
+2025-06-11 18:48:39,974 - app.services.dendreo_sync - INFO - Found 3283 e-learning records
+2025-06-11 18:48:39,974 - app.services.dendreo_sync - INFO - Processing ADFs...
+2025-06-11 18:48:39,975 - app.services.dendreo_sync - INFO - Processing ADF batch 1/8
+2025-06-11 18:48:40,070 - app.services.dendreo_sync - INFO - Processing ADF batch 2/8
+2025-06-11 18:48:40,125 - app.services.dendreo_sync - INFO - Processing ADF batch 3/8
+2025-06-11 18:48:40,171 - app.services.dendreo_sync - INFO - Processing ADF batch 4/8
+2025-06-11 18:48:40,253 - app.services.dendreo_sync - INFO - Processing ADF batch 5/8
+2025-06-11 18:48:40,381 - app.services.dendreo_sync - INFO - Processing ADF batch 6/8
+2025-06-11 18:48:40,444 - app.services.dendreo_sync - INFO - Processing ADF batch 7/8
+2025-06-11 18:48:40,496 - app.services.dendreo_sync - INFO - Processing ADF batch 8/8
+2025-06-11 18:48:40,537 - app.services.dendreo_sync - INFO - Processing HubSpot data from LAPS...
+2025-06-11 18:48:40,538 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:41,068 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=115&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:41,069 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:41,542 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=119&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:41,544 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:42,062 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=124&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:42,063 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:42,620 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=132&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:42,623 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:43,098 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=133&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:43,100 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:43,628 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=134&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:43,629 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:44,180 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=140&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:44,191 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:44,825 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=141&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:44,839 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:45,400 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=150&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:45,404 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:45,931 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=152&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:45,934 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:46,502 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=157&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:46,506 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:47,026 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=158&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:47,028 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:47,566 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=159&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:47,571 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:48,114 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=160&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:48,116 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:48,629 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=161&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:48,631 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:49,143 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=162&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:49,144 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:49,638 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=163&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:49,641 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:50,142 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=164&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:50,144 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:50,693 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=165&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:50,695 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:51,205 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=166&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:51,208 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:51,811 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=167&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:51,813 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:52,323 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=168&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:52,324 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:52,837 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=169&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:52,840 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:53,322 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=170&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:53,325 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:53,848 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=171&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:53,850 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:54,356 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=172&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:54,357 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:54,873 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=173&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:54,876 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:55,523 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=174&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:55,526 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:56,033 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=175&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:56,035 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:56,548 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=176&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:56,550 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:57,067 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=177&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:57,068 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:57,538 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=178&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:57,540 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:58,096 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=179&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:58,099 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:58,616 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=180&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:58,617 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:59,125 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=181&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:59,129 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:48:59,659 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=182&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:48:59,661 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:00,178 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=183&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:00,179 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:00,698 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=184&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:00,699 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:01,230 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=185&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:01,240 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:01,741 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=186&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:01,743 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:02,239 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=187&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:02,241 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:02,733 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=188&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:02,734 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:03,232 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=189&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:03,235 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:03,747 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=190&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:03,751 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:04,304 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=191&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:04,307 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:04,821 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=192&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:04,822 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:05,329 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=193&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:05,338 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:05,865 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=194&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:05,869 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:06,425 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=195&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:06,428 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:06,984 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=196&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:06,988 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:07,469 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=197&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:07,472 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:07,985 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=198&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:07,988 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:08,549 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=199&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:08,551 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:09,072 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=200&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:09,074 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:09,585 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=201&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:09,586 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:10,096 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=202&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:10,100 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:10,606 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=203&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:10,608 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:11,217 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=204&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:11,219 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:11,727 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=205&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:11,728 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:12,231 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=206&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:12,234 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:12,769 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=207&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:12,770 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:13,373 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=208&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:13,374 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:13,916 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=209&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:13,918 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:14,486 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=210&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:14,488 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:15,057 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=211&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:15,061 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:15,535 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=212&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:15,536 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:16,103 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=213&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:16,104 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:16,665 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=215&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:16,666 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:17,173 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=216&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:17,177 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:17,687 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=217&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:17,689 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:18,215 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=218&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:18,216 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:18,745 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=219&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:18,747 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:19,256 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=220&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:19,258 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:19,750 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=221&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:19,754 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:20,261 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=222&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:20,265 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:20,755 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=223&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:20,759 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:21,297 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=224&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:21,300 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:21,824 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=225&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:21,826 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:22,334 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=226&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:22,336 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:23,029 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=229&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:23,044 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:23,575 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=230&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:23,577 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:24,086 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=231&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:24,090 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:24,620 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=232&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:24,623 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:25,159 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=233&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:25,162 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:25,674 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=235&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:25,675 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:26,197 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=237&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:26,199 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:26,661 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=238&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:26,663 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:27,219 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=239&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:27,221 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:27,754 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=240&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:27,757 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:28,309 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=241&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:28,312 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:28,839 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=242&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:28,842 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:29,333 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=243&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:29,335 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:29,898 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=244&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:29,900 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:30,428 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=245&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:30,429 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:31,005 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=246&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:31,007 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:31,537 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=247&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:31,538 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:32,135 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=248&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:32,138 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:32,671 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=249&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:32,677 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:33,220 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=250&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:33,222 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:33,736 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=251&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:33,740 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:34,220 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=252&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:34,222 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:34,736 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=253&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:34,740 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:35,327 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=255&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:35,328 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:35,847 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=256&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:35,849 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:36,394 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=257&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:36,396 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:36,921 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=258&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:36,922 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:37,440 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=259&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:37,443 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:38,001 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=260&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:38,004 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:38,576 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=261&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:38,578 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:39,121 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=262&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:39,125 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:39,686 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=263&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:39,688 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:40,247 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=264&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:40,250 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:40,766 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=265&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:40,769 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:41,335 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=266&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:41,349 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:41,896 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=267&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:41,898 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:42,469 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=268&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:42,470 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:42,962 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=269&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:42,964 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:43,491 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=270&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:43,495 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:44,065 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=271&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:44,067 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:44,582 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=272&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:44,584 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:45,148 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=273&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:45,152 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:45,684 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=274&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:45,688 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:46,206 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=275&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:46,209 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:46,732 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=276&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:46,734 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:47,240 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=277&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:47,241 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:47,732 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=278&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:47,733 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:48,290 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=279&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:48,291 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:48,825 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=281&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:48,826 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:49,379 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=283&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:49,380 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:49,917 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=284&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:49,918 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:50,572 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=286&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:50,575 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:51,184 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=287&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:51,186 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:51,694 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=288&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:51,695 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:52,191 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=289&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:52,193 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:52,762 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=290&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:52,764 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:53,268 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=291&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:53,269 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:53,803 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=292&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:53,806 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:54,302 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=294&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:54,305 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:54,839 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=295&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:54,842 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:55,357 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=296&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:55,360 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:55,845 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=297&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:55,849 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:56,364 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=298&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:56,367 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:56,882 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=299&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:56,884 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:57,418 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=303&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:57,419 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:57,937 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=304&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:57,939 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:58,528 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=305&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:58,529 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:59,018 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=306&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:59,019 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:49:59,602 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=307&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:49:59,604 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:00,116 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=308&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:00,120 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:00,601 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=309&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:00,602 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:01,125 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=311&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:01,130 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:01,679 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=312&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:01,680 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:02,220 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=313&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:02,225 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:02,755 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=314&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:02,759 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:03,290 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=315&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:03,292 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:03,838 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=316&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:03,841 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:04,345 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=317&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:04,348 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:04,871 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=318&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:04,874 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:05,393 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=319&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:05,395 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:05,923 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=320&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:05,927 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:06,457 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=321&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:06,459 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:07,000 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=322&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:07,004 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:07,508 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=323&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:07,510 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:08,030 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=324&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:08,031 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:08,594 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=325&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:08,595 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:09,123 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=326&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:09,125 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:09,664 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=327&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:09,666 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:10,228 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=328&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:10,232 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:10,781 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=329&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:10,782 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:11,327 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=330&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:11,330 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:11,881 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=331&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:11,882 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:12,396 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=332&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:12,399 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:12,939 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=333&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:12,944 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:13,482 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=334&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:13,483 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:13,984 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=335&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:13,986 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:14,502 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=336&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:14,505 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:14,988 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=337&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:14,989 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:15,483 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=339&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:15,484 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:16,039 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=340&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:16,043 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:16,609 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=342&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:16,610 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:17,157 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=343&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:17,158 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:17,626 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=346&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:17,628 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:18,133 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=347&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:18,136 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:18,709 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=348&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:18,712 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:19,234 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=349&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:19,237 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:19,766 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=351&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:19,769 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:20,293 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=352&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:20,296 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:20,817 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=354&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:20,818 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:21,331 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=355&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:21,332 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:22,003 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=356&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:22,013 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:22,525 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=357&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:22,527 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:23,050 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=358&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:23,052 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:23,627 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=359&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:23,631 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:24,204 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=360&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:24,205 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:24,792 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=361&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:24,796 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:25,318 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=362&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:25,321 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:25,916 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=363&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:25,918 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:26,426 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=364&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:26,430 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:26,991 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=365&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:26,995 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:27,546 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=366&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:27,549 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:28,072 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=367&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:28,076 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:28,586 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=369&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:28,588 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:29,075 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=370&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:29,076 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:29,541 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=371&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:29,542 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:30,118 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=372&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:30,121 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:30,627 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=373&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:30,628 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:31,146 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=374&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:31,149 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:31,614 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=375&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:31,618 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:32,156 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=376&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:32,159 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:32,640 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=377&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:32,642 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:33,145 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=378&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:33,148 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:33,685 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=379&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:33,686 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:34,197 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=381&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:34,203 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:34,709 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=383&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:34,710 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:35,209 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=384&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:35,214 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:35,774 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=385&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:35,776 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:36,310 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=386&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:36,312 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:36,937 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=387&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:36,946 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:37,619 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=388&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:37,625 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:38,255 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=389&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:38,257 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:38,773 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=390&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:38,775 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:39,302 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=391&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:39,306 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:39,800 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=392&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:39,803 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:40,278 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=393&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:40,281 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:40,751 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=395&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:40,754 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:41,238 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=396&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:41,239 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:41,755 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=397&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:41,759 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:42,299 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=398&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:42,300 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:42,830 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=399&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:42,831 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:43,334 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=400&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:43,337 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:43,909 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=401&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:43,912 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:44,524 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=402&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:44,526 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:45,002 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=403&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:45,004 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:45,516 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=404&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:45,520 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:45,991 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=405&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:45,995 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:46,499 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=406&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:46,500 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:47,017 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=408&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:47,018 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:47,510 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=409&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:47,512 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:48,033 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=410&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:48,036 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:48,624 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=411&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:48,626 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:49,148 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=413&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:49,150 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:49,741 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=414&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:49,744 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:50,268 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=415&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:50,270 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:50,776 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=416&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:50,780 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:51,274 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=417&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:51,275 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:51,770 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=418&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:51,771 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:52,323 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=420&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:52,324 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:52,833 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=421&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:52,836 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:53,370 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=422&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:53,373 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:53,902 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=423&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:53,904 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:54,420 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=424&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:54,421 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:54,905 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=425&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:54,906 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:55,444 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=426&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:55,445 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:55,954 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=427&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:55,958 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:56,485 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=428&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:56,486 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:57,103 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=429&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:57,107 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:57,609 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=430&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:57,611 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:58,180 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=431&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:58,182 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:58,735 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=432&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:58,738 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:59,249 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=433&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:59,252 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:50:59,775 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=434&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:50:59,776 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:00,311 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=435&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:00,314 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:00,894 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=436&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:00,895 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:01,427 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=437&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:01,428 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:01,960 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=439&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:01,961 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:02,470 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=440&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:02,471 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:03,008 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=441&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:03,009 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:03,549 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=442&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:03,550 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:04,047 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=443&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:04,048 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:04,540 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=444&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:04,541 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:05,041 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=445&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:05,044 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:05,617 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=447&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:05,619 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:06,110 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=448&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:06,111 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:06,603 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=449&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:06,611 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:07,191 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=450&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:07,193 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:07,699 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=451&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:07,702 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:08,201 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=453&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:08,205 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:08,702 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=457&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:08,705 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:09,223 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=458&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:09,227 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:09,749 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=459&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:09,751 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:10,284 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=460&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:10,290 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:10,814 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=462&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:10,816 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:11,334 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=463&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:11,337 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:11,861 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=465&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:11,863 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:12,381 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=466&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:12,383 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:12,908 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=467&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:12,909 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:13,395 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=468&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:13,399 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:13,964 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=469&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:13,965 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:14,430 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=470&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:14,433 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:14,965 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=471&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:14,969 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:15,528 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=472&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:15,529 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:16,002 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=473&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:16,004 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:16,599 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=474&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:16,600 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:17,093 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=475&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:17,096 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:17,653 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=476&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:17,656 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:18,210 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=477&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:18,211 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:18,724 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=478&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:18,727 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:19,263 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=479&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:19,266 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:19,814 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=480&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:19,816 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:20,318 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=481&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:20,321 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:20,873 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=482&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:20,874 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:21,419 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=483&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:21,420 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:21,951 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=484&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:21,952 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:22,464 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=486&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:22,465 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:23,008 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=488&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:23,011 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:23,544 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=489&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:23,546 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:24,100 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=490&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:24,101 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:24,601 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=491&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:24,604 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:25,110 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=492&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:25,113 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:25,581 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=493&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:25,584 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:26,086 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=494&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:26,087 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:26,616 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=495&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:26,619 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:27,127 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=496&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:27,131 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:27,644 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=497&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:27,645 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:28,177 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=498&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:28,179 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:28,700 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=499&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:28,701 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:29,304 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=500&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:29,308 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:29,848 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=501&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:29,852 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:30,389 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=502&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:30,390 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:30,905 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=503&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:30,907 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:31,400 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=504&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:31,401 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:31,931 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=505&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:31,935 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:32,479 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=506&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:32,480 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:33,007 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=507&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:33,011 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:33,560 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=508&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:33,561 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:34,104 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=509&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:34,106 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:34,669 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=510&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:34,671 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:35,230 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=511&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:35,233 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:35,758 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=512&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:35,761 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:36,278 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=515&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:36,280 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:36,757 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=517&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:36,758 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:37,269 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=518&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:37,273 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:37,768 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=519&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:37,771 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:38,317 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=520&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:38,319 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:38,841 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=521&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:38,844 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:39,344 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=523&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:39,347 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:39,881 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=525&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:39,883 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:40,399 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=526&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:40,400 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:40,925 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=527&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:40,929 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:41,454 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=528&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:41,455 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:41,954 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=529&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:41,956 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:42,439 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=530&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:42,441 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:42,956 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=532&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:42,958 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:43,467 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=534&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:43,469 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:43,961 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=536&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:43,964 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:44,485 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=537&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:44,487 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:45,043 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=538&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:45,047 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:45,542 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=539&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:45,543 - app.services.dendreo_client - INFO - Making request to Dendreo API: https://pro.dendreo.com/competences_et_metiers/api/laps.php
+2025-06-11 18:51:46,010 - httpx - INFO - HTTP Request: GET https://pro.dendreo.com/competences_et_metiers/api/laps.php?id_action_de_formation=540&key=BaBVostSCz5RTGIwszf8 "HTTP/1.1 200 OK"
+2025-06-11 18:51:46,018 - app.services.dendreo_sync - INFO - Processing LMPs...
+2025-06-11 18:51:46,019 - app.services.dendreo_sync - INFO - Processing LMP batch 1/66
+2025-06-11 18:51:46,178 - app.services.dendreo_sync - INFO - Processing LMP batch 2/66
+2025-06-11 18:51:46,296 - app.services.dendreo_sync - INFO - Processing LMP batch 3/66
+2025-06-11 18:51:46,423 - app.services.dendreo_sync - INFO - Processing LMP batch 4/66
+2025-06-11 18:51:46,550 - app.services.dendreo_sync - INFO - Processing LMP batch 5/66
+2025-06-11 18:51:46,678 - app.services.dendreo_sync - INFO - Processing LMP batch 6/66
+2025-06-11 18:51:46,797 - app.services.dendreo_sync - INFO - Processing LMP batch 7/66
+2025-06-11 18:51:46,918 - app.services.dendreo_sync - INFO - Processing LMP batch 8/66
+2025-06-11 18:51:47,035 - app.services.dendreo_sync - INFO - Processing LMP batch 9/66
+2025-06-11 18:51:47,151 - app.services.dendreo_sync - INFO - Processing LMP batch 10/66
+2025-06-11 18:51:47,264 - app.services.dendreo_sync - INFO - Processing LMP batch 11/66
+2025-06-11 18:51:47,379 - app.services.dendreo_sync - INFO - Processing LMP batch 12/66
+2025-06-11 18:51:47,500 - app.services.dendreo_sync - INFO - Processing LMP batch 13/66
+2025-06-11 18:51:47,626 - app.services.dendreo_sync - INFO - Processing LMP batch 14/66
+2025-06-11 18:51:47,740 - app.services.dendreo_sync - INFO - Processing LMP batch 15/66
+2025-06-11 18:51:47,858 - app.services.dendreo_sync - INFO - Processing LMP batch 16/66
+2025-06-11 18:51:47,990 - app.services.dendreo_sync - INFO - Processing LMP batch 17/66
+2025-06-11 18:51:48,111 - app.services.dendreo_sync - INFO - Processing LMP batch 18/66
+2025-06-11 18:51:48,241 - app.services.dendreo_sync - INFO - Processing LMP batch 19/66
+2025-06-11 18:51:48,365 - app.services.dendreo_sync - INFO - Processing LMP batch 20/66
+2025-06-11 18:51:48,485 - app.services.dendreo_sync - INFO - Processing LMP batch 21/66
+2025-06-11 18:51:48,615 - app.services.dendreo_sync - INFO - Processing LMP batch 22/66
+2025-06-11 18:51:48,733 - app.services.dendreo_sync - INFO - Processing LMP batch 23/66
+2025-06-11 18:51:48,855 - app.services.dendreo_sync - INFO - Processing LMP batch 24/66
+2025-06-11 18:51:48,977 - app.services.dendreo_sync - INFO - Processing LMP batch 25/66
+2025-06-11 18:51:49,102 - app.services.dendreo_sync - INFO - Processing LMP batch 26/66
+2025-06-11 18:51:49,231 - app.services.dendreo_sync - INFO - Processing LMP batch 27/66
+2025-06-11 18:51:49,358 - app.services.dendreo_sync - INFO - Processing LMP batch 28/66
+2025-06-11 18:51:49,487 - app.services.dendreo_sync - INFO - Processing LMP batch 29/66
+2025-06-11 18:51:49,614 - app.services.dendreo_sync - INFO - Processing LMP batch 30/66
+2025-06-11 18:51:49,738 - app.services.dendreo_sync - INFO - Processing LMP batch 31/66
+2025-06-11 18:51:49,867 - app.services.dendreo_sync - INFO - Processing LMP batch 32/66
+2025-06-11 18:51:49,999 - app.services.dendreo_sync - INFO - Processing LMP batch 33/66
+2025-06-11 18:51:50,127 - app.services.dendreo_sync - INFO - Processing LMP batch 34/66
+2025-06-11 18:51:50,264 - app.services.dendreo_sync - INFO - Processing LMP batch 35/66
+2025-06-11 18:51:50,392 - app.services.dendreo_sync - INFO - Processing LMP batch 36/66
+2025-06-11 18:51:50,517 - app.services.dendreo_sync - INFO - Processing LMP batch 37/66
+2025-06-11 18:51:50,637 - app.services.dendreo_sync - INFO - Processing LMP batch 38/66
+2025-06-11 18:51:50,759 - app.services.dendreo_sync - INFO - Processing LMP batch 39/66
+2025-06-11 18:51:50,884 - app.services.dendreo_sync - INFO - Processing LMP batch 40/66
+2025-06-11 18:51:51,002 - app.services.dendreo_sync - INFO - Processing LMP batch 41/66
+2025-06-11 18:51:51,121 - app.services.dendreo_sync - INFO - Processing LMP batch 42/66
+2025-06-11 18:51:51,254 - app.services.dendreo_sync - INFO - Processing LMP batch 43/66
+2025-06-11 18:51:51,379 - app.services.dendreo_sync - INFO - Processing LMP batch 44/66
+2025-06-11 18:51:51,500 - app.services.dendreo_sync - INFO - Processing LMP batch 45/66
+2025-06-11 18:51:51,621 - app.services.dendreo_sync - INFO - Processing LMP batch 46/66
+2025-06-11 18:51:51,751 - app.services.dendreo_sync - INFO - Processing LMP batch 47/66
+2025-06-11 18:51:51,887 - app.services.dendreo_sync - INFO - Processing LMP batch 48/66
+2025-06-11 18:51:52,021 - app.services.dendreo_sync - INFO - Processing LMP batch 49/66
+2025-06-11 18:51:52,160 - app.services.dendreo_sync - INFO - Processing LMP batch 50/66
+2025-06-11 18:51:52,290 - app.services.dendreo_sync - INFO - Processing LMP batch 51/66
+2025-06-11 18:51:52,424 - app.services.dendreo_sync - INFO - Processing LMP batch 52/66
+2025-06-11 18:51:52,569 - app.services.dendreo_sync - INFO - Processing LMP batch 53/66
+2025-06-11 18:51:52,708 - app.services.dendreo_sync - INFO - Processing LMP batch 54/66
+2025-06-11 18:51:52,836 - app.services.dendreo_sync - INFO - Processing LMP batch 55/66
+2025-06-11 18:51:52,971 - app.services.dendreo_sync - INFO - Processing LMP batch 56/66
+2025-06-11 18:51:53,090 - app.services.dendreo_sync - INFO - Processing LMP batch 57/66
+2025-06-11 18:51:53,220 - app.services.dendreo_sync - INFO - Processing LMP batch 58/66
+2025-06-11 18:51:53,360 - app.services.dendreo_sync - INFO - Processing LMP batch 59/66
+2025-06-11 18:51:53,498 - app.services.dendreo_sync - INFO - Processing LMP batch 60/66
+2025-06-11 18:51:53,630 - app.services.dendreo_sync - INFO - Processing LMP batch 61/66
+2025-06-11 18:51:53,760 - app.services.dendreo_sync - INFO - Processing LMP batch 62/66
+2025-06-11 18:51:53,890 - app.services.dendreo_sync - INFO - Processing LMP batch 63/66
+2025-06-11 18:51:54,025 - app.services.dendreo_sync - INFO - Processing LMP batch 64/66
+2025-06-11 18:51:54,174 - app.services.dendreo_sync - INFO - Processing LMP batch 65/66
+2025-06-11 18:51:54,303 - app.services.dendreo_sync - INFO - Processing LMP batch 66/66
+2025-06-11 18:51:54,417 - app.services.dendreo_sync - INFO - Final commit completed successfully
+2025-06-11 18:51:54,417 - app.services.dendreo_sync - INFO - Sync completed successfully. Final stats: {'participants_created': 1, 'participants_updated': 3285, 'courses_created': 1, 'courses_updated': 752, 'modules_created': 11, 'modules_updated': 3251, 'participant_courses_created': 11, 'participant_courses_updated': 3251, 'hubspot_data_created': 0, 'hubspot_data_updated': 3}

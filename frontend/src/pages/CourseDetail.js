@@ -14,7 +14,10 @@ import {
   CheckCircle,
   Clock,
   Filter,
-  Search
+  Search,
+  ChevronDown,
+  ChevronRight,
+  PlayCircle
 } from 'lucide-react';
 
 const CourseDetail = () => {
@@ -26,6 +29,7 @@ const CourseDetail = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
   const [filterBy, setFilterBy] = useState('all');
+  const [expandedParticipants, setExpandedParticipants] = useState(new Set());
 
   useEffect(() => {
     loadCourseData();
@@ -93,6 +97,16 @@ const CourseDetail = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Never';
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const toggleParticipantExpanded = (participantId) => {
+    const newExpanded = new Set(expandedParticipants);
+    if (newExpanded.has(participantId)) {
+      newExpanded.delete(participantId);
+    } else {
+      newExpanded.add(participantId);
+    }
+    setExpandedParticipants(newExpanded);
   };
 
   const getProgressBadge = (progression) => {
@@ -306,7 +320,22 @@ const CourseDetail = () => {
                             </div>
                           </div>
                         </div>
-                        {getProgressBadge(participant.overall_progression)}
+                        <div className="flex items-center space-x-2">
+                          {getProgressBadge(participant.overall_progression)}
+                          {participant.modules && participant.modules.length > 0 && (
+                            <button
+                              onClick={() => toggleParticipantExpanded(participant.id)}
+                              className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                              title="View module details"
+                            >
+                              {expandedParticipants.has(participant.id) ? (
+                                <ChevronDown size={16} />
+                              ) : (
+                                <ChevronRight size={16} />
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       
                       {/* Stats Row */}
@@ -331,6 +360,49 @@ const CourseDetail = () => {
                         size="small"
                         className="max-w-md"
                       />
+                      
+                      {/* Expanded Module Details */}
+                      {expandedParticipants.has(participant.id) && participant.modules && (
+                        <div className="mt-4 border-t border-gray-200 pt-4">
+                          <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                            <PlayCircle size={14} className="mr-1" />
+                            Module Progress ({participant.modules.length} modules)
+                          </h4>
+                          <div className="space-y-3">
+                            {participant.modules.map((module, index) => (
+                              <div key={module.id} className="bg-gray-50 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center">
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-100 text-primary-600 text-xs font-medium mr-2">
+                                      {index + 1}
+                                    </span>
+                                    <span className="text-sm font-medium text-gray-900">
+                                      {module.intitule || `Module ${module.id_lmp || module.id_lam}`}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-xs text-gray-500">
+                                      {module.progression.toFixed(1)}%
+                                    </span>
+                                    {module.progression >= 100 && (
+                                      <CheckCircle size={12} className="text-green-500" />
+                                    )}
+                                  </div>
+                                </div>
+                                <ProgressBar 
+                                  percentage={module.progression} 
+                                  size="small"
+                                  className="mb-2"
+                                />
+                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                  <span>Mode: {module.mode_organisation}</span>
+                                  <span>Last access: {formatDate(module.last_access)}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

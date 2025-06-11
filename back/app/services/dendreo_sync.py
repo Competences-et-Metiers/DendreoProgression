@@ -413,6 +413,12 @@ class DendreoSync:
                 id_lmp = lmp.get('id_lmp')
                 id_lam = lmp.get('id_lam')
                 
+                # Extract module intitule from the module data
+                module_intitule = ''
+                module_data = lmp.get('module', {})
+                if isinstance(module_data, dict):
+                    module_intitule = module_data.get('intitule', '')
+                
                 # Handle empty progression values safely
                 progression_raw = lmp.get('lms_progression', 0)
                 try:
@@ -458,6 +464,7 @@ class DendreoSync:
                     module.lms_progression = progression
                     module.lms_last_access_at = last_access
                     module.mode_organisation = mode_organisation
+                    module.intitule = module_intitule  # Update module title
                     module.updated_at = datetime.utcnow()
                     self.stats['modules_updated'] += 1
                 else:
@@ -465,6 +472,7 @@ class DendreoSync:
                     module = Module(
                         id_lmp=id_lmp,
                         id_lam=id_lam,
+                        intitule=module_intitule,  # Add module title
                         course_id=course.id,
                         participant_id=participant.id,
                         lms_progression=progression,

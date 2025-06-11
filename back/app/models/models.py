@@ -44,6 +44,7 @@ class Module(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     id_lmp = Column(String)  # Original module ID from Dendreo (removed unique=True)
     id_lam = Column(String)  # LAM ID that links to course
+    intitule = Column(String)  # Module title from lmps data
     course_id = Column(Integer, ForeignKey("courses.id"))
     participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
 
