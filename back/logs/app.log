@@ -19129,3 +19129,7 @@ WHERE modules.id_lam IN (%(id_lam_1_1)s) AND modules.mode_organisation = %(mode_
 2025-06-11 18:51:54,303 - app.services.dendreo_sync - INFO - Processing LMP batch 66/66
 2025-06-11 18:51:54,417 - app.services.dendreo_sync - INFO - Final commit completed successfully
 2025-06-11 18:51:54,417 - app.services.dendreo_sync - INFO - Sync completed successfully. Final stats: {'participants_created': 1, 'participants_updated': 3285, 'courses_created': 1, 'courses_updated': 752, 'modules_created': 11, 'modules_updated': 3251, 'participant_courses_created': 11, 'participant_courses_updated': 3251, 'hubspot_data_created': 0, 'hubspot_data_updated': 3}
+2025-06-11 18:56:24,396 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-11 18:56:24,408 - app.models.database - INFO - Creating database tables...
+2025-06-11 18:56:24,581 - app.models.database - INFO - Database tables created successfully
+2025-06-11 18:56:25,543 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
