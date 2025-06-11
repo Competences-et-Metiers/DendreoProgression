@@ -18,6 +18,7 @@ class Participant(Base):
 
     # Relationships
     courses = relationship("ParticipantCourse", back_populates="participant")
+    hubspot_data = relationship("ParticipantHubspotData", back_populates="participant")
 
 class Course(Base):
     __tablename__ = "courses"
@@ -29,8 +30,6 @@ class Course(Base):
     intitule = Column(String)  # Course name from ADF
     status = Column(String)  # Based on id_etape_process
     mode_organisation = Column(String)
-    hubspot_transaction_url = Column(String, nullable=True)
-    hubspot_transaction_id = Column(String, nullable=True)
     total_modules = Column(Integer, default=0)  # Total number of e-learning modules
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -79,3 +78,19 @@ class ParticipantCourse(Base):
     # Relationships
     participant = relationship("Participant", back_populates="courses")
     course = relationship("Course", back_populates="participants")
+
+class ParticipantHubspotData(Base):
+    __tablename__ = "participant_hubspot_data"
+    __table_args__ = (UniqueConstraint('participant_id', 'id_action_formation', name='_participant_adf_uc'),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False)
+    id_action_formation = Column(String, nullable=False)  # ADF ID
+    id_lap = Column(String, nullable=True)  # LAP ID from laps.php response
+    c_url_transaction_hubspot = Column(String, nullable=True)
+    c_id_transaction_hubspot = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    participant = relationship("Participant", back_populates="hubspot_data")

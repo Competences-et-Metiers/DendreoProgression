@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Dict, Any
 from app.models.database import get_db
-from app.models.models import Course, ParticipantCourse, Participant, Module
+from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData
 from app.models.schemas import CourseWithParticipants, ParticipantCourse as ParticipantCourseSchema
 from app.schemas.course import CourseResponse, ModuleResponse
 from sqlalchemy import func
@@ -94,6 +94,12 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                 else:
                     calculated_progression = 0.0
                 
+                # Get HubSpot data for this participant and ADF
+                hubspot_data = db.query(ParticipantHubspotData).filter(
+                    ParticipantHubspotData.participant_id == participant.id,
+                    ParticipantHubspotData.id_action_formation == id_adf
+                ).first()
+                
                 participants_data.append({
                     "id": participant.id,
                     "id_participant": participant.id_participant,
@@ -101,7 +107,12 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                     "prenom": participant.prenom,
                     "email": participant.email,
                     "overall_progression": round(calculated_progression, 2),
-                    "activity_status": pc.activity_status
+                    "activity_status": pc.activity_status,
+                    "hubspot_data": {
+                        "c_url_transaction_hubspot": hubspot_data.c_url_transaction_hubspot if hubspot_data else None,
+                        "c_id_transaction_hubspot": hubspot_data.c_id_transaction_hubspot if hubspot_data else None,
+                        "id_lap": hubspot_data.id_lap if hubspot_data else None
+                    } if hubspot_data else None
                 })
             
             # Calculate average progression across all participants in this ADF using real module data
@@ -183,6 +194,12 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 if last_activities:
                     last_activity = max(last_activities).isoformat()
             
+            # Get HubSpot data for this participant and ADF
+            hubspot_data = db.query(ParticipantHubspotData).filter(
+                ParticipantHubspotData.participant_id == participant.id,
+                ParticipantHubspotData.id_action_formation == course.id_action_formation
+            ).first()
+            
             participants_data.append({
                 "id": participant.id,
                 "id_participant": participant.id_participant,
@@ -194,6 +211,11 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "last_activity": last_activity,
                 "completed_modules": completed_modules,
                 "total_modules": total_modules,
+                "hubspot_data": {
+                    "c_url_transaction_hubspot": hubspot_data.c_url_transaction_hubspot if hubspot_data else None,
+                    "c_id_transaction_hubspot": hubspot_data.c_id_transaction_hubspot if hubspot_data else None,
+                    "id_lap": hubspot_data.id_lap if hubspot_data else None
+                } if hubspot_data else None,
                 "modules": [
                     {
                         "id": module.id,

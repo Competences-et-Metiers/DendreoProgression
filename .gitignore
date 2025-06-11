@@ -1,5 +1,7 @@
 .idea
 .venv
 .vscode
+.obsidian
+
 
 frontend/node_modules

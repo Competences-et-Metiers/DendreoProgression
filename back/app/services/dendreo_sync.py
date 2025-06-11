@@ -5,7 +5,7 @@ from app.services.data_processor import DataProcessor
 from app.models.database import get_db
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.models.models import Participant, Course, Module, ParticipantCourse
+from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData
 import os
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,9 @@ class DendreoSync:
             "modules_created": 0,
             "modules_updated": 0,
             "participant_courses_created": 0,
-            "participant_courses_updated": 0
+            "participant_courses_updated": 0,
+            "hubspot_data_created": 0,
+            "hubspot_data_updated": 0
         }
 
     async def sync_all(self) -> Dict[str, Any]:
@@ -71,6 +73,11 @@ class DendreoSync:
                 batch_courses = await self._process_adfs(adf_batch)
                 active_courses.update(batch_courses)
                 self.db.commit()
+
+            # Process HubSpot data from LAPS
+            logger.info("Processing HubSpot data from LAPS...")
+            await self._process_hubspot_data(adf_data)
+            self.db.commit()
 
             # Process LMPs in batches
             logger.info("Processing LMPs...")
@@ -188,16 +195,6 @@ class DendreoSync:
                     logger.debug(f"Module in ADF {id_adf} missing id_lam, skipping")
                     continue
                 
-                # Get LAPS data for HubSpot information
-                laps_data = await self.client.get_laps(id_adf)
-                
-                # Extract HubSpot data
-                hubspot_url = ''
-                hubspot_id = ''
-                if laps_data:
-                    hubspot_url = laps_data.get('c_url_transaction_hubspot', '')
-                    hubspot_id = laps_data.get('c_id_transaction_hubspot', '')
-                
                 # Create or update course for this module
                 course = self.db.query(Course).filter(Course.id_action_formation == id_adf, Course.id_lam == id_lam).first()
                 if not course:
@@ -207,8 +204,6 @@ class DendreoSync:
                         intitule=adf.get('intitule', ''),
                         status=id_etape_process,
                         mode_organisation=adf.get('mode_organisation', ''),
-                        hubspot_transaction_url=hubspot_url,
-                        hubspot_transaction_id=hubspot_id,
                         total_modules=0  # Will be updated when processing LMPs
                     )
                     self.db.add(course)
@@ -218,8 +213,6 @@ class DendreoSync:
                     course.intitule = adf.get('intitule', '')
                     course.status = id_etape_process
                     course.mode_organisation = adf.get('mode_organisation', '')
-                    course.hubspot_transaction_url = hubspot_url
-                    course.hubspot_transaction_id = hubspot_id
                     self.stats["courses_updated"] += 1
                     logger.debug(f"Updated course: {id_adf} - {id_lam}")
                 
@@ -227,6 +220,160 @@ class DendreoSync:
                 active_courses[id_lam] = course
             
         return active_courses
+
+    async def _process_hubspot_data(self, adf_data: List[Dict]):
+        """Process HubSpot data from LAPS for each ADF"""
+        for adf in adf_data:
+            id_adf = adf.get('id_action_de_formation')
+            if not id_adf:
+                continue
+                
+            # Only process active ADFs (status 5 or 6)
+            id_etape_process = adf.get('id_etape_process')
+            if not id_etape_process or id_etape_process not in ['5', '6']:
+                continue
+            
+            try:
+                # Get LAPS data for this ADF
+                laps_data = await self.client.get_laps(id_adf)
+                if not laps_data:
+                    logger.debug(f"No LAPS data found for ADF {id_adf}")
+                    continue
+                
+                logger.debug(f"Processing {len(laps_data)} LAP records for ADF {id_adf}")
+                
+                for lap_record in laps_data:
+                    await self._process_lap_record(lap_record, id_adf)
+                    
+            except Exception as e:
+                logger.error(f"Error processing HubSpot data for ADF {id_adf}: {str(e)}")
+                continue
+
+    async def _process_lap_record(self, lap_record: Dict, id_adf: str):
+        """Process a single LAP record to extract and store HubSpot data"""
+        try:
+            # Extract HubSpot transaction data
+            c_url_transaction_hubspot = lap_record.get('c_url_transaction_hubspot')
+            c_id_transaction_hubspot = lap_record.get('c_id_transaction_hubspot')
+            id_lap = lap_record.get('id_lap')
+            
+            # Skip if no HubSpot data (empty strings or None)
+            if not c_url_transaction_hubspot and not c_id_transaction_hubspot:
+                return
+            
+            # Get participant data from the LAP record
+            participant_data = lap_record.get('participant')
+            if not participant_data:
+                logger.warning(f"LAP record {id_lap} missing participant data")
+                return
+            
+            # Get or create the participant
+            participant = await self._get_or_create_participant(participant_data)
+            if not participant:
+                logger.warning(f"Could not process participant for LAP {id_lap}")
+                return
+            
+            # Create or update HubSpot data record
+            hubspot_data = self.db.query(ParticipantHubspotData).filter(
+                ParticipantHubspotData.participant_id == participant.id,
+                ParticipantHubspotData.id_action_formation == id_adf
+            ).first()
+            
+            if hubspot_data:
+                # Update existing record
+                hubspot_data.id_lap = id_lap
+                hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
+                hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
+                hubspot_data.updated_at = datetime.utcnow()
+                self.stats["hubspot_data_updated"] += 1
+                logger.debug(f"Updated HubSpot data for participant {participant.id_participant} in ADF {id_adf}")
+            else:
+                # Create new record, but handle potential race condition
+                try:
+                    hubspot_data = ParticipantHubspotData(
+                        participant_id=participant.id,
+                        id_action_formation=id_adf,
+                        id_lap=id_lap,
+                        c_url_transaction_hubspot=c_url_transaction_hubspot,
+                        c_id_transaction_hubspot=c_id_transaction_hubspot
+                    )
+                    self.db.add(hubspot_data)
+                    self.db.flush()  # Try to flush immediately to catch constraint violations
+                    self.stats["hubspot_data_created"] += 1
+                    logger.debug(f"Created HubSpot data for participant {participant.id_participant} in ADF {id_adf}")
+                except Exception as e:
+                    # If constraint violation, try to update instead
+                    if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
+                        self.db.rollback()
+                        # Try to get the existing record again
+                        hubspot_data = self.db.query(ParticipantHubspotData).filter(
+                            ParticipantHubspotData.participant_id == participant.id,
+                            ParticipantHubspotData.id_action_formation == id_adf
+                        ).first()
+                        if hubspot_data:
+                            hubspot_data.id_lap = id_lap
+                            hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
+                            hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
+                            hubspot_data.updated_at = datetime.utcnow()
+                            self.stats["hubspot_data_updated"] += 1
+                            logger.debug(f"Updated HubSpot data after constraint violation for participant {participant.id_participant} in ADF {id_adf}")
+                        else:
+                            logger.warning(f"Could not create or update HubSpot data for participant {participant.id_participant} in ADF {id_adf}")
+                    else:
+                        raise  # Re-raise if it's a different error
+                
+        except Exception as e:
+            logger.error(f"Error processing LAP record {lap_record.get('id_lap', 'unknown')}: {str(e)}")
+
+    async def _create_participant_courses(self, participant_course_modules: Dict):
+        """Create or update participant course records"""
+        for (participant_id, course_id), module_data in participant_course_modules.items():
+            try:
+                # Calculate overall progression
+                progressions = [data[1] for data in module_data]  # data[1] is progression
+                overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
+                
+                # Get last activity
+                last_activities = [data[2] for data in module_data if data[2]]  # data[2] is last_access
+                last_activity = max(last_activities) if last_activities else None
+                
+                # Determine activity status
+                activity_status = "inactive"
+                if overall_progression >= 100:
+                    activity_status = "completed"
+                elif last_activity:
+                    days_since_access = (datetime.utcnow() - last_activity).days
+                    if days_since_access <= 30:
+                        activity_status = "active"
+                
+                # Create or update participant course record
+                participant_course = self.db.query(ParticipantCourse).filter(
+                    ParticipantCourse.participant_id == participant_id,
+                    ParticipantCourse.course_id == course_id
+                ).first()
+                
+                if participant_course:
+                    # Update existing record
+                    participant_course.overall_progression = overall_progression
+                    participant_course.activity_status = activity_status
+                    participant_course.last_activity = last_activity
+                    participant_course.updated_at = datetime.utcnow()
+                    self.stats["participant_courses_updated"] += 1
+                else:
+                    # Create new record
+                    participant_course = ParticipantCourse(
+                        participant_id=participant_id,
+                        course_id=course_id,
+                        overall_progression=overall_progression,
+                        activity_status=activity_status,
+                        last_activity=last_activity
+                    )
+                    self.db.add(participant_course)
+                    self.stats["participant_courses_created"] += 1
+                    
+            except Exception as e:
+                logger.error(f"Error creating/updating participant course for participant {participant_id}, course {course_id}: {str(e)}")
+                continue
 
     async def _process_lmps(self, lmp_batch: List[Dict], active_courses: Dict[str, Course]):
         """Process LMP data to create or update modules and participants"""
@@ -255,7 +402,13 @@ class DendreoSync:
                 # Get LMP details
                 id_lmp = lmp.get('id_lmp')
                 id_lam = lmp.get('id_lam')
-                progression = float(lmp.get('lms_progression', 0))
+                
+                # Handle empty progression values safely
+                progression_raw = lmp.get('lms_progression', 0)
+                try:
+                    progression = float(progression_raw) if progression_raw != '' else 0.0
+                except (ValueError, TypeError):
+                    progression = 0.0
                 
                 if not id_lmp or not id_lam:
                     logger.debug(f"Skipping LMP - missing id_lmp or id_lam")
@@ -528,8 +681,6 @@ class DendreoSync:
                         intitule=adf_data['intitule'],
                         status=adf_data['id_etape_process'],
                         mode_organisation=adf_data['mode_organisation'],
-                        hubspot_transaction_url='',
-                        hubspot_transaction_id='',
                         total_modules=0
                     )
                     self.db.add(course)

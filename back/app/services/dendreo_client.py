@@ -61,18 +61,17 @@ class DendreoClient:
         params = {"include": "modules,participant,etapeProcess,mode_organisation"}
         return await self._make_request("actions_de_formation.php", params)
 
-    async def get_laps(self, id_action_formation: str) -> Optional[Dict[str, Any]]:
-        """Get LAPS data for a specific ADF"""
+    async def get_laps(self, id_action_formation: str) -> List[Dict[str, Any]]:
+        """Get all LAPS data for a specific ADF"""
         params = {
-            "id_action_de_formation": id_action_formation,
-            "include": "participactions,mode_organisation"
+            "id_action_de_formation": id_action_formation
         }
         try:
             response = await self._make_request("laps.php", params)
-            return response[0] if response and isinstance(response, list) else None
+            return response if response and isinstance(response, list) else []
         except DendreoAPIError:
             logger.warning(f"No LAPS data found for ADF {id_action_formation}")
-            return None
+            return []
 
     async def get_lmps_data(self) -> List[Dict[str, Any]]:
         """Legacy method - use get_lmps() instead"""
