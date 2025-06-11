@@ -203,7 +203,6 @@ class DendreoSync:
                         id_lam=id_lam,
                         intitule=adf.get('intitule', ''),
                         status=id_etape_process,
-                        mode_organisation=adf.get('mode_organisation', ''),
                         total_modules=0  # Will be updated when processing LMPs
                     )
                     self.db.add(course)
@@ -212,7 +211,6 @@ class DendreoSync:
                 else:
                     course.intitule = adf.get('intitule', '')
                     course.status = id_etape_process
-                    course.mode_organisation = adf.get('mode_organisation', '')
                     self.stats["courses_updated"] += 1
                     logger.debug(f"Updated course: {id_adf} - {id_lam}")
                 
@@ -382,11 +380,23 @@ class DendreoSync:
         
         for lmp in lmp_batch:
             try:
-                # Filter out elearning_sync courses
+                # Extract mode_organisation for filtering
                 mode_organisation = lmp.get('mode_organisation', '')
-                if mode_organisation == 'elearning_sync':
-                    logger.debug(f"Skipping LMP - elearning_sync mode not allowed")
+                
+                # Check module data for mode_organisation if not found at root level
+                if not mode_organisation:
+                    module_data = lmp.get('module', {})
+                    if isinstance(module_data, dict):
+                        mode_organisation = module_data.get('mode_organisation', '')
+                
+                # Skip non-elearning_async modules
+                if mode_organisation and mode_organisation != 'elearning_async':
+                    logger.debug(f"Skipping LMP - mode_organisation is '{mode_organisation}' (not elearning_async)")
                     continue
+                
+                # Default to elearning_async if no mode_organisation found (for existing data)
+                if not mode_organisation:
+                    mode_organisation = 'elearning_async'
                 
                 # Extract participant data
                 participant_data = lmp.get('participant')
@@ -420,17 +430,22 @@ class DendreoSync:
                     logger.debug(f"Skipping LMP {id_lmp} - no active course found for id_lam {id_lam}")
                     continue
 
-                # Parse last access date
+                # Parse last access date from the main LMP record (not from module sub-object)
                 last_access = None
-                module_data = lmp.get('module', {})
-                if module_data and module_data.get('lms_last_access_at'):
+                last_access_raw = lmp.get('lms_last_access_at', '')
+                if last_access_raw and last_access_raw.strip():
                     try:
                         last_access = datetime.strptime(
-                            module_data['lms_last_access_at'], 
+                            last_access_raw.strip(), 
                             '%Y-%m-%d %H:%M:%S'
                         )
                     except ValueError as e:
-                        logger.warning(f"Invalid date format in module data: {e}")
+                        logger.warning(f"Invalid date format in LMP data: {e}")
+                
+                # Business rule validation: progression > 0 MUST have last_access_at
+                if progression > 0 and not last_access:
+                    logger.warning(f"Data inconsistency: LMP {id_lmp} has progression {progression} but no last_access_at. Skipping.")
+                    continue
 
                 # Create or update module
                 module = self.db.query(Module).filter(

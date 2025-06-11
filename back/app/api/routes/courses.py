@@ -65,15 +65,41 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
             # Use the deduplicated participant count
             participant_count = len(participants_query)
             
-            # Count unique e-learning modules (by id_lam) in this ADF
-            # Only count modules where mode_organisation indicates e-learning
-            elearning_module_count = db.query(Module.id_lam).join(Course).filter(
-                Course.id_action_formation == id_adf,
-                Module.mode_organisation.in_(['elearning_async', 'elearning_sync'])
-            ).distinct().count()
+            # Check if this ADF has e-learning modules (based on module mode_organisation)
+            # Get all id_lam values for this ADF first
+            adf_lam_ids_check = db.query(Course.id_lam).filter(
+                Course.id_action_formation == id_adf
+            ).distinct().all()
             
-            # Skip ADFs with 0 e-learning modules (like "Bilan de compétences")
+            has_elearning_modules = False
+            if adf_lam_ids_check:
+                lam_ids_check = [lam_id[0] for lam_id in adf_lam_ids_check if lam_id[0]]
+                has_elearning_modules = db.query(Module).filter(
+                    Module.id_lam.in_(lam_ids_check),
+                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                ).first() is not None
+            
+            # Skip ADFs without e-learning modules (like "Bilan de compétences") 
             # These courses can't have meaningful progression tracking
+            if not has_elearning_modules:
+                continue
+                
+            # Count all modules for this ADF by matching id_lam (since course_id FK may not be set)
+            # Get all id_lam values for this ADF first
+            adf_lam_ids = db.query(Course.id_lam).filter(
+                Course.id_action_formation == id_adf
+            ).distinct().all()
+            
+            if adf_lam_ids:
+                lam_ids_list = [lam_id[0] for lam_id in adf_lam_ids if lam_id[0]]
+                elearning_module_count = db.query(Module.id_lam).filter(
+                    Module.id_lam.in_(lam_ids_list),
+                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                ).distinct().count()
+            else:
+                elearning_module_count = 0
+            
+            # Also skip if no modules at all (empty courses)
             if elearning_module_count == 0:
                 continue
             
@@ -82,10 +108,20 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                 participant = pc.participant
                 
                 # Get modules for this participant in this ADF to calculate real progression
-                participant_modules = db.query(Module).join(Course).filter(
-                    Course.id_action_formation == id_adf,
-                    Module.participant_id == participant.id
-                ).all()
+                # Join by id_lam instead of course_id FK
+                adf_lam_ids_for_participant = db.query(Course.id_lam).filter(
+                    Course.id_action_formation == id_adf
+                ).distinct().all()
+                
+                if adf_lam_ids_for_participant:
+                    lam_ids_for_participant = [lam_id[0] for lam_id in adf_lam_ids_for_participant if lam_id[0]]
+                    participant_modules = db.query(Module).filter(
+                        Module.id_lam.in_(lam_ids_for_participant),
+                        Module.participant_id == participant.id,
+                        Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                    ).all()
+                else:
+                    participant_modules = []
                 
                 # Calculate real progression: average of all module progressions
                 if participant_modules:
@@ -127,7 +163,6 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                 "id_action_formation": id_adf,
                 "intitule": adf_course.intitule,
                 "status": adf_course.status,
-                "mode_organisation": adf_course.mode_organisation,
                 "total_modules": elearning_module_count,  # Count of unique e-learning modules by id_lam
                 "participant_count": participant_count,
                 "participants": participants_data,
@@ -171,10 +206,20 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 continue
             
             # Get modules for this participant in this ADF (not just this course)
-            modules = db.query(Module).join(Course).filter(
-                Course.id_action_formation == course.id_action_formation,
-                Module.participant_id == participant.id
-            ).all()
+            # Join by id_lam instead of course_id FK
+            adf_lam_ids_modules = db.query(Course.id_lam).filter(
+                Course.id_action_formation == course.id_action_formation
+            ).distinct().all()
+            
+            if adf_lam_ids_modules:
+                lam_ids_modules = [lam_id[0] for lam_id in adf_lam_ids_modules if lam_id[0]]
+                modules = db.query(Module).filter(
+                    Module.id_lam.in_(lam_ids_modules),
+                    Module.participant_id == participant.id,
+                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                ).all()
+            else:
+                modules = []
             
             # Calculate progression properly: average of all module progressions
             if modules:
@@ -238,11 +283,14 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "id_lam": course.id_lam,
                 "intitule": course.intitule,
                 "status": course.status,
-                "mode_organisation": course.mode_organisation,
-                "total_modules": db.query(Module.id_lam).join(Course).filter(
-                    Course.id_action_formation == course.id_action_formation,
-                    Module.mode_organisation.in_(['elearning_async', 'elearning_sync'])
-                ).distinct().count()  # Count unique e-learning modules by id_lam for the entire ADF
+                "total_modules": db.query(Module.id_lam).filter(
+                    Module.id_lam.in_([lam_id[0] for lam_id in db.query(Course.id_lam).filter(
+                        Course.id_action_formation == course.id_action_formation
+                    ).distinct().all() if lam_id[0]]),
+                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                ).distinct().count() if db.query(Course.id_lam).filter(
+                    Course.id_action_formation == course.id_action_formation
+                ).distinct().all() else 0  # Count unique e-learning modules by id_lam for the entire ADF
             },
             "participants": participants_data,
             "summary": {
@@ -278,10 +326,20 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                 continue
             
             # Get modules for this participant in this ADF (not just this course)
-            modules = db.query(Module).join(Course).filter(
-                Course.id_action_formation == course.id_action_formation,
-                Module.participant_id == participant.id
-            ).all()
+            # Join by id_lam instead of course_id FK
+            adf_lam_ids_details = db.query(Course.id_lam).filter(
+                Course.id_action_formation == course.id_action_formation
+            ).distinct().all()
+            
+            if adf_lam_ids_details:
+                lam_ids_details = [lam_id[0] for lam_id in adf_lam_ids_details if lam_id[0]]
+                modules = db.query(Module).filter(
+                    Module.id_lam.in_(lam_ids_details),
+                    Module.participant_id == participant.id,
+                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                ).all()
+            else:
+                modules = []
             
             completed_modules = sum(1 for module in modules if module.lms_progression >= 100)
             

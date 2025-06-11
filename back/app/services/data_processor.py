@@ -98,14 +98,16 @@ class DataProcessor:
     def _process_course(self, course_data: Dict[str, Any], id_lmp: str, stats: Dict[str, int]) -> Course:
         """Process course data"""
 
-        # Find existing course by id_lmp
-        course = self.db.query(Course).filter(Course.id_lmp == id_lmp).first()
+        # Find existing course by intitule (since id_lmp is not a Course field)
+        course = self.db.query(Course).filter(Course.intitule == course_data.get('intitule', '')).first()
 
         if not course:
-            # Create new course
+            # Create new course (Course model doesn't have id_lmp field)
             course = Course(
-                id_lmp=id_lmp,
-                intitule=course_data.get('intitule', '')
+                intitule=course_data.get('intitule', ''),
+                id_action_formation=f"generated_adf_{id_lmp}",  # Generate a placeholder ADF ID
+                id_lam=id_lmp,  # Use id_lmp as id_lam
+                status='5'  # Default active status
             )
             self.db.add(course)
             self.db.flush()  # Get the ID

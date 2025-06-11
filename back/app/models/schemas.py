@@ -60,10 +60,9 @@ class ParticipantCourse(ParticipantCourseBase):
     id: int
     participant_id: int
     course_id: int
-    dendreo_lmp_id: str
-    last_access: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    source: str
+    overall_progression: Optional[float] = 0.0
+    activity_status: Optional[str] = None
+    last_activity: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

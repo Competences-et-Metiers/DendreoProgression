@@ -29,7 +29,6 @@ class Course(Base):
     id_lam = Column(String)  # LAM ID that groups modules
     intitule = Column(String)  # Course name from ADF
     status = Column(String)  # Based on id_etape_process
-    mode_organisation = Column(String)
     total_modules = Column(Integer, default=0)  # Total number of e-learning modules
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -51,7 +50,7 @@ class Module(Base):
     # Module progression data
     lms_progression = Column(Float, default=0.0)
     lms_last_access_at = Column(DateTime, nullable=True)
-    mode_organisation = Column(String(50), nullable=False)
+    mode_organisation = Column(String(50), default='elearning_async')
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

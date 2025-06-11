@@ -7,22 +7,45 @@ from app.models.schemas import ParticipantWithProgress, ParticipantCourse as Par
 
 router = APIRouter()
 
-def calculate_activity_status(participant_course: ParticipantCourse) -> str:
-    """Simple function to determine activity status"""
+def calculate_activity_status(participant_course: ParticipantCourse, db: Session = None) -> str:
+    """Calculate activity status for a participant course"""
     from datetime import datetime
+    from app.models.models import Module, Course
 
     # Check if completed
-    if participant_course.progression and participant_course.progression >= 100.0:
+    if participant_course.overall_progression and participant_course.overall_progression >= 100.0:
         return "completed"
 
-    if participant_course.completed_at:
-        return "completed"
+    # Check last activity - if null in participant_course, calculate from modules
+    last_activity = participant_course.last_activity
+    
+    if not last_activity and db:
+        # Get the course and find the ADF
+        course = db.query(Course).filter(Course.id == participant_course.course_id).first()
+        if course:
+            # Get all modules for this participant in this ADF
+            adf_lam_ids = db.query(Course.id_lam).filter(
+                Course.id_action_formation == course.id_action_formation
+            ).distinct().all()
+            
+            if adf_lam_ids:
+                lam_ids_list = [lam_id[0] for lam_id in adf_lam_ids if lam_id[0]]
+                modules = db.query(Module).filter(
+                    Module.id_lam.in_(lam_ids_list),
+                    Module.participant_id == participant_course.participant_id,
+                    Module.mode_organisation == 'elearning_async',
+                    Module.lms_last_access_at.isnot(None)
+                ).all()
+                
+                if modules:
+                    last_activities = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
+                    if last_activities:
+                        last_activity = max(last_activities)
 
-    # Check last access for activity
-    if not participant_course.last_access:
+    if not last_activity:
         return "not_started"
 
-    days_since_access = (datetime.now() - participant_course.last_access).days
+    days_since_access = (datetime.now() - last_activity).days
 
     if days_since_access <= 30:  # 30 days threshold
         return "active"
@@ -59,7 +82,7 @@ async def get_participants(
 
             # Calculate overall progression and counts
             if participant.participant_courses:
-                progressions = [pc.progression for pc in participant.participant_courses if pc.progression is not None]
+                progressions = [pc.overall_progression for pc in participant.participant_courses if pc.overall_progression is not None]
                 participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
                 participant_data.total_courses = len(participant.participant_courses)
 
@@ -68,7 +91,7 @@ async def get_participants(
                 active_courses = 0
 
                 for pc in participant.participant_courses:
-                    status = calculate_activity_status(pc)
+                    status = calculate_activity_status(pc, db)
                     pc.activity_status = status  # Update the status
                     if status == 'completed':
                         completed_courses += 1
@@ -101,7 +124,7 @@ async def get_participant(participant_id: int, db: Session = Depends(get_db)):
         participant_data = ParticipantWithProgress.model_validate(participant)
 
         if participant.participant_courses:
-            progressions = [pc.progression for pc in participant.participant_courses if pc.progression is not None]
+            progressions = [pc.overall_progression for pc in participant.participant_courses if pc.overall_progression is not None]
             participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
             participant_data.total_courses = len(participant.participant_courses)
 
@@ -110,7 +133,7 @@ async def get_participant(participant_id: int, db: Session = Depends(get_db)):
             active_courses = 0
 
             for pc in participant.participant_courses:
-                status = calculate_activity_status(pc)
+                status = calculate_activity_status(pc, db)
                 pc.activity_status = status  # Update the status
                 if status == 'completed':
                     completed_courses += 1
@@ -143,7 +166,7 @@ async def get_participant_by_email(email: str, db: Session = Depends(get_db)):
         participant_data = ParticipantWithProgress.model_validate(participant)
 
         if participant.participant_courses:
-            progressions = [pc.progression for pc in participant.participant_courses if pc.progression is not None]
+            progressions = [pc.overall_progression for pc in participant.participant_courses if pc.overall_progression is not None]
             participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
             participant_data.total_courses = len(participant.participant_courses)
 
@@ -152,7 +175,7 @@ async def get_participant_by_email(email: str, db: Session = Depends(get_db)):
             active_courses = 0
 
             for pc in participant.participant_courses:
-                status = calculate_activity_status(pc)
+                status = calculate_activity_status(pc, db)
                 pc.activity_status = status  # Update the status
                 if status == 'completed':
                     completed_courses += 1

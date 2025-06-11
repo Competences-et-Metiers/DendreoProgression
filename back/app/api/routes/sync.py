@@ -40,9 +40,12 @@ async def cleanup_elearning_sync(db: Session = Depends(get_db)) -> Dict[str, Any
     try:
         logger.info("Starting cleanup of elearning_sync data via API...")
         
-        # First, let's see what we're dealing with
-        sync_courses = db.query(Course).filter(Course.mode_organisation == 'elearning_sync').all()
-        sync_course_ids = [course.id for course in sync_courses]
+        # First, let's see what we're dealing with (Course model no longer has mode_organisation)
+        # Look for courses with elearning_sync modules instead
+        sync_course_ids = []
+        sync_modules = db.query(Module).filter(Module.mode_organisation == 'elearning_sync').all()
+        sync_course_ids = list(set([m.course_id for m in sync_modules if m.course_id]))
+        sync_courses = db.query(Course).filter(Course.id.in_(sync_course_ids)).all() if sync_course_ids else []
         
         if not sync_courses:
             return {
@@ -58,8 +61,7 @@ async def cleanup_elearning_sync(db: Session = Depends(get_db)) -> Dict[str, Any
         
         logger.info(f"Found {len(sync_courses)} elearning_sync courses to clean up")
         
-        # Also check for modules with elearning_sync mode_organisation
-        sync_modules = db.query(Module).filter(Module.mode_organisation == 'elearning_sync').all()
+        # Count modules with elearning_sync mode_organisation  
         logger.info(f"Found {len(sync_modules)} elearning_sync modules to clean up")
         
         # Step 1: Delete ParticipantCourse records for elearning_sync courses
@@ -103,16 +105,13 @@ async def cleanup_elearning_sync(db: Session = Depends(get_db)) -> Dict[str, Any
         modules_deleted += modules_by_mode
         logger.info(f"Deleted {modules_by_mode} modules with elearning_sync mode")
         
-        # Step 3: Delete Course records with elearning_sync mode_organisation
-        courses_deleted = db.query(Course).filter(
-            Course.mode_organisation == 'elearning_sync'
-        ).count()
+        # Step 3: Delete Course records that only had elearning_sync modules  
+        # (Course model no longer has mode_organisation, courses are deleted based on modules)
+        courses_deleted = len(sync_courses)
+        if sync_course_ids:
+            db.query(Course).filter(Course.id.in_(sync_course_ids)).delete(synchronize_session=False)
         
-        db.query(Course).filter(
-            Course.mode_organisation == 'elearning_sync'
-        ).delete(synchronize_session=False)
-        
-        logger.info(f"Deleted {courses_deleted} elearning_sync courses")
+        logger.info(f"Deleted {courses_deleted} courses with elearning_sync modules")
         
         # Step 4: Find orphaned participants who no longer have any courses
         orphaned_participants = db.execute(text("""
@@ -153,14 +152,15 @@ async def cleanup_elearning_sync(db: Session = Depends(get_db)) -> Dict[str, Any
 async def get_elearning_sync_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get statistics about elearning_sync data in the database"""
     try:
-        # Count elearning_sync courses
-        sync_courses_count = db.query(Course).filter(Course.mode_organisation == 'elearning_sync').count()
+        # Count courses with elearning_sync modules (Course model no longer has mode_organisation)
+        sync_modules = db.query(Module).filter(Module.mode_organisation == 'elearning_sync').all()
+        sync_course_ids = list(set([m.course_id for m in sync_modules if m.course_id]))
+        sync_courses_count = len(sync_course_ids)
         
         # Count modules with elearning_sync mode
         sync_modules_count = db.query(Module).filter(Module.mode_organisation == 'elearning_sync').count()
         
-        # Count modules linked to elearning_sync courses
-        sync_course_ids = [c.id for c in db.query(Course).filter(Course.mode_organisation == 'elearning_sync').all()]
+        # Count modules linked to courses with elearning_sync modules
         modules_in_sync_courses = 0
         if sync_course_ids:
             modules_in_sync_courses = db.query(Module).filter(Module.course_id.in_(sync_course_ids)).count()
@@ -182,6 +182,7 @@ async def get_elearning_sync_stats(db: Session = Depends(get_db)) -> Dict[str, A
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
 
 @router.get("/test-api")
 async def test_api():
