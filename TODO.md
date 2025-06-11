@@ -13,4 +13,4 @@
 ##### Add frontend filtering
 - [ ] Custom inactivity date (frontend only -> does not affect activity status in the API that will send auto emails)
 - [ ] Add sort by First Name in participant view and not by last name
-- [ ] 
+- [ ] Allow Ascending/Descending in "sort by progress"

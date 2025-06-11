@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def main():
     try:
         # Get database parameters
-        host = os.getenv('DB_HOST', 'localhost')
+        host = os.getenv('DB_HOST', '192.168.254.24')
         port = os.getenv('DB_PORT', '5432')
         database = os.getenv('DB_NAME', 'dendreo_db')
         user = os.getenv('DB_USER', 'postgres')

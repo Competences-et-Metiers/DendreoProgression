@@ -44,7 +44,7 @@ npm install
 
 3. (Optional) Create a `.env` file to configure the API URL:
 ```bash
-REACT_APP_API_URL=http://localhost:8000/api
+REACT_APP_API_URL=http://192.168.254.24:8000/api
 ```
 
 ## Running the Application
@@ -54,7 +54,7 @@ REACT_APP_API_URL=http://localhost:8000/api
 npm start
 ```
 
-The application will open in your browser at `http://localhost:3000`.
+The application will open in your browser at `http://192.168.254.24:3000`.
 
 The page will reload when you make edits, and you'll see any lint errors in the console.
 

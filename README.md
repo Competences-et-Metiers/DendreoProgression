@@ -48,7 +48,7 @@ Frontend (React) ←→ Backend (FastAPI) ←→ PostgreSQL Database ←→ Dend
 3. **Configure environment variables:**
    Create a `.env` file with:
    ```bash
-   DATABASE_URL=postgresql://username:password@localhost:5432/dendreo_db
+   DATABASE_URL=postgresql://username:password@192.168.254.24:5432/dendreo_db
    DENDREO_API_KEY=your_api_key_here
    DENDREO_BASE_URL=https://pro.dendreo.com/competences_et_metiers/api
    ```
@@ -80,18 +80,18 @@ Frontend (React) ←→ Backend (FastAPI) ←→ PostgreSQL Database ←→ Dend
    npm start
    ```
 
-The application will open at `http://localhost:3000`
+The application will open at `http://192.168.254.24:3000`
 
 ### 3. Initial Data Sync
 
 1. **Sync data from Dendreo API:**
    ```bash
-   curl -X POST http://localhost:8000/api/sync/sync-all
+   curl -X POST http://192.168.254.24:8000/api/sync/sync-all
    ```
 
 2. **Or run a test sync first:**
    ```bash
-   curl -X POST http://localhost:8000/api/sync/sync-test
+   curl -X POST http://192.168.254.24:8000/api/sync/sync-test
    ```
 
 ## 📊 API Endpoints

@@ -54,7 +54,7 @@ if __name__ == "__main__":
     create_tables()
 
     print("\nStarting Dendreo Progression API...")
-    print("Server will run at http://localhost:8000")
+    print("Server will run at http://192.168.254.24:8000")
     print("Logs will appear below and be saved to logs/app.log")
     print("-" * 50 + "\n")
 
