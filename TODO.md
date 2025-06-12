@@ -1,3 +1,8 @@
+
+### HubSpot transaction migration‼️PRIORITY: HIGH
+- [ ] From existing participant database:
+	- [ ] Find all existing deals related to contact
+		- [ ] Save transaction ID
 ### HupSpot integration ‼️PRIORITY: HIGH
 
 - [ ] Add transaction of each participant per ADF
@@ -8,8 +13,12 @@
 ### Features
 
 - [ ] Clean up endpoints
-- [ ] Add progression view PER MODULES
+- [x] Add progression view PER MODULES
 - [ ] Add search bar
+- [ ] Make contacts clickable -> redirect to Dendreo contact page
+	- [ ] Make DB store contacts entreprise ID
+- [ ] Make ADF clickable -> Dendreo
+
 ##### Add frontend filtering
 - [ ] Custom inactivity date (frontend only -> does not affect activity status in the API that will send auto emails)
 - [ ] Add sort by First Name in participant view and not by last name
