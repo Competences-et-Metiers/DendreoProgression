@@ -3,5 +3,9 @@
 .vscode
 .obsidian
 
+*.pyc
+back/__pycache__/
+*.log
+
 
 frontend/node_modules
