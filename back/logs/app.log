@@ -19133,3 +19133,7 @@ WHERE modules.id_lam IN (%(id_lam_1_1)s) AND modules.mode_organisation = %(mode_
 2025-06-11 18:56:24,408 - app.models.database - INFO - Creating database tables...
 2025-06-11 18:56:24,581 - app.models.database - INFO - Database tables created successfully
 2025-06-11 18:56:25,543 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-12 10:03:10,299 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
+2025-06-12 10:03:10,312 - app.models.database - INFO - Creating database tables...
+2025-06-12 10:03:10,565 - app.models.database - INFO - Database tables created successfully
+2025-06-12 10:03:11,516 - app.services.dendreo_client - INFO - Initialized DendreoClient with base URL: https://pro.dendreo.com/competences_et_metiers/api
