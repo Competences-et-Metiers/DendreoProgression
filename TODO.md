@@ -4,6 +4,7 @@
 	 **Description:**
 	 Using these 2 properties that show up in the **GET** `laps.php` response
 	 `"c_url_transaction_hubspot"` and `"c_id_transaction_hubspot"`
+- [ ] Fix `participant_id` being incorrect
  - [ ] Add progression to transaction 
 	  **Description**
 	  Using transaction ID -> Update `progression_e_learning` field
