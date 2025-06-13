@@ -66,6 +66,7 @@ class ParticipantCourse(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     participant_id = Column(Integer, ForeignKey("participants.id"))
     course_id = Column(Integer, ForeignKey("courses.id"))
+    id_lap = Column(String, nullable=True)  # Dendreo enrollment ID (LAP)
 
     # Calculated fields
     overall_progression = Column(Float, default=0.0)
