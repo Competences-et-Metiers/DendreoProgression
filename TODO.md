@@ -1,17 +1,6 @@
 
-### HubSpot transaction migration‼️PRIORITY: HIGH
-- [ ] From existing participant database:
-	- [ ] Find all existing deals related to contact
-		- [ ] Save transaction ID
-### HupSpot integration ‼️PRIORITY: HIGH
 
-- [ ] Add transaction of each participant per ADF
-	 **Description:**
-	 Using these 2 properties that show up in the **GET** `laps.php` response
-	 `"c_url_transaction_hubspot"` and `"c_id_transaction_hubspot"`
- - [ ] Add progression to transaction 
-	  **Description**
-	  Using transaction ID -> Update `progression_e_learning` field
+### 
 ### Features
 
 - [ ] Clean up endpoints
@@ -28,3 +17,20 @@
 - [ ] Custom inactivity date (frontend only -> does not affect activity status in the API that will send auto emails)
 - [ ] Add sort by First Name in participant view and not by last name
 - [ ] Allow Ascending/Descending in "sort by progress"
+
+
+# Done
+
+### ~~HubSpot transaction migration‼️PRIORITY: HIGH~~
+- [x] From existing participant database:
+	- [x] Find all existing deals related to contact
+		- [x] Save transaction ID
+### ~~HupSpot integration ‼️PRIORITY: HIGH~~
+
+- [x] Add transaction of each participant per ADF
+	 **Description:**
+	 Using these 2 properties that show up in the **GET** `laps.php` response
+	 `"c_url_transaction_hubspot"` and `"c_id_transaction_hubspot"`
+ - [x] Add progression to transaction 
+	  **Description**
+	  Using transaction ID -> Update `progression_e_learning` field

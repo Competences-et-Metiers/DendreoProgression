@@ -3,8 +3,8 @@
 .vscode
 .obsidian
 
+__pycache__/
 *.pyc
-back/__pycache__/
 *.log
 
 

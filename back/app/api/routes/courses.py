@@ -5,6 +5,7 @@ from app.models.database import get_db
 from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData
 from app.models.schemas import CourseWithParticipants, ParticipantCourse as ParticipantCourseSchema
 from app.schemas.course import CourseResponse, ModuleResponse
+from app.services.cache_service import cache_service
 from sqlalchemy import func
 import logging
 
@@ -15,6 +16,13 @@ router = APIRouter()
 async def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get overall dashboard statistics"""
     try:
+        # Try to get from cache first
+        cached_stats = cache_service.get_dashboard_stats()
+        if cached_stats:
+            logger.info("🚀 Dashboard stats served from cache")
+            return cached_stats
+        
+        logger.info("📊 Computing dashboard stats from database")
         total_courses = db.query(Course).count()
         total_participants = db.query(Participant).count()
         total_modules = db.query(Module).count()
@@ -28,7 +36,7 @@ async def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
             ParticipantCourse.overall_progression >= 100
         ).count()
         
-        return {
+        stats = {
             "total_courses": total_courses,
             "total_participants": total_participants,
             "total_modules": total_modules,
@@ -38,6 +46,11 @@ async def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
             "completion_rate": round((completed_courses / total_participant_courses * 100), 2) if total_participant_courses > 0 else 0
         }
         
+        # Cache the result for 5 minutes
+        cache_service.set_dashboard_stats(stats, ttl=300)
+        
+        return stats
+        
     except Exception as e:
         logger.error(f"Error fetching dashboard stats: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch dashboard stats: {str(e)}")
@@ -46,6 +59,13 @@ async def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
 async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """Get all ADFs with their participants and e-learning module count"""
     try:
+        # Try to get from cache first
+        cached_courses = cache_service.get_courses_list()
+        if cached_courses:
+            logger.info("🚀 Courses list served from cache")
+            return cached_courses
+        
+        logger.info("📚 Computing courses list from database")
         # Group courses by ADF (id_action_formation)
         # Each ADF should appear only once, regardless of how many modules (id_lam) it contains
         adfs = db.query(Course.id_action_formation).distinct().all()
@@ -170,6 +190,9 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                 "created_at": adf_course.created_at.isoformat() if adf_course.created_at else None,
                 "updated_at": adf_course.updated_at.isoformat() if adf_course.updated_at else None
             })
+        
+        # Cache the result for 10 minutes
+        cache_service.set_courses_list(result, ttl=600)
         
         return result
         
@@ -311,25 +334,43 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
 async def get_participant_details(participant_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get detailed information about a specific participant"""
     try:
+        # Try to get from cache first
+        cached_details = cache_service.get_participant_details(participant_id)
+        if cached_details:
+            logger.info(f"🚀 Participant {participant_id} details served from cache")
+            return cached_details
+        
+        logger.info(f"👤 Computing participant {participant_id} details from database")
         participant = db.query(Participant).filter(Participant.id == participant_id).first()
         if not participant:
             raise HTTPException(status_code=404, detail="Participant not found")
         
-        # Get all courses for this participant
-        participant_courses = db.query(ParticipantCourse).filter(
+        # Get all unique ADFs for this participant (group by ADF to avoid duplicates)
+        participant_courses = db.query(ParticipantCourse).join(Course).filter(
             ParticipantCourse.participant_id == participant_id
         ).all()
         
-        courses_data = []
+        # Group by ADF to avoid duplicate courses
+        adf_groups = {}
         for pc in participant_courses:
             course = db.query(Course).filter(Course.id == pc.course_id).first()
-            if not course:
-                continue
+            if course and course.id_action_formation:
+                adf_id = course.id_action_formation
+                if adf_id not in adf_groups:
+                    adf_groups[adf_id] = {
+                        'course': course,
+                        'participant_course': pc
+                    }
+        
+        courses_data = []
+        for adf_id, adf_data in adf_groups.items():
+            course = adf_data['course']
+            pc = adf_data['participant_course']
             
             # Get modules for this participant in this ADF (not just this course)
             # Join by id_lam instead of course_id FK
             adf_lam_ids_details = db.query(Course.id_lam).filter(
-                Course.id_action_formation == course.id_action_formation
+                Course.id_action_formation == adf_id
             ).distinct().all()
             
             if adf_lam_ids_details:
@@ -344,17 +385,42 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
             
             completed_modules = sum(1 for module in modules if module.lms_progression >= 100)
             
+            # Calculate real progression: average of all module progressions
+            if modules:
+                total_progression = sum(module.lms_progression for module in modules)
+                calculated_progression = total_progression / len(modules)
+            else:
+                calculated_progression = 0.0
+            
+            # Get last activity from modules
+            last_activity = None
+            if modules:
+                last_activities = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
+                if last_activities:
+                    last_activity = max(last_activities).isoformat()
+            
             courses_data.append({
                 "course_id": course.id,
                 "course_title": course.intitule,
-                "progression": pc.overall_progression,
+                "progression": calculated_progression,
                 "activity_status": pc.activity_status,
-                "last_activity": pc.last_activity.isoformat() if pc.last_activity else None,
+                "last_activity": last_activity,
                 "completed_modules": completed_modules,
-                "total_modules": len(modules)
+                "total_modules": len(modules),
+                "modules": [
+                    {
+                        "id": module.id,
+                        "id_lmp": module.id_lmp,
+                        "id_lam": module.id_lam,
+                        "intitule": module.intitule,
+                        "progression": module.lms_progression,
+                        "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
+                        "mode_organisation": module.mode_organisation
+                    } for module in modules
+                ]
             })
         
-        return {
+        result = {
             "participant": {
                 "id": participant.id,
                 "id_participant": participant.id_participant,
@@ -370,6 +436,11 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                 "average_progression": sum(c["progression"] for c in courses_data) / len(courses_data) if courses_data else 0
             }
         }
+        
+        # Cache the result for 5 minutes
+        cache_service.set_participant_details(participant_id, result, ttl=300)
+        
+        return result
         
     except HTTPException:
         raise

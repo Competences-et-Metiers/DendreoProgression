@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiService } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
+import { useCourseParticipants } from '../hooks/useQuery';
 import { 
   ArrowLeft, 
   Users, 
@@ -24,32 +24,18 @@ import {
 const CourseDetail = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const [courseData, setCourseData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
   const [filterBy, setFilterBy] = useState('all');
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
-
-  useEffect(() => {
-    loadCourseData();
-  }, [courseId]);
-
-  const loadCourseData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const data = await apiService.getCourseParticipants(courseId);
-      setCourseData(data);
-    } catch (err) {
-      setError('Failed to load course data: ' + err.message);
-      console.error('Course detail error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+  // Use React Query hook for data fetching with caching
+  const { 
+    data: courseData, 
+    isLoading: loading, 
+    error,
+    refetch
+  } = useCourseParticipants(courseId);
 
   const getFilteredAndSortedParticipants = () => {
     if (!courseData?.participants) return [];
@@ -165,9 +151,9 @@ const CourseDetail = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-gray-600 mb-4">{error.message || 'Failed to load course data'}</p>
           <button 
-            onClick={loadCourseData}
+            onClick={refetch}
             className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 mr-2"
           >
             Retry

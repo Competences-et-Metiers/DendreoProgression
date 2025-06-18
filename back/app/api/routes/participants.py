@@ -4,7 +4,10 @@ from typing import List, Optional
 from app.models.database import get_db
 from app.models.models import Participant, ParticipantCourse, Course
 from app.models.schemas import ParticipantWithProgress, ParticipantCourse as ParticipantCourseSchema
+from app.services.cache_service import cache_service
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 def calculate_activity_status(participant_course: ParticipantCourse, db: Session = None) -> str:
@@ -62,15 +65,24 @@ async def get_participants(
 ):
     """Get all participants with their course progress"""
     try:
+        # For basic requests without filters, try cache first
+        if skip == 0 and limit == 100 and not email and not company:
+            cached_participants = cache_service.get_participants_list()
+            if cached_participants:
+                logger.info("🚀 Participants list served from cache")
+                return cached_participants
+            logger.info("👥 Computing participants list from database")
+        
         query = db.query(Participant).options(
-            joinedload(Participant.participant_courses).joinedload(ParticipantCourse.course)
+            joinedload(Participant.courses).joinedload(ParticipantCourse.course)
         )
 
         # Apply filters
         if email:
             query = query.filter(Participant.email.ilike(f"%{email}%"))
-        if company:
-            query = query.filter(Participant.company.ilike(f"%{company}%"))
+        # Note: company field doesn't exist in our model, so removing this filter
+        # if company:
+        #     query = query.filter(Participant.company.ilike(f"%{company}%"))
 
         # Apply pagination
         participants = query.offset(skip).limit(limit).all()
@@ -81,16 +93,16 @@ async def get_participants(
             participant_data = ParticipantWithProgress.model_validate(participant)
 
             # Calculate overall progression and counts
-            if participant.participant_courses:
-                progressions = [pc.overall_progression for pc in participant.participant_courses if pc.overall_progression is not None]
+            if participant.courses:
+                progressions = [pc.overall_progression for pc in participant.courses if pc.overall_progression is not None]
                 participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
-                participant_data.total_courses = len(participant.participant_courses)
+                participant_data.total_courses = len(participant.courses)
 
                 # Update activity statuses and count them
                 completed_courses = 0
                 active_courses = 0
 
-                for pc in participant.participant_courses:
+                for pc in participant.courses:
                     status = calculate_activity_status(pc, db)
                     pc.activity_status = status  # Update the status
                     if status == 'completed':
@@ -100,9 +112,13 @@ async def get_participants(
 
                 participant_data.completed_courses = completed_courses
                 participant_data.active_courses = active_courses
-                participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.participant_courses]
+                participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.courses]
 
             result.append(participant_data)
+
+        # Cache the result if it's the default query
+        if skip == 0 and limit == 100 and not email and not company:
+            cache_service.set_participants_list(result, ttl=300)
 
         return result
 
@@ -114,7 +130,7 @@ async def get_participant(participant_id: int, db: Session = Depends(get_db)):
     """Get a specific participant with their course progress"""
     try:
         participant = db.query(Participant).options(
-            joinedload(Participant.participant_courses).joinedload(ParticipantCourse.course)
+            joinedload(Participant.courses).joinedload(ParticipantCourse.course)
         ).filter(Participant.id == participant_id).first()
 
         if not participant:
@@ -123,16 +139,16 @@ async def get_participant(participant_id: int, db: Session = Depends(get_db)):
         # Convert to response model with calculated fields
         participant_data = ParticipantWithProgress.model_validate(participant)
 
-        if participant.participant_courses:
-            progressions = [pc.overall_progression for pc in participant.participant_courses if pc.overall_progression is not None]
+        if participant.courses:
+            progressions = [pc.overall_progression for pc in participant.courses if pc.overall_progression is not None]
             participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
-            participant_data.total_courses = len(participant.participant_courses)
+            participant_data.total_courses = len(participant.courses)
 
             # Update activity statuses and count them
             completed_courses = 0
             active_courses = 0
 
-            for pc in participant.participant_courses:
+            for pc in participant.courses:
                 status = calculate_activity_status(pc, db)
                 pc.activity_status = status  # Update the status
                 if status == 'completed':
@@ -142,7 +158,7 @@ async def get_participant(participant_id: int, db: Session = Depends(get_db)):
 
             participant_data.completed_courses = completed_courses
             participant_data.active_courses = active_courses
-            participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.participant_courses]
+            participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.courses]
 
         return participant_data
 
@@ -156,7 +172,7 @@ async def get_participant_by_email(email: str, db: Session = Depends(get_db)):
     """Get a participant by email"""
     try:
         participant = db.query(Participant).options(
-            joinedload(Participant.participant_courses).joinedload(ParticipantCourse.course)
+            joinedload(Participant.courses).joinedload(ParticipantCourse.course)
         ).filter(Participant.email == email).first()
 
         if not participant:
@@ -165,16 +181,16 @@ async def get_participant_by_email(email: str, db: Session = Depends(get_db)):
         # Convert to response model with calculated fields
         participant_data = ParticipantWithProgress.model_validate(participant)
 
-        if participant.participant_courses:
-            progressions = [pc.overall_progression for pc in participant.participant_courses if pc.overall_progression is not None]
+        if participant.courses:
+            progressions = [pc.overall_progression for pc in participant.courses if pc.overall_progression is not None]
             participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
-            participant_data.total_courses = len(participant.participant_courses)
+            participant_data.total_courses = len(participant.courses)
 
             # Update activity statuses and count them
             completed_courses = 0
             active_courses = 0
 
-            for pc in participant.participant_courses:
+            for pc in participant.courses:
                 status = calculate_activity_status(pc, db)
                 pc.activity_status = status  # Update the status
                 if status == 'completed':
@@ -184,7 +200,7 @@ async def get_participant_by_email(email: str, db: Session = Depends(get_db)):
 
             participant_data.completed_courses = completed_courses
             participant_data.active_courses = active_courses
-            participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.participant_courses]
+            participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.courses]
 
         return participant_data
 
