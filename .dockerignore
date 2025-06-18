@@ -1,0 +1,88 @@
+# Git
+.git
+.gitignore
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Environment
+.env*
+docker.env.example
+
+# Documentation
+*.md
+docs/
+
+# Node modules
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# Backup files
+*.bak
+*.backup
+*.sql
+
+# Test files
+test/
+tests/
+*_test.py
+*_test.js
+
+# Coverage
+coverage/
+.coverage
+.nyc_output
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Runtime
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
