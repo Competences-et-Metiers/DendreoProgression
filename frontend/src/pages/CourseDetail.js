@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiService } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
+import { useCourseParticipants } from '../hooks/useQuery';
 import { 
   ArrowLeft, 
   Users, 
@@ -17,38 +17,25 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
-  PlayCircle
+  PlayCircle,
+  ExternalLink
 } from 'lucide-react';
 
 const CourseDetail = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const [courseData, setCourseData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
   const [filterBy, setFilterBy] = useState('all');
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
-
-  useEffect(() => {
-    loadCourseData();
-  }, [courseId]);
-
-  const loadCourseData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const data = await apiService.getCourseParticipants(courseId);
-      setCourseData(data);
-    } catch (err) {
-      setError('Failed to load course data: ' + err.message);
-      console.error('Course detail error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+  // Use React Query hook for data fetching with caching
+  const { 
+    data: courseData, 
+    isLoading: loading, 
+    error,
+    refetch
+  } = useCourseParticipants(courseId);
 
   const getFilteredAndSortedParticipants = () => {
     if (!courseData?.participants) return [];
@@ -61,7 +48,9 @@ const CourseDetail = () => {
       filtered = filtered.filter(participant => 
         participant.nom.toLowerCase().includes(search) ||
         participant.prenom.toLowerCase().includes(search) ||
-        participant.email.toLowerCase().includes(search)
+        participant.email.toLowerCase().includes(search) ||
+        (participant.hubspot_data?.c_id_transaction_hubspot && 
+         participant.hubspot_data.c_id_transaction_hubspot.toLowerCase().includes(search))
       );
     }
     
@@ -72,6 +61,10 @@ const CourseDetail = () => {
       filtered = filtered.filter(p => p.overall_progression > 0 && p.overall_progression < 100);
     } else if (filterBy === 'not-started') {
       filtered = filtered.filter(p => p.overall_progression === 0);
+    } else if (filterBy === 'with-hubspot') {
+      filtered = filtered.filter(p => p.hubspot_data?.c_id_transaction_hubspot);
+    } else if (filterBy === 'without-hubspot') {
+      filtered = filtered.filter(p => !p.hubspot_data?.c_id_transaction_hubspot);
     }
     
     // Sort participants
@@ -88,6 +81,10 @@ const CourseDetail = () => {
           if (!a.last_activity) return 1;
           if (!b.last_activity) return -1;
           return new Date(b.last_activity) - new Date(a.last_activity);
+        case 'hubspot':
+          const aHasHubspot = a.hubspot_data?.c_id_transaction_hubspot ? 1 : 0;
+          const bHasHubspot = b.hubspot_data?.c_id_transaction_hubspot ? 1 : 0;
+          return bHasHubspot - aHasHubspot;
         default:
           return 0;
       }
@@ -107,6 +104,19 @@ const CourseDetail = () => {
       newExpanded.add(participantId);
     }
     setExpandedParticipants(newExpanded);
+  };
+
+  const getHubSpotDealUrl = (transactionId) => {
+    if (!transactionId) return null;
+    // Based on the provided URL pattern: https://app-eu1.hubspot.com/contacts/25868618/record/0-3/{deal_id}
+    return `https://app-eu1.hubspot.com/contacts/25868618/record/0-3/${transactionId}`;
+  };
+
+  const openHubSpotDeal = (transactionId, participantName) => {
+    const url = getHubSpotDealUrl(transactionId);
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const getProgressBadge = (progression) => {
@@ -141,9 +151,9 @@ const CourseDetail = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-gray-600 mb-4">{error.message || 'Failed to load course data'}</p>
           <button 
-            onClick={loadCourseData}
+            onClick={refetch}
             className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 mr-2"
           >
             Retry
@@ -188,7 +198,7 @@ const CourseDetail = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Course Summary */}
         {courseData?.summary && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="flex items-center">
                 <div className="p-3 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
@@ -222,6 +232,20 @@ const CourseDetail = () => {
                   <p className="text-sm font-medium text-gray-600">Average Progress</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {courseData.summary.average_progression.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-orange-50 text-orange-600 border border-orange-200">
+                  <ExternalLink size={24} />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">HubSpot Linked</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {courseData.participants?.filter(p => p.hubspot_data?.c_id_transaction_hubspot).length || 0}
                   </p>
                 </div>
               </div>
@@ -267,6 +291,8 @@ const CourseDetail = () => {
                     <option value="completed">Completed</option>
                     <option value="in-progress">In Progress</option>
                     <option value="not-started">Not Started</option>
+                    <option value="with-hubspot">With HubSpot</option>
+                    <option value="without-hubspot">Without HubSpot</option>
                   </select>
                 </div>
                 
@@ -280,6 +306,7 @@ const CourseDetail = () => {
                   <option value="name">Sort by Name</option>
                   <option value="modules">Sort by Modules</option>
                   <option value="activity">Sort by Activity</option>
+                  <option value="hubspot">Sort by HubSpot</option>
                 </select>
               </div>
             </div>
@@ -318,6 +345,31 @@ const CourseDetail = () => {
                               <Mail size={12} className="mr-1" />
                               {participant.email}
                             </div>
+                            {/* HubSpot Transaction Info */}
+                            {participant.hubspot_data && participant.hubspot_data.c_id_transaction_hubspot && (
+                              <div className="flex items-center text-sm text-blue-600 mt-1">
+                                <ExternalLink size={12} className="mr-1" />
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openHubSpotDeal(
+                                      participant.hubspot_data.c_id_transaction_hubspot,
+                                      `${participant.prenom} ${participant.nom}`
+                                    );
+                                  }}
+                                  className="hover:underline focus:outline-none focus:underline"
+                                  title="Open HubSpot deal"
+                                >
+                                  HubSpot: {participant.hubspot_data.c_id_transaction_hubspot}
+                                </button>
+                              </div>
+                            )}
+                            {/* Show if no HubSpot data */}
+                            {(!participant.hubspot_data || !participant.hubspot_data.c_id_transaction_hubspot) && (
+                              <div className="flex items-center text-sm text-gray-400 mt-1">
+                                <span>No HubSpot deal linked</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">

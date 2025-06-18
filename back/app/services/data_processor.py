@@ -45,7 +45,7 @@ class DataProcessor:
                     # Only process participant-course relationship if module was processed
                     if module:
                         # Process participant-course relationship
-                        self._process_participant_course(participant.id, course.id, stats)
+                        self._process_participant_course(participant.id, course.id, stats, record.get('id_lap'))
 
                     # Commit every 100 records to prevent memory issues
                     if i % 100 == 99:
@@ -179,8 +179,8 @@ class DataProcessor:
 
         return module
 
-    def _process_participant_course(self, participant_id: int, course_id: int, stats: Dict[str, int]):
-        """Process participant-course relationship"""
+    def _process_participant_course(self, participant_id: int, course_id: int, stats: Dict[str, int], id_lap: str = None):
+        """Process participant-course relationship, optionally setting id_lap"""
 
         # Find existing relationship
         pc = self.db.query(ParticipantCourse).filter(
@@ -194,11 +194,14 @@ class DataProcessor:
                 participant_id=participant_id,
                 course_id=course_id,
                 overall_progression=0.0,
-                activity_status='active'
+                activity_status='active',
+                id_lap=id_lap
             )
             self.db.add(pc)
             stats['participant_courses_created'] += 1
             logger.debug(f"Created participant-course relationship")
         else:
             # Update will happen later when we calculate progressions
+            if id_lap:
+                pc.id_lap = id_lap
             stats['participant_courses_updated'] += 1

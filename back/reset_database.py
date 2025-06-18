@@ -3,6 +3,8 @@
 Database Reset Script
 Drops all tables and recreates them with fresh schema.
 USE WITH CAUTION - This will delete ALL data!
+
+NOTE: Run this script after schema changes (e.g., adding id_lap to ParticipantCourse) to apply the latest schema to your database.
 """
 
 import sys

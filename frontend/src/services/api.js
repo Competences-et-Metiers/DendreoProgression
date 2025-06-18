@@ -29,6 +29,11 @@ export const apiService = {
   },
 
   // Participants
+  async getAllParticipants() {
+    const response = await api.get('/participants/');
+    return response.data;
+  },
+
   async getParticipantDetails(participantId) {
     const response = await api.get(`/courses/participants/${participantId}`);
     return response.data;

@@ -1,55 +1,65 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiService } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import StatCard from '../components/StatCard';
 import ProgressBar from '../components/ProgressBar';
+import CacheStatus from '../components/CacheStatus';
+import { useDashboardStats, useCourses, usePrefetchQueries } from '../hooks/useQuery';
 import { 
   BookOpen, 
   Users, 
   Target, 
   TrendingUp, 
   Calendar,
-  Clock,
+  RefreshCw,
   ChevronRight,
   Filter
 } from 'lucide-react';
 
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [sortBy, setSortBy] = useState('progression');
   const [filterBy, setFilterBy] = useState('all');
   const navigate = useNavigate();
+  
+  // Use React Query hooks for data fetching with caching
+  const { 
+    data: stats, 
+    isLoading: statsLoading, 
+    error: statsError,
+    refetch: refetchStats,
+    isFetching: statsRefetching
+  } = useDashboardStats();
+  
+  const { 
+    data: courses = [], 
+    isLoading: coursesLoading, 
+    error: coursesError,
+    refetch: refetchCourses,
+    isFetching: coursesRefetching
+  } = useCourses();
+  
+  const { prefetchParticipants, prefetchCourseParticipants } = usePrefetchQueries();
+  
+  // Combined loading and error states
+  const loading = statsLoading || coursesLoading;
+  const error = statsError || coursesError;
+  const isRefetching = statsRefetching || coursesRefetching;
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const [statsData, coursesData] = await Promise.all([
-        apiService.getDashboardStats(),
-        apiService.getAllCourses()
-      ]);
-      
-      setStats(statsData);
-      setCourses(coursesData);
-    } catch (err) {
-      setError('Failed to load dashboard data: ' + err.message);
-      console.error('Dashboard error:', err);
-    } finally {
-      setLoading(false);
-    }
+  const handleRefresh = () => {
+    refetchStats();
+    refetchCourses();
   };
 
   const handleCourseClick = (courseId) => {
+    // Prefetch course participants data for faster loading
+    prefetchCourseParticipants(courseId);
     navigate(`/courses/${courseId}`);
+  };
+
+  const handleViewParticipants = () => {
+    // Prefetch participants data for faster loading
+    prefetchParticipants();
+    navigate('/participants');
   };
 
   const getFilteredAndSortedCourses = () => {
@@ -99,9 +109,9 @@ const Dashboard = () => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-gray-600 mb-4">{error.message || 'Failed to load dashboard data'}</p>
           <button 
-            onClick={loadData}
+            onClick={handleRefresh}
             className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600"
           >
             Retry
@@ -118,8 +128,32 @@ const Dashboard = () => {
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-2xl font-bold text-gray-900">Dendreo Course Dashboard</h1>
-          <p className="text-gray-600 mt-1">Track course progress and participant engagement</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Dendreo Course Dashboard</h1>
+              <p className="text-gray-600 mt-1">Track course progress and participant engagement</p>
+            </div>
+            
+            {/* Navigation Menu */}
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleRefresh}
+                disabled={isRefetching}
+                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                title="Refresh data"
+              >
+                <RefreshCw size={16} className={`mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
+                {isRefetching ? 'Refreshing...' : 'Refresh'}
+              </button>
+              <button
+                onClick={handleViewParticipants}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                <Users size={16} className="mr-2" />
+                View Participants
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -151,6 +185,13 @@ const Dashboard = () => {
               icon={TrendingUp}
               color="indigo"
             />
+          </div>
+        )}
+
+        {/* Cache Status - Only show in development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mb-8">
+            <CacheStatus />
           </div>
         )}
 
