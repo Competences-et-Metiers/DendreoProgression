@@ -13,37 +13,35 @@ RUN apt-get update && apt-get install -y \
     curl \
     git \
     vim \
-    htop \
     postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies with development packages
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir \
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional development dependencies
+RUN pip install --no-cache-dir \
     pytest \
     pytest-asyncio \
+    pytest-cov \
     black \
     flake8 \
-    mypy \
-    pre-commit \
-    ipython \
-    jupyter
-
-# Copy application code
-COPY . .
+    isort \
+    mypy
 
 # Create logs directory
 RUN mkdir -p logs
 
 # Create a development startup script
 RUN echo '#!/bin/bash\n\
-echo "=== Dendreo Development Environment ==="\n\
+echo "=== Dendreo Backend Development Environment ==="\n\
 echo "Branch: ${GIT_BRANCH}"\n\
 echo "Environment: development"\n\
-echo "========================================"\n\
+echo "Python Version: $(python --version)"\n\
+echo "==============================================="\n\
 echo "Waiting for database to be ready..."\n\
 python -c "from app.models.database import engine; from sqlalchemy import text; import time; import sys; \
 attempts = 0; \
@@ -60,18 +58,21 @@ while attempts < 30: \
 else: \
     print('\''Database connection failed after 30 attempts'\''); \
     sys.exit(1)"\n\
-echo "Creating/updating database tables..."\n\
+echo "Creating database tables..."\n\
 python -c "from app.models.database import create_tables; create_tables()"\n\
 echo "Starting development server with hot reload..."\n\
 exec "$@"\n\
 ' > /app/start-dev.sh && chmod +x /app/start-dev.sh
 
+# Copy application code (will be overridden by volume mount in dev)
+COPY . .
+
 # Expose port
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
-# Default development command (can be overridden)
+# Development command with hot reload
 CMD ["/app/start-dev.sh", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "debug"]

@@ -15,9 +15,10 @@ docker.env.example
 *.md
 docs/
 
-# Node modules
+# Node modules and package files
 node_modules/
 npm-debug.log*
+package-lock.json
 
 # Python
 __pycache__/
@@ -40,6 +41,8 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+venv/
+.venv/
 
 # IDE
 .vscode/
@@ -47,6 +50,7 @@ wheels/
 *.swp
 *.swo
 *~
+.obsidian/
 
 # OS
 .DS_Store
@@ -54,6 +58,7 @@ Thumbs.db
 
 # Logs
 logs/
+dev-logs/
 *.log
 
 # Temporary files
@@ -86,3 +91,23 @@ coverage/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Large data files
+*.xlsx
+*.json
+adfResponse.json
+lmpsExample.json
+lapsExample.json
+import*.xlsx
+
+# Database files
+database/
+backups/
+
+# Nginx config (not needed in build context)
+nginx/
+
+# Deployment files
+deploy.sh
+DEPLOYMENT*.md
+DOCKER*.md

@@ -1,29 +1,30 @@
 version: '3.8'
 
 services:
-  # Development Backend - builds from dev branch
+  # Development Backend - builds from local files
   backend:
     build:
-      context: https://github.com/YOUR_USERNAME/DendreoProgression.git#dev:back
+      context: ./back
       dockerfile: Dockerfile.dev
       args:
         - BRANCH=dev
     environment:
+      DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
       APP_ENV: development
       LOG_LEVEL: DEBUG
       PYTHONUNBUFFERED: 1
     volumes:
       # Mount logs to host for easy debugging
       - ./dev-logs:/app/logs
-      # Optional: Mount source code for hot reload (if developing locally)
-      # - ./back:/app
+      # Mount source code for hot reload
+      - ./back:/app
     restart: "no"  # Don't auto-restart in development
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
 
-  # Development Frontend - builds from dev branch
+  # Development Frontend - builds from local files
   frontend:
     build:
-      context: https://github.com/YOUR_USERNAME/DendreoProgression.git#dev:frontend
+      context: ./frontend
       dockerfile: Dockerfile.dev
       args:
         - BRANCH=dev
@@ -34,9 +35,9 @@ services:
       FAST_REFRESH: true
       CHOKIDAR_USEPOLLING: true
     volumes:
-      # Optional: Mount source for hot reload
-      # - ./frontend/src:/app/src
-      # - ./frontend/public:/app/public
+      # Mount source for hot reload
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
     restart: "no"
     # Use development server instead of nginx
     command: npm start

@@ -1,0 +1,40 @@
+FROM node:18-alpine
+
+# Set build argument for branch tracking
+ARG BRANCH=dev
+ENV GIT_BRANCH=${BRANCH}
+
+WORKDIR /app
+
+# Install development tools
+RUN apk add --no-cache git curl vim
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Create development startup script
+RUN echo '#!/bin/sh\n\
+echo "=== Dendreo Frontend Development Environment ==="\n\
+echo "Branch: ${GIT_BRANCH}"\n\
+echo "Environment: development"\n\
+echo "Node Version: $(node --version)"\n\
+echo "==============================================="\n\
+echo "Starting React development server..."\n\
+exec "$@"\n\
+' > /app/start-dev.sh && chmod +x /app/start-dev.sh
+
+# Expose port for development server
+EXPOSE 3000
+
+# Health check for development server
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:3000 || exit 1
+
+# Default development command
+CMD ["/app/start-dev.sh", "npm", "start"] 

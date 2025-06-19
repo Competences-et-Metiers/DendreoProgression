@@ -1,478 +1,457 @@
 #!/bin/bash
 
-# Dendreo Progression Docker Deployment Script
-# This script helps deploy the application using Docker Compose for dev and prod environments
+# Dendreo Progression Multi-Environment Deployment Script
+# Enhanced version with development and production support
 
-set -e  # Exit on any error
+set -e
 
-# Color codes for output
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
-# Default environment
-ENVIRONMENT="dev"
+# Configuration
+PROJECT_NAME="dendreo-progression"
+DEFAULT_ENV="dev"
+DOCKER_COMPOSE_FILES="docker-compose.yml"
 
-# Function to print colored output
-print_status() {
+# Functions
+log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-print_success() {
+log_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-print_warning() {
+log_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-print_error() {
+log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-print_env() {
-    if [[ $ENVIRONMENT == "prod" ]]; then
-        echo -e "${PURPLE}[PRODUCTION]${NC} $1"
-    else
-        echo -e "${YELLOW}[DEVELOPMENT]${NC} $1"
-    fi
+show_help() {
+    cat << EOF
+Dendreo Progression Multi-Environment Deployment Script
+
+Usage: $0 [OPTIONS] COMMAND
+
+COMMANDS:
+    start       Start the application (default: development)
+    stop        Stop the application
+    restart     Restart the application
+    rebuild     Rebuild and restart the application
+    logs        Show application logs
+    status      Show running containers status
+    clean       Clean up containers and volumes
+    backup      Backup database
+    restore     Restore database from backup
+    switch      Switch between environments
+    init        Initialize environment
+
+ENVIRONMENT OPTIONS:
+    --dev       Use development environment (default)
+    --prod      Use production environment
+
+OTHER OPTIONS:
+    --build     Force rebuild containers
+    --pull      Pull latest images before starting
+    --detach    Run in detached mode (background)
+    --follow    Follow logs in real-time
+    --help      Show this help message
+
+EXAMPLES:
+    $0 start                    # Start development environment
+    $0 --prod start             # Start production environment
+    $0 --dev restart --build    # Restart dev with rebuild
+    $0 logs --follow            # Follow logs in real-time
+    $0 backup my-backup         # Create database backup
+    $0 clean                    # Clean up everything
+
+ENVIRONMENT VARIABLES:
+    Set these in .env.dev (development) or .env.prod (production)
+    - POSTGRES_PASSWORD
+    - DENDREO_API_KEY
+    - HUBSPOT_API_KEY
+EOF
 }
 
-# Function to parse command line arguments
-parse_args() {
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --env|--environment)
-                ENVIRONMENT="$2"
-                shift 2
+detect_environment() {
+    local env_arg=""
+    local compose_files="$DOCKER_COMPOSE_FILES"
+    
+    # Check for environment flags
+    for arg in "$@"; do
+        case $arg in
+            --dev)
+                env_arg="dev"
+                compose_files="$DOCKER_COMPOSE_FILES -f docker-compose.dev.yml"
                 ;;
-            --prod|--production)
-                ENVIRONMENT="prod"
-                shift
-                ;;
-            --dev|--development)
-                ENVIRONMENT="dev"
-                shift
-                ;;
-            *)
-                COMMAND="$1"
-                shift
+            --prod)
+                env_arg="prod"
+                compose_files="$DOCKER_COMPOSE_FILES -f docker-compose.prod.yml"
                 ;;
         esac
     done
+    
+    # Use default if no environment specified
+    if [ -z "$env_arg" ]; then
+        env_arg="$DEFAULT_ENV"
+        compose_files="$DOCKER_COMPOSE_FILES -f docker-compose.dev.yml"
+    fi
+    
+    echo "$env_arg|$compose_files"
+}
 
-    # Validate environment
-    if [[ "$ENVIRONMENT" != "dev" && "$ENVIRONMENT" != "prod" ]]; then
-        print_error "Invalid environment: $ENVIRONMENT. Use 'dev' or 'prod'"
+check_prerequisites() {
+    local env=$1
+    
+    log_info "Checking prerequisites for $env environment..."
+    
+    # Check Docker and Docker Compose
+    if ! command -v docker >/dev/null 2>&1; then
+        log_error "Docker is not installed"
         exit 1
     fi
-}
-
-# Function to set environment-specific variables
-setup_environment() {
-    print_env "Setting up $ENVIRONMENT environment"
     
-    if [[ $ENVIRONMENT == "prod" ]]; then
-        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.prod.yml"
-        ENV_FILE="env.prod.example"
-        ENV_TARGET=".env.prod"
-        NETWORK_NAME="dendreo_prod_network"
-        DB_PORT="5432"
-        FRONTEND_PORT="80"  # nginx in production
-        BACKEND_PORT="8000"
-    else
-        COMPOSE_FILES="-f docker-compose.yml -f docker-compose.dev.yml"
-        ENV_FILE="env.dev.example"
-        ENV_TARGET=".env.dev"
-        NETWORK_NAME="dendreo_dev_network"
-        DB_PORT="5433"
-        FRONTEND_PORT="3000"
-        BACKEND_PORT="8000"
-    fi
-
-    DOCKER_COMPOSE="docker-compose $COMPOSE_FILES"
-}
-
-# Function to check if Docker is running
-check_docker() {
-    if ! docker info > /dev/null 2>&1; then
-        print_error "Docker is not running. Please start Docker and try again."
+    if ! docker compose version >/dev/null 2>&1; then
+        log_error "Docker Compose is not available"
         exit 1
     fi
-    print_success "Docker is running"
-}
-
-# Function to check if docker-compose is available
-check_docker_compose() {
-    if ! command -v docker-compose &> /dev/null; then
-        if ! docker compose version &> /dev/null; then
-            print_error "Neither docker-compose nor 'docker compose' is available. Please install Docker Compose."
-            exit 1
-        else
-            DOCKER_COMPOSE="docker compose $COMPOSE_FILES"
-        fi
-    else
-        DOCKER_COMPOSE="docker-compose $COMPOSE_FILES"
-    fi
-    print_success "Docker Compose is available"
-}
-
-# Function to setup environment file
-setup_env() {
-    if [[ ! -f $ENV_TARGET ]]; then
-        if [[ -f $ENV_FILE ]]; then
-            print_warning "$ENV_TARGET file not found. Creating from $ENV_FILE..."
-            cp $ENV_FILE $ENV_TARGET
-            print_warning "Please edit $ENV_TARGET file with your actual configuration before continuing."
-            
-            if [[ $ENVIRONMENT == "prod" ]]; then
-                print_warning "IMPORTANT: Update GitHub repository URL in $ENV_TARGET"
-                print_warning "IMPORTANT: Use secure passwords and API keys for production"
-            fi
-            
-            read -p "Press Enter after you've updated the $ENV_TARGET file..."
-        else
-            print_error "$ENV_TARGET file not found and no example file available."
-            exit 1
-        fi
-    else
-        print_success "$ENV_TARGET file found"
+    
+    # Check environment file
+    local env_file=".env.$env"
+    if [ "$env" = "dev" ]; then
+        env_file=".env.dev"
+    elif [ "$env" = "prod" ]; then
+        env_file=".env.prod"
     fi
     
-    # Export environment variables
-    export $(grep -v '^#' $ENV_TARGET | xargs)
-}
-
-# Function to create necessary directories
-create_directories() {
-    print_status "Creating necessary directories for $ENVIRONMENT..."
-    mkdir -p database/init
-    mkdir -p database/dev-data
-    mkdir -p nginx/ssl
-    
-    if [[ $ENVIRONMENT == "dev" ]]; then
-        mkdir -p dev-logs
-    fi
-    
-    print_success "Directories created"
-}
-
-# Function to validate GitHub repository URL
-validate_github_repo() {
-    if [[ $ENVIRONMENT == "dev" || $ENVIRONMENT == "prod" ]]; then
-        print_status "Validating GitHub repository access..."
+    if [ ! -f "$env_file" ]; then
+        log_warning "Environment file $env_file not found"
+        log_info "Please copy ${env_file}.example to $env_file and configure it"
         
-        # Check if the repository URL contains placeholder
-        if grep -q "YOUR_USERNAME" $ENV_TARGET; then
-            print_error "Please update the GitHub repository URL in $ENV_TARGET"
-            print_error "Replace YOUR_USERNAME with your actual GitHub username"
-            exit 1
+        if [ -f "${env_file}.example" ]; then
+            log_info "Example file found. Copy it with: cp ${env_file}.example $env_file"
         fi
-        
-        print_success "GitHub repository configuration validated"
+    fi
+    
+    log_success "Prerequisites check completed"
+}
+
+start_application() {
+    local env=$1
+    local compose_files=$2
+    local build_flag=""
+    local pull_flag=""
+    local detach_flag="-d"
+    
+    # Parse additional flags
+    for arg in "${@:3}"; do
+        case $arg in
+            --build)
+                build_flag="--build"
+                ;;
+            --pull)
+                pull_flag="--pull always"
+                ;;
+            --no-detach)
+                detach_flag=""
+                ;;
+        esac
+    done
+    
+    log_info "Starting $env environment..."
+    
+    # Set environment file
+    local env_file=".env.$env"
+    export COMPOSE_FILE="$compose_files"
+    
+    if [ -f "$env_file" ]; then
+        export $(cat "$env_file" | grep -v '^#' | xargs)
+        log_success "Loaded environment variables from $env_file"
+    fi
+    
+    # Start services
+    docker compose $compose_files up $detach_flag $build_flag $pull_flag
+    
+    if [ -n "$detach_flag" ]; then
+        log_success "$env environment started successfully!"
+        log_info "Access the application at:"
+        if [ "$env" = "dev" ]; then
+            log_info "  Frontend: http://localhost:3000"
+            log_info "  Backend API: http://localhost:8000"
+            log_info "  Database: localhost:5433"
+        else
+            log_info "  Application: http://localhost"
+            log_info "  Database: localhost:5432"
+        fi
     fi
 }
 
-# Function to build and start containers
-deploy() {
-    print_env "Building and starting containers for $ENVIRONMENT environment..."
+stop_application() {
+    local compose_files=$1
     
-    # Pull latest base images
-    print_status "Pulling latest base images..."
-    $DOCKER_COMPOSE pull postgres nginx 2>/dev/null || true
-    
-    # Build custom images
-    print_status "Building custom images from GitHub repositories..."
-    $DOCKER_COMPOSE build --no-cache
-    
-    # Start containers
-    print_status "Starting containers..."
-    $DOCKER_COMPOSE up -d
-    
-    # Wait for services to be healthy
-    print_status "Waiting for services to be healthy..."
-    
-    # Wait for PostgreSQL
-    print_status "Waiting for PostgreSQL to be ready..."
-    timeout=60
-    while ! $DOCKER_COMPOSE exec postgres pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dendreo_db} > /dev/null 2>&1; do
-        if [[ $timeout -le 0 ]]; then
-            print_error "PostgreSQL failed to start within timeout"
-            $DOCKER_COMPOSE logs postgres
-            exit 1
-        fi
-        print_status "PostgreSQL not ready yet, waiting..."
-        sleep 2
-        ((timeout-=2))
-    done
-    print_success "PostgreSQL is ready"
-    
-    # Wait for backend
-    print_status "Waiting for backend to be ready..."
-    timeout=60
-    while ! curl -f http://localhost:$BACKEND_PORT/health > /dev/null 2>&1; do
-        if [[ $timeout -le 0 ]]; then
-            print_error "Backend failed to start within timeout"
-            $DOCKER_COMPOSE logs backend
-            exit 1
-        fi
-        print_status "Backend not ready yet, waiting..."
-        sleep 2
-        ((timeout-=2))
-    done
-    print_success "Backend is ready"
-    
-    # Wait for frontend (different ports for dev/prod)
-    print_status "Waiting for frontend to be ready..."
-    timeout=60
-    while ! curl -f http://localhost:$FRONTEND_PORT > /dev/null 2>&1; do
-        if [[ $timeout -le 0 ]]; then
-            print_error "Frontend failed to start within timeout"
-            $DOCKER_COMPOSE logs frontend
-            exit 1
-        fi
-        print_status "Frontend not ready yet, waiting..."
-        sleep 2
-        ((timeout-=2))
-    done
-    print_success "Frontend is ready"
+    log_info "Stopping application..."
+    docker compose $compose_files down
+    log_success "Application stopped"
 }
 
-# Function to show status
-show_status() {
-    print_env "Container status for $ENVIRONMENT environment:"
-    $DOCKER_COMPOSE ps
+restart_application() {
+    local env=$1
+    local compose_files=$2
+    shift 2
     
-    echo ""
-    print_env "Service URLs for $ENVIRONMENT:"
-    if [[ $ENVIRONMENT == "prod" ]]; then
-        echo "  Frontend:  http://localhost (port 80)"
-        echo "  Backend:   http://localhost/api"
-        echo "  API Docs:  http://localhost/api/docs"
-        echo "  Database:  Internal only (port 5432)"
-    else
-        echo "  Frontend:  http://localhost:$FRONTEND_PORT"
-        echo "  Backend:   http://localhost:$BACKEND_PORT"
-        echo "  API Docs:  http://localhost:$BACKEND_PORT/docs"
-        echo "  Database:  localhost:$DB_PORT"
-    fi
+    log_info "Restarting $env environment..."
+    stop_application "$compose_files"
+    start_application "$env" "$compose_files" "$@"
 }
 
-# Function to show logs
+rebuild_application() {
+    local env=$1
+    local compose_files=$2
+    
+    log_info "Rebuilding $env environment..."
+    docker compose $compose_files down
+    docker compose $compose_files build --no-cache
+    start_application "$env" "$compose_files" --no-detach
+}
+
 show_logs() {
-    if [[ $1 ]]; then
-        $DOCKER_COMPOSE logs -f $1
-    else
-        $DOCKER_COMPOSE logs -f
-    fi
-}
-
-# Function to stop containers
-stop() {
-    print_env "Stopping $ENVIRONMENT containers..."
-    $DOCKER_COMPOSE down
-    print_success "Containers stopped"
-}
-
-# Function to clean up
-cleanup() {
-    print_warning "This will remove all $ENVIRONMENT containers, images, and volumes. Data will be lost!"
-    read -p "Are you sure? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_status "Cleaning up $ENVIRONMENT environment..."
-        $DOCKER_COMPOSE down -v --rmi all
-        docker system prune -f
-        print_success "Cleanup completed"
-    else
-        print_status "Cleanup cancelled"
-    fi
-}
-
-# Function to backup database
-backup_db() {
-    print_env "Creating database backup for $ENVIRONMENT environment..."
-    timestamp=$(date +%Y%m%d_%H%M%S)
-    backup_file="backup_${ENVIRONMENT}_${timestamp}.sql"
+    local compose_files=$1
+    local follow_flag=""
     
-    $DOCKER_COMPOSE exec postgres pg_dump -U ${POSTGRES_USER:-postgres} ${POSTGRES_DB:-dendreo_db} > $backup_file
-    print_success "Database backup created: $backup_file"
+    # Check for follow flag
+    for arg in "${@:2}"; do
+        case $arg in
+            --follow)
+                follow_flag="-f"
+                ;;
+        esac
+    done
+    
+    log_info "Showing application logs..."
+    docker compose $compose_files logs $follow_flag
 }
 
-# Function to restore database
-restore_db() {
-    if [[ ! $1 ]]; then
-        print_error "Please provide backup file path"
+show_status() {
+    local compose_files=$1
+    
+    log_info "Application status:"
+    docker compose $compose_files ps -a
+    
+    log_info "Resource usage:"
+    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+}
+
+backup_database() {
+    local env=$1
+    local backup_name=${2:-"backup-$(date +%Y%m%d-%H%M%S)"}
+    local compose_files=$3
+    
+    log_info "Creating database backup: $backup_name"
+    
+    # Create backups directory
+    mkdir -p ./backups
+    
+    # Get database connection details based on environment
+    local db_container="dendreo_postgres"
+    local db_name="dendreo_db"
+    if [ "$env" = "dev" ]; then
+        db_name="dendreo_dev_db"
+    elif [ "$env" = "prod" ]; then
+        db_name="dendreo_prod_db"
+    fi
+    
+    # Create backup
+    docker compose $compose_files exec postgres pg_dump -U postgres -d $db_name | gzip > "./backups/${backup_name}.sql.gz"
+    
+    log_success "Database backup created: ./backups/${backup_name}.sql.gz"
+}
+
+restore_database() {
+    local env=$1
+    local backup_file=$2
+    local compose_files=$3
+    
+    if [ -z "$backup_file" ]; then
+        log_error "Please specify backup file to restore"
         exit 1
     fi
     
-    if [[ ! -f $1 ]]; then
-        print_error "Backup file not found: $1"
+    if [ ! -f "$backup_file" ]; then
+        log_error "Backup file not found: $backup_file"
         exit 1
     fi
     
-    print_warning "This will overwrite the current $ENVIRONMENT database!"
-    read -p "Are you sure? (y/N): " -n 1 -r
+    log_warning "This will overwrite the current database!"
+    read -p "Are you sure you want to continue? (y/N) " -n 1 -r
     echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        print_env "Restoring $ENVIRONMENT database from $1..."
-        $DOCKER_COMPOSE exec -T postgres psql -U ${POSTGRES_USER:-postgres} ${POSTGRES_DB:-dendreo_db} < $1
-        print_success "Database restored"
-    else
-        print_status "Database restore cancelled"
-    fi
-}
-
-# Function to switch environments
-switch_env() {
-    if [[ $1 ]]; then
-        target_env=$1
-    else
-        if [[ $ENVIRONMENT == "dev" ]]; then
-            target_env="prod"
-        else
-            target_env="dev"
-        fi
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Database restore cancelled"
+        exit 0
     fi
     
-    print_warning "Switching from $ENVIRONMENT to $target_env environment"
+    log_info "Restoring database from: $backup_file"
+    
+    # Get database connection details
+    local db_name="dendreo_db"
+    if [ "$env" = "dev" ]; then
+        db_name="dendreo_dev_db"
+    elif [ "$env" = "prod" ]; then
+        db_name="dendreo_prod_db"
+    fi
+    
+    # Restore database
+    if [[ "$backup_file" == *.gz ]]; then
+        zcat "$backup_file" | docker compose $compose_files exec -T postgres psql -U postgres -d $db_name
+    else
+        cat "$backup_file" | docker compose $compose_files exec -T postgres psql -U postgres -d $db_name
+    fi
+    
+    log_success "Database restored successfully"
+}
+
+clean_application() {
+    local compose_files=$1
+    
+    log_warning "This will remove all containers, volumes, and data!"
+    read -p "Are you sure you want to continue? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Cleanup cancelled"
+        exit 0
+    fi
+    
+    log_info "Cleaning up application..."
+    
+    # Stop and remove containers
+    docker compose $compose_files down -v --remove-orphans
+    
+    # Remove project-specific volumes
+    docker volume ls -q | grep "${PROJECT_NAME}" | xargs -r docker volume rm
+    
+    # Prune unused Docker resources
+    docker system prune -f
+    
+    log_success "Application cleaned up"
+}
+
+switch_environment() {
+    local target_env=$1
+    
+    if [ -z "$target_env" ]; then
+        log_error "Please specify target environment (dev/prod)"
+        exit 1
+    fi
+    
+    log_info "Switching to $target_env environment..."
     
     # Stop current environment
-    stop
+    docker compose down 2>/dev/null || true
     
-    # Switch environment
-    ENVIRONMENT=$target_env
-    setup_environment
-    
-    # Start new environment
-    deploy
-    show_status
-}
-
-# Function to rebuild specific service
-rebuild() {
-    if [[ ! $1 ]]; then
-        print_error "Please specify service to rebuild (backend, frontend, or postgres)"
+    # Start target environment
+    if [ "$target_env" = "dev" ]; then
+        start_application "dev" "$DOCKER_COMPOSE_FILES -f docker-compose.dev.yml"
+    elif [ "$target_env" = "prod" ]; then
+        start_application "prod" "$DOCKER_COMPOSE_FILES -f docker-compose.prod.yml"
+    else
+        log_error "Invalid environment: $target_env (use dev or prod)"
         exit 1
     fi
-    
-    service=$1
-    print_env "Rebuilding $service in $ENVIRONMENT environment..."
-    
-    $DOCKER_COMPOSE build --no-cache $service
-    $DOCKER_COMPOSE up -d $service
-    
-    print_success "$service rebuilt and restarted"
 }
 
-# Usage function
-show_usage() {
-    echo "Dendreo Progression Docker Deployment"
-    echo ""
-    echo "Usage: $0 [--env dev|prod] {command} [options]"
-    echo ""
-    echo "Environment Options:"
-    echo "  --env dev|prod    Specify environment (default: dev)"
-    echo "  --dev             Use development environment"
-    echo "  --prod            Use production environment"
-    echo ""
-    echo "Commands:"
-    echo "  start/deploy      Build and start all containers"
-    echo "  stop              Stop all containers"
-    echo "  restart           Restart all containers"
-    echo "  status            Show container status and service URLs"
-    echo "  logs [service]    Show logs (all services or specific service)"
-    echo "  backup            Create database backup"
-    echo "  restore <file>    Restore database from backup"
-    echo "  cleanup           Remove all containers, images, and volumes"
-    echo "  switch [env]      Switch between dev and prod environments"
-    echo "  rebuild <service> Rebuild specific service (backend, frontend, postgres)"
-    echo ""
-    echo "Examples:"
-    echo "  $0 --dev start                    # Start development environment"
-    echo "  $0 --prod start                   # Start production environment"
-    echo "  $0 --env dev logs backend         # Show dev backend logs"
-    echo "  $0 --prod backup                  # Backup production database"
-    echo "  $0 switch                         # Switch between current and other env"
-    echo "  $0 --dev rebuild backend          # Rebuild dev backend service"
+init_environment() {
+    local env=$1
+    
+    log_info "Initializing $env environment..."
+    
+    # Create environment file if it doesn't exist
+    local env_file=".env.$env"
+    local example_file="${env_file}.example"
+    
+    if [ ! -f "$env_file" ] && [ -f "$example_file" ]; then
+        cp "$example_file" "$env_file"
+        log_success "Created $env_file from template"
+        log_info "Please edit $env_file to configure your environment"
+    fi
+    
+    # Create necessary directories
+    mkdir -p backups logs dev-logs nginx/ssl database/dev-data
+    
+    log_success "Environment initialized"
 }
 
 # Main script logic
-parse_args "$@"
-setup_environment
+main() {
+    # Parse environment and get compose files
+    local env_info=$(detect_environment "$@")
+    local env=$(echo "$env_info" | cut -d'|' -f1)
+    local compose_files=$(echo "$env_info" | cut -d'|' -f2)
+    
+    # Remove environment flags from arguments
+    local args=()
+    for arg in "$@"; do
+        case $arg in
+            --dev|--prod) ;;
+            *) args+=("$arg") ;;
+        esac
+    done
+    
+    # Get command
+    local command=${args[0]:-"help"}
+    
+    case $command in
+        start)
+            check_prerequisites "$env"
+            start_application "$env" "$compose_files" "${args[@]:1}"
+            ;;
+        stop)
+            stop_application "$compose_files"
+            ;;
+        restart)
+            check_prerequisites "$env"
+            restart_application "$env" "$compose_files" "${args[@]:1}"
+            ;;
+        rebuild)
+            check_prerequisites "$env"
+            rebuild_application "$env" "$compose_files"
+            ;;
+        logs)
+            show_logs "$compose_files" "${args[@]:1}"
+            ;;
+        status)
+            show_status "$compose_files"
+            ;;
+        clean)
+            clean_application "$compose_files"
+            ;;
+        backup)
+            backup_database "$env" "${args[1]}" "$compose_files"
+            ;;
+        restore)
+            restore_database "$env" "${args[1]}" "$compose_files"
+            ;;
+        switch)
+            switch_environment "${args[1]}"
+            ;;
+        init)
+            init_environment "$env"
+            ;;
+        help|--help)
+            show_help
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            show_help
+            exit 1
+            ;;
+    esac
+}
 
-case "$COMMAND" in
-    "start"|"deploy")
-        print_env "Starting Dendreo Progression deployment in $ENVIRONMENT environment..."
-        check_docker
-        check_docker_compose
-        setup_env
-        create_directories
-        validate_github_repo
-        deploy
-        show_status
-        print_success "Deployment completed successfully!"
-        ;;
-    "stop")
-        check_docker
-        check_docker_compose
-        setup_env
-        stop
-        ;;
-    "restart")
-        check_docker
-        check_docker_compose
-        setup_env
-        stop
-        sleep 2
-        deploy
-        show_status
-        ;;
-    "status")
-        check_docker
-        check_docker_compose
-        setup_env
-        show_status
-        ;;
-    "logs")
-        check_docker
-        check_docker_compose
-        setup_env
-        show_logs $2
-        ;;
-    "backup")
-        check_docker
-        check_docker_compose
-        setup_env
-        backup_db
-        ;;
-    "restore")
-        check_docker
-        check_docker_compose
-        setup_env
-        restore_db $2
-        ;;
-    "cleanup")
-        check_docker
-        check_docker_compose
-        setup_env
-        cleanup
-        ;;
-    "switch")
-        check_docker
-        check_docker_compose
-        switch_env $2
-        ;;
-    "rebuild")
-        check_docker
-        check_docker_compose
-        setup_env
-        rebuild $2
-        ;;
-    *)
-        show_usage
-        ;;
-esac
+# Run main function with all arguments
+main "$@"

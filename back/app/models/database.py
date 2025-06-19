@@ -1,11 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import logging
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# Use localhost database directly (hardcoded to avoid .env issues)
-DATABASE_URL = "postgresql://postgres:admin@localhost:5432/dendreo_db"
+# Use the DATABASE_URL from settings
+DATABASE_URL = settings.database_url
 
 # Create engine with the URL from settings
 engine = create_engine(DATABASE_URL)
