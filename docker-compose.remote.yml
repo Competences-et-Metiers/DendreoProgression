@@ -1,13 +1,13 @@
 services:
-  # Development Backend
+  # Development Backend - runs on remote machine
   backend:
     build:
       context: ./back
       dockerfile: Dockerfile.dev
     environment:
       APP_ENV: development
-      # Connect to remote database on 192.168.254.82 port 5433 (external port)
-      DATABASE_URL: postgresql://postgres:admin@192.168.254.82:5433/dendreo_dev_db
+      # Use container name since all services are on the same machine/network
+      DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
       LOG_LEVEL: DEBUG
       PYTHONUNBUFFERED: 1
       # Redis configuration (optional)
@@ -21,18 +21,20 @@ services:
       - ./dev-logs:/app/logs
       - ./back:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
-    # No dependency on local postgres since using remote database
+    depends_on:
+      - postgres
     networks:
       - dendreo_network
 
-  # Development Frontend - Simplified approach without custom scripts
+  # Development Frontend - runs on remote machine
   frontend:
     image: node:18-alpine
     working_dir: /app
     environment:
       NODE_ENV: development
-      # Point to local backend since backend is running locally
-      REACT_APP_API_URL: http://192.168.254.24:8000/api
+      # Frontend runs on remote machine but needs to call backend via external IP
+      # so that users accessing from other machines can reach the API
+      REACT_APP_API_URL: http://192.168.254.82:8000/api
       HOST: 0.0.0.0
       PORT: 3000
       GENERATE_SOURCEMAP: false
@@ -50,8 +52,7 @@ services:
     depends_on:
       - backend
 
-  # Development Database (OPTIONAL - only needed if not using remote database)
-  # This service is disabled by default since using remote database
+  # Development Database - runs on remote machine
   postgres:
     image: postgres:15
     container_name: dendreo_postgres_dev
@@ -61,7 +62,7 @@ services:
       POSTGRES_PASSWORD: admin
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5433:5432"
+      - "5433:5432"  # External port 5433 to avoid conflicts
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d/
@@ -72,28 +73,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    # profiles:
-    #   - local-db  # Temporarily enable local database
-
-  # Optional: Redis for caching (can be enabled by setting REDIS_ENABLED=true)
-  redis:
-    image: redis:7-alpine
-    container_name: dendreo_redis_dev
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_dev_data:/data
-    networks:
-      - dendreo_network
-    profiles:
-      - redis
 
 volumes:
   postgres_dev_data:
     driver: local
   frontend_node_modules:
-    driver: local
-  redis_dev_data:
     driver: local
 
 networks:
