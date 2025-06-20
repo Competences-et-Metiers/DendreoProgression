@@ -20,6 +20,12 @@ services:
       - ./back:/app
     restart: "no"  # Don't auto-restart in development
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+    ports:
+      - "8000:8000"
+    networks:
+      - dendreo_network
+    depends_on:
+      - postgres
 
   # Development Frontend - builds from local files
   frontend:
@@ -30,17 +36,26 @@ services:
         - BRANCH=dev
     environment:
       NODE_ENV: development
-      REACT_APP_API_URL: http://localhost:8000/api
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api}
       # Enable React development features
       FAST_REFRESH: true
       CHOKIDAR_USEPOLLING: true
+      # Make React dev server bind to all interfaces
+      HOST: 0.0.0.0
     volumes:
       # Mount source for hot reload
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
+    ports:
+      # Explicitly expose port for external access
+      - "3000:3000"
     restart: "no"
     # Use development server instead of nginx
     command: npm start
+    networks:
+      - dendreo_network
+    depends_on:
+      - backend
 
   # Development Database - same as base but with dev-specific settings
   postgres:
@@ -54,6 +69,8 @@ services:
     ports:
       # Expose on different port to avoid conflicts
       - "5433:5432"
+    networks:
+      - dendreo_network
 
 volumes:
   postgres_dev_data:
