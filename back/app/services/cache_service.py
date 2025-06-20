@@ -3,32 +3,58 @@ import json
 import logging
 from typing import Any, Optional, Dict
 from datetime import timedelta
-import os
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
 class CacheService:
-    def __init__(self):
-        # Use environment variables or defaults
-        redis_host = os.getenv('REDIS_HOST', 'localhost')
-        redis_port = int(os.getenv('REDIS_PORT', '6379'))
-        redis_db = int(os.getenv('REDIS_DB', '0'))
+    def __init__(self, redis_url: str = "redis://localhost:6379/0", enabled: bool = True):
+        """
+        Initialize cache service with dependency injection.
         
+        Args:
+            redis_url: Redis connection URL
+            enabled: Whether caching is enabled
+        """
+        self.enabled = enabled
+        self.redis_client = None
+        
+        if not self.enabled:
+            logger.info("🔄 Caching is disabled")
+            return
+            
         try:
+            if redis_url.startswith('redis://'):
+                parsed_url = urlparse(redis_url)
+                redis_host = parsed_url.hostname or 'localhost'
+                redis_port = parsed_url.port or 6379
+                redis_db = int(parsed_url.path.lstrip('/')) if parsed_url.path else 0
+            else:
+                # Fallback parsing
+                redis_host = 'localhost'
+                redis_port = 6379
+                redis_db = 0
+            
             self.redis_client = redis.Redis(
                 host=redis_host,
                 port=redis_port,
                 db=redis_db,
                 decode_responses=True,
                 socket_connect_timeout=5,
-                socket_timeout=5
+                socket_timeout=5,
+                retry_on_timeout=True
             )
+            
             # Test connection
             self.redis_client.ping()
             logger.info(f"✅ Redis connected successfully at {redis_host}:{redis_port}")
-            self.enabled = True
+            
         except (redis.ConnectionError, redis.TimeoutError) as e:
             logger.warning(f"⚠️  Redis connection failed: {e}. Caching disabled.")
+            self.enabled = False
+            self.redis_client = None
+        except Exception as e:
+            logger.warning(f"⚠️  Redis setup failed: {e}. Caching disabled.")
             self.enabled = False
             self.redis_client = None
 
@@ -39,7 +65,7 @@ class CacheService:
 
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache"""
-        if not self.enabled:
+        if not self.enabled or not self.redis_client:
             return None
             
         try:
@@ -53,7 +79,7 @@ class CacheService:
 
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
         """Set value in cache with TTL (default 5 minutes)"""
-        if not self.enabled:
+        if not self.enabled or not self.redis_client:
             return False
             
         try:
@@ -65,7 +91,7 @@ class CacheService:
 
     def delete(self, key: str) -> bool:
         """Delete key from cache"""
-        if not self.enabled:
+        if not self.enabled or not self.redis_client:
             return False
             
         try:
@@ -76,7 +102,7 @@ class CacheService:
 
     def delete_pattern(self, pattern: str) -> int:
         """Delete all keys matching pattern"""
-        if not self.enabled:
+        if not self.enabled or not self.redis_client:
             return 0
             
         try:
@@ -158,5 +184,32 @@ class CacheService:
         """Cache course participants (5 min TTL)"""
         return self.set(f"courses:participants:{course_id}", participants, ttl)
 
-# Create global cache instance
-cache_service = CacheService() 
+def create_cache_service(redis_url: str = "redis://localhost:6379/0", enabled: bool = True) -> CacheService:
+    """Factory function to create cache service instance."""
+    return CacheService(redis_url=redis_url, enabled=enabled)
+
+# Create cache service instance using settings
+def get_cache_service() -> CacheService:
+    """Get cache service instance with proper dependency injection."""
+    try:
+        from app.config.settings import settings
+        return create_cache_service(
+            redis_url=settings.redis_url,
+            enabled=settings.redis_enabled
+        )
+    except ImportError:
+        # Fallback for testing or when settings aren't available
+        return create_cache_service()
+
+# Global cache instance - lazy loaded
+_cache_service = None
+
+def get_cache() -> CacheService:
+    """Get the global cache service instance (lazy loaded)."""
+    global _cache_service
+    if _cache_service is None:
+        _cache_service = get_cache_service()
+    return _cache_service
+
+# For backwards compatibility
+cache_service = get_cache() 

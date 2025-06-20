@@ -5,10 +5,15 @@ services:
       context: ./back
       dockerfile: Dockerfile.dev
     environment:
-      DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
       APP_ENV: development
+      DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
       LOG_LEVEL: DEBUG
       PYTHONUNBUFFERED: 1
+      # Redis configuration (optional)
+      REDIS_URL: redis://redis:6379/0
+      REDIS_ENABLED: false
+    env_file:
+      - .env.dev
     ports:
       - "8000:8000"
     volumes:
@@ -26,7 +31,7 @@ services:
     working_dir: /app
     environment:
       NODE_ENV: development
-      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api}
+      REACT_APP_API_URL: http://localhost:8000/api
       HOST: 0.0.0.0
       PORT: 3000
       GENERATE_SOURCEMAP: false
@@ -66,10 +71,25 @@ services:
       timeout: 10s
       retries: 3
 
+  # Optional: Redis for caching (can be enabled by setting REDIS_ENABLED=true)
+  redis:
+    image: redis:7-alpine
+    container_name: dendreo_redis_dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - dendreo_network
+    profiles:
+      - redis
+
 volumes:
   postgres_dev_data:
     driver: local
   frontend_node_modules:
+    driver: local
+  redis_dev_data:
     driver: local
 
 networks:
