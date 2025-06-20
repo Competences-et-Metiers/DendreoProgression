@@ -6,9 +6,8 @@ services:
       dockerfile: Dockerfile.dev
     environment:
       APP_ENV: development
-      # Temporarily use local database until remote database is accessible
-      # DATABASE_URL: postgresql://postgres:admin@192.168.254.82:5432/dendreo_dev_db
-      DATABASE_URL: postgresql://postgres:admin@192.168.254.24:5433/dendreo_dev_db
+      # Connect to remote database on 192.168.254.82
+      DATABASE_URL: postgresql://postgres:admin@192.168.254.82:5432/dendreo_dev_db
       LOG_LEVEL: DEBUG
       PYTHONUNBUFFERED: 1
       # Redis configuration (optional)
@@ -22,9 +21,7 @@ services:
       - ./dev-logs:/app/logs
       - ./back:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
-    # Re-enable dependency on local postgres until remote database is accessible
-    depends_on:
-      - postgres
+    # No dependency on local postgres since using remote database
     networks:
       - dendreo_network
 
@@ -34,8 +31,8 @@ services:
     working_dir: /app
     environment:
       NODE_ENV: development
-      # Use host machine IP for external access instead of localhost
-      REACT_APP_API_URL: http://192.168.254.24:8000/api
+      # Point to remote machine where backend and database are located
+      REACT_APP_API_URL: http://192.168.254.82:8000/api
       HOST: 0.0.0.0
       PORT: 3000
       GENERATE_SOURCEMAP: false
