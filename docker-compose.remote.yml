@@ -36,13 +36,13 @@ services:
       # so that users accessing from other machines can reach the API
       REACT_APP_API_URL: http://192.168.254.82:8000/api
       HOST: 0.0.0.0
-      PORT: 3000
+      PORT: 8080
       GENERATE_SOURCEMAP: false
       SKIP_PREFLIGHT_CHECK: true
       FAST_REFRESH: true
       CHOKIDAR_USEPOLLING: true
     ports:
-      - "3000:3000"
+      - "8080:8080"
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
