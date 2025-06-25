@@ -3,9 +3,20 @@
 ### 
 ### Features
 
-- [ ] Clean up endpoints
-- [x] Add progression view PER MODULES
 - [ ] Add search bar
+- [ ] Add `time spent`
+- [ ] 
+
+#### Cleanup
+- [ ] Clean up endpoints
+- [ ] Clean up table relations
+- [x] Add progression view PER MODULES
+
+#### HubSpot transaction ID fetcher
+From contact -> GET HS property `formation_detaillee`
+Relate property with contact ID in the `participants_hubspot_data` table
+- This allows us to see transactions/courses related to the contact
+
 
 - [ ] Make contacts clickable -> redirect to Dendreo contact page
 	- [ ] Make DB store contacts entreprise ID using link 

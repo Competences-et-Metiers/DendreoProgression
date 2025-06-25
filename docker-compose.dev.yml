@@ -1,81 +1,75 @@
 services:
-  # Development Backend - builds from local files
+  # Development Backend - runs on remote machine
   backend:
     build:
       context: ./back
       dockerfile: Dockerfile.dev
-      args:
-        - BRANCH=dev
     environment:
-      DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
       APP_ENV: development
+      # Use container name since all services are on the same machine/network
+      DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
       LOG_LEVEL: DEBUG
       PYTHONUNBUFFERED: 1
-    volumes:
-      # Mount logs to host for easy debugging
-      - ./dev-logs:/app/logs
-      # Mount source code for hot reload
-      - ./back:/app
-    restart: "no"  # Don't auto-restart in development
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+      # Redis configuration (optional)
+      REDIS_URL: redis://redis:6379/0
+      REDIS_ENABLED: false
+    env_file:
+      - .env.dev
     ports:
       - "8000:8000"
-    networks:
-      - dendreo_network
+    volumes:
+      - ./dev-logs:/app/logs
+      - ./back:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
     depends_on:
       - postgres
+    networks:
+      - dendreo_network
 
-  # Development Frontend - builds from local files
+  # Development Frontend - runs on remote machine
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
-      args:
-        - BRANCH=dev
+    image: node:18-alpine
+    working_dir: /app
     environment:
       NODE_ENV: development
-      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api}
-      # Enable React development features
+      # Frontend runs on remote machine but needs to call backend via external IP
+      # so that users accessing from other machines can reach the API
+      REACT_APP_API_URL: http://192.168.254.82:8000/api
+      HOST: 0.0.0.0
+      PORT: 8080
+      GENERATE_SOURCEMAP: false
+      SKIP_PREFLIGHT_CHECK: true
       FAST_REFRESH: true
       CHOKIDAR_USEPOLLING: true
-      # Make React dev server bind to all interfaces
-      HOST: 0.0.0.0
-    volumes:
-      # Mount source for hot reload
-      - ./frontend/src:/app/src
-      - ./frontend/public:/app/public
     ports:
-      # Explicitly expose port for external access
-      - "3000:3000"
-    restart: "no"
-    # Use development server with explicit host binding
-    command: npm start -- --host 0.0.0.0
+      - "8080:8080"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: sh -c "npm ci && npm start"
     networks:
       - dendreo_network
     depends_on:
       - backend
 
-  # Development Database - same as base but with dev-specific settings
+  # Development Database - runs on remote machine
   postgres:
     image: postgres:15
     container_name: dendreo_postgres_dev
     environment:
       POSTGRES_DB: dendreo_dev_db
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
       PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"  # External port 5433 to avoid conflicts
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d/
-      # Add sample data for development
-      - ./database/dev-data:/docker-entrypoint-initdb.d/99-dev-data/
-    ports:
-      # Expose on different port to avoid conflicts
-      - "5433:5432"
     networks:
       - dendreo_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d dendreo_dev_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dendreo_dev_db"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -83,8 +77,9 @@ services:
 volumes:
   postgres_dev_data:
     driver: local
+  frontend_node_modules:
+    driver: local
 
-# Override network name for development
 networks:
   dendreo_network:
-    name: dendreo_dev_network
+    driver: bridge 

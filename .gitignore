@@ -41,6 +41,8 @@ venv.bak/
 # Environment Files
 .env.local
 .env.*.local
+.env.prod
+.env.dev
 back/.env
 
 # Logs

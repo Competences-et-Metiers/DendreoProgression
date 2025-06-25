@@ -1,1 +1,150 @@
- 
+services:
+  # Production Nginx (Load Balancer & Reverse Proxy)
+  nginx:
+    image: nginx:alpine
+    container_name: dendreo_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      - ./logs/nginx:/var/log/nginx
+      # Uncomment for SSL support:
+      # - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - dendreo_network
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    env_file:
+      - .env.prod
+
+  # Production Backend
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile.optimized
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PYTHONUNBUFFERED: 1
+      # API Configuration
+      DENDREO_API_KEY: ${DENDREO_API_KEY}
+      DENDREO_BASE_URL: ${DENDREO_BASE_URL}
+      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY}
+      # Security
+      SECRET_KEY: ${SECRET_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      # Redis configuration (optional)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+    env_file:
+      - .env.prod
+    # Remove external port exposure (nginx will handle this)
+    expose:
+      - "8000"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Production Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-/api}
+    env_file:
+      - .env.prod
+    # Remove external port exposure (nginx will handle this)
+    expose:
+      - "3000"
+    networks:
+      - dendreo_network
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Production Database
+  postgres:
+    image: postgres:15
+    container_name: dendreo_postgres_prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dendreo_prod_db}
+      POSTGRES_USER: ${POSTGRES_USER:-dendreo_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      # Production performance settings
+      POSTGRES_SHARED_BUFFERS: ${POSTGRES_SHARED_BUFFERS:-256MB}
+      POSTGRES_EFFECTIVE_CACHE_SIZE: ${POSTGRES_EFFECTIVE_CACHE_SIZE:-1GB}
+      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS:-200}
+    env_file:
+      - .env.prod
+    # Remove external port exposure for security
+    expose:
+      - "5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d/
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dendreo_user -d dendreo_prod_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Optional: Redis for caching (uncomment if needed)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: dendreo_redis_prod
+  #   expose:
+  #     - "6379"
+  #   volumes:
+  #     - redis_prod_data:/data
+  #   networks:
+  #     - dendreo_network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #   env_file:
+  #     - .env.prod
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  # redis_prod_data:
+  #   driver: local
+
+networks:
+  dendreo_network:
+    driver: bridge 

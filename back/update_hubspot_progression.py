@@ -21,7 +21,7 @@ from datetime import datetime
 # Add the app directory to the path
 sys.path.append(str(Path(__file__).parent))
 
-from app.models.database import DATABASE_URL
+from app.config.settings import settings
 from app.models.models import Participant, ParticipantHubspotData, ParticipantCourse, Course
 
 # Configure logging
@@ -162,8 +162,8 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
         logger.info("Using provided database session")
     else:
         # Connect to database
-        logger.info(f"Connecting to database: {DATABASE_URL}")
-        engine = create_engine(DATABASE_URL)
+        logger.info(f"Connecting to database: {settings.database_url}")
+        engine = create_engine(settings.database_url)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         db = SessionLocal()
         should_close_db = True
