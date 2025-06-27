@@ -49,6 +49,12 @@ if __name__ == "__main__":
     logging.getLogger('watchfiles').setLevel(logging.ERROR)
     logging.getLogger('watchfiles.main').setLevel(logging.ERROR)
     logging.getLogger('uvicorn.access').setLevel(logging.WARNING)
+    
+    # Silence SQLAlchemy database logs to reduce terminal noise
+    logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
 
     # Create database tables
     create_tables()

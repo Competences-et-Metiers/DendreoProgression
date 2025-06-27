@@ -32,22 +32,19 @@ services:
       dockerfile: Dockerfile.optimized
     environment:
       APP_ENV: ${APP_ENV:-production}
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_prod_db?client_encoding=utf8
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PYTHONUNBUFFERED: 1
       # API Configuration
       DENDREO_API_KEY: ${DENDREO_API_KEY}
       DENDREO_BASE_URL: ${DENDREO_BASE_URL}
       HUBSPOT_API_KEY: ${HUBSPOT_API_KEY}
-      # Security
-      SECRET_KEY: ${SECRET_KEY}
-      JWT_SECRET: ${JWT_SECRET}
       # Redis configuration (optional)
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_ENABLED: ${REDIS_ENABLED:-false}
     env_file:
       - .env.prod
-    # Remove external port exposure (nginx will handle this)
+    # Backend only exposed internally - nginx handles external traffic
     expose:
       - "8000"
     volumes:
@@ -67,27 +64,28 @@ services:
 
   # Production Frontend
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: node:18-alpine
+    working_dir: /app
     environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      REACT_APP_API_URL: ${REACT_APP_API_URL:-/api}
-    env_file:
-      - .env.prod
-    # Remove external port exposure (nginx will handle this)
-    expose:
-      - "3000"
+      NODE_ENV: production
+      # Frontend communicates with backend via host port
+      REACT_APP_API_URL: /api
+      HOST: 0.0.0.0
+      PORT: 3000
+      GENERATE_SOURCEMAP: false
+      SKIP_PREFLIGHT_CHECK: true
+      FAST_REFRESH: true
+      CHOKIDAR_USEPOLLING: true
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: sh -c "npm ci && npm start"
     networks:
       - dendreo_network
     depends_on:
       - backend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # Production Database
   postgres:
@@ -141,6 +139,8 @@ services:
 
 volumes:
   postgres_prod_data:
+    driver: local
+  frontend_node_modules:
     driver: local
   # redis_prod_data:
   #   driver: local

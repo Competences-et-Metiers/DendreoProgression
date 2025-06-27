@@ -47,25 +47,12 @@ echo "Environment: ${APP_ENV:-production}"\n\
 echo "Log Level: ${LOG_LEVEL:-INFO}"\n\
 echo "======================================"\n\
 echo "Waiting for database..."\n\
-python -c "from app.models.database import engine; from sqlalchemy import text; import time; import sys; \
-attempts = 0; \
-while attempts < 30: \
-    try: \
-        with engine.connect() as conn: \
-            conn.execute(text('\''SELECT 1'\'')); \
-        print('\''✓ Database connection successful'\''); \
-        break; \
-    except Exception as e: \
-        print(f'\''⏳ Database not ready: {e}'\''); \
-        attempts += 1; \
-        time.sleep(2); \
-else: \
-    print('\''❌ Database connection failed after 60 seconds'\''); \
-    sys.exit(1)"\n\
+timeout 60 bash -c "until python -c '\''from app.models.database import engine; from sqlalchemy import text; engine.connect().execute(text(\"SELECT 1\"))'\'' 2>/dev/null; do echo '\''Waiting for database...'\''; sleep 2; done"\n\
+echo "Database is ready!"\n\
 echo "Creating/updating database tables..."\n\
 python -c "from app.models.database import create_tables; create_tables()"\n\
 echo "🚀 Starting FastAPI server..."\n\
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level ${LOG_LEVEL:-info}\n\
+exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info\n\
 ' > /app/start.sh && chmod +x /app/start.sh && chown appuser:appuser /app/start.sh
 
 # Switch to non-root user

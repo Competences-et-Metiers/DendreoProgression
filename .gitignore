@@ -4,6 +4,7 @@
 .obsidian/
 *.swp
 *.swo
+.cursorignore
 
 # Python
 __pycache__/

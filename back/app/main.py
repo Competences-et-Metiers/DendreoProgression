@@ -24,6 +24,12 @@ logging.getLogger("uvicorn").setLevel(logging.INFO)
 logging.getLogger('watchfiles').setLevel(logging.ERROR)
 logging.getLogger('watchfiles.main').setLevel(logging.ERROR)
 
+# Silence SQLAlchemy database logs to reduce terminal noise
+logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
+
 app = FastAPI(title="Dendreo Progression API", version="1.0.0")
 
 # CORS middleware
