@@ -1,0 +1,78 @@
+FROM python:3.11-slim
+
+# Set build argument for branch tracking
+ARG BRANCH=dev
+ENV GIT_BRANCH=${BRANCH}
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies including development tools
+RUN apt-get update && apt-get install -y \
+    gcc \
+    curl \
+    git \
+    vim \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional development dependencies
+RUN pip install --no-cache-dir \
+    pytest \
+    pytest-asyncio \
+    pytest-cov \
+    black \
+    flake8 \
+    isort \
+    mypy
+
+# Create logs directory with proper permissions
+RUN mkdir -p logs && chmod 777 logs
+
+# Create a development startup script
+RUN echo '#!/bin/bash\n\
+echo "=== Dendreo Backend Development Environment ==="\n\
+echo "Branch: ${GIT_BRANCH}"\n\
+echo "Environment: development"\n\
+echo "Python Version: $(python --version)"\n\
+echo "==============================================="\n\
+echo "Waiting for database to be ready..."\n\
+python -c "from app.models.database import engine; from sqlalchemy import text; import time; import sys; \
+attempts = 0; \
+while attempts < 30: \
+    try: \
+        with engine.connect() as conn: \
+            conn.execute(text('\''SELECT 1'\'')); \
+        print('\''Database is ready!'\''); \
+        break; \
+    except Exception as e: \
+        print(f'\''Database not ready yet: {e}'\''); \
+        attempts += 1; \
+        time.sleep(2); \
+else: \
+    print('\''Database connection failed after 30 attempts'\''); \
+    sys.exit(1)"\n\
+echo "Creating database tables..."\n\
+python -c "from app.models.database import create_tables; create_tables()"\n\
+echo "Starting development server with hot reload..."\n\
+exec "$@"\n\
+' > /app/start-dev.sh && chmod +x /app/start-dev.sh
+
+# Copy application code (will be overridden by volume mount in dev)
+COPY . .
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD curl -f http://localhost:8000/health || exit 1
+
+# Development command with hot reload
+CMD ["/app/start-dev.sh", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "debug"]

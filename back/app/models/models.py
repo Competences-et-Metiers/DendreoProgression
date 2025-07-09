@@ -95,3 +95,15 @@ class ParticipantHubspotData(Base):
 
     # Relationships
     participant = relationship("Participant", back_populates="hubspot_data")
+
+class SyncMetadata(Base):
+    __tablename__ = "sync_metadata"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sync_type = Column(String, nullable=False)  # e.g., 'sync_all', 'sync_test'
+    last_sync_at = Column(DateTime, nullable=False)
+    status = Column(String, nullable=False)  # 'success', 'error', 'in_progress'
+    stats = Column(Text, nullable=True)  # JSON string of sync statistics
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

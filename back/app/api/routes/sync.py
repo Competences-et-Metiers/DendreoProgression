@@ -1,26 +1,86 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from app.services.dendreo_sync import DendreoSync
 from app.services.dendreo_client import DendreoClient
 from app.models.database import get_db
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 import httpx
-from app.models.models import Participant, Course, Module, ParticipantCourse
+import json
+import os
+from datetime import datetime
+from app.models.models import Participant, Course, Module, ParticipantCourse, SyncMetadata
 from sqlalchemy import text
+from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Simple API key authentication for sync endpoints
+def verify_sync_api_key(x_api_key: Optional[str] = Header(None)):
+    """
+    Verify API key for sync endpoints
+    Set SYNC_API_KEY environment variable to enable authentication
+    """
+    expected_key = getattr(settings, 'sync_api_key', None) or os.getenv('SYNC_API_KEY')
+    
+    if expected_key:
+        if not x_api_key:
+            raise HTTPException(
+                status_code=401,
+                detail="API key required. Set X-API-Key header."
+            )
+        if x_api_key != expected_key:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid API key"
+            )
+    
+    return True
+
 @router.post("/sync-all")
-async def sync_all(db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def sync_all(
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_sync_api_key)
+) -> Dict[str, Any]:
     """Synchronize all data from Dendreo"""
+    sync_start_time = datetime.utcnow()
+    
+    # Create or update sync metadata record
+    sync_metadata = db.query(SyncMetadata).filter(SyncMetadata.sync_type == 'sync_all').first()
+    if not sync_metadata:
+        sync_metadata = SyncMetadata(
+            sync_type='sync_all',
+            last_sync_at=sync_start_time,
+            status='in_progress'
+        )
+        db.add(sync_metadata)
+    else:
+        sync_metadata.last_sync_at = sync_start_time
+        sync_metadata.status = 'in_progress'
+        sync_metadata.error_message = None
+    
+    db.commit()
+    
     try:
         client = DendreoClient()
         sync_service = DendreoSync(db, client)
         result = await sync_service.sync_all()
+        
+        # Update sync metadata with success
+        sync_metadata.status = 'success'
+        sync_metadata.stats = json.dumps(result.get('stats', {}))
+        sync_metadata.updated_at = datetime.utcnow()
+        db.commit()
+        
         return result
     except Exception as e:
+        # Update sync metadata with error
+        sync_metadata.status = 'error'
+        sync_metadata.error_message = str(e)
+        sync_metadata.updated_at = datetime.utcnow()
+        db.commit()
+        
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
 @router.post("/sync-test")
@@ -35,7 +95,10 @@ async def sync_test(db: Session = Depends(get_db)) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Test sync failed: {str(e)}")
 
 @router.post("/cleanup-elearning-sync")
-async def cleanup_elearning_sync(db: Session = Depends(get_db)) -> Dict[str, Any]:
+async def cleanup_elearning_sync(
+    db: Session = Depends(get_db),
+    _: bool = Depends(verify_sync_api_key)
+) -> Dict[str, Any]:
     """Remove all elearning_sync courses and related data from the database"""
     try:
         logger.info("Starting cleanup of elearning_sync data via API...")
@@ -183,6 +246,41 @@ async def get_elearning_sync_stats(db: Session = Depends(get_db)) -> Dict[str, A
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
 
+
+@router.get("/last-sync")
+async def get_last_sync(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Get information about the last sync-all operation"""
+    try:
+        sync_metadata = db.query(SyncMetadata).filter(SyncMetadata.sync_type == 'sync_all').first()
+        
+        if not sync_metadata:
+            return {
+                "status": "no_sync",
+                "message": "No sync operation has been performed yet",
+                "last_sync_at": None,
+                "sync_status": None,
+                "stats": None
+            }
+        
+        # Parse stats if available
+        stats = None
+        if sync_metadata.stats:
+            try:
+                stats = json.loads(sync_metadata.stats)
+            except json.JSONDecodeError:
+                stats = None
+        
+        return {
+            "status": "success",
+            "last_sync_at": sync_metadata.last_sync_at.isoformat() if sync_metadata.last_sync_at else None,
+            "sync_status": sync_metadata.status,
+            "stats": stats,
+            "error_message": sync_metadata.error_message
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting last sync info: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get last sync info: {str(e)}")
 
 @router.get("/test-api")
 async def test_api():

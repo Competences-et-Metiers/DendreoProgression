@@ -12,7 +12,7 @@ router = APIRouter()
 
 def calculate_activity_status(participant_course: ParticipantCourse, db: Session = None) -> str:
     """Calculate activity status for a participant course"""
-    from datetime import datetime
+    from datetime import datetime, timezone
     from app.models.models import Module, Course
 
     # Check if completed
@@ -48,7 +48,14 @@ def calculate_activity_status(participant_course: ParticipantCourse, db: Session
     if not last_activity:
         return "not_started"
 
-    days_since_access = (datetime.now() - last_activity).days
+    # Use timezone-aware datetime to compare with database timestamps
+    now = datetime.now(timezone.utc)
+    
+    # Ensure last_activity is timezone-aware
+    if last_activity.tzinfo is None:
+        last_activity = last_activity.replace(tzinfo=timezone.utc)
+    
+    days_since_access = (now - last_activity).days
 
     if days_since_access <= 30:  # 30 days threshold
         return "active"

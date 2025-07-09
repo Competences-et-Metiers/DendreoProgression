@@ -1,0 +1,206 @@
+services:
+  # Production Nginx (Load Balancer & Reverse Proxy)
+  nginx:
+    image: nginx:alpine
+    container_name: dendreo_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      - ./logs/nginx:/var/log/nginx
+      # Uncomment for SSL support:
+      # - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - dendreo_network
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    env_file:
+      - .env.prod
+
+  # Production Backend
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile.prod
+    env_file:
+      - .env.prod
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+      # API Configuration
+      DENDREO_API_KEY: ${DENDREO_API_KEY}
+      DENDREO_BASE_URL: ${DENDREO_BASE_URL}
+      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY}
+      # Redis configuration (optional)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+    # Backend only exposed internally - nginx handles external traffic
+    expose:
+      - "${BACKEND_PORT:-8000}"
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${BACKEND_PORT:-8000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Production Sync Service
+  sync:
+    build:
+      context: ./back
+      dockerfile: Dockerfile.sync
+    env_file:
+      - .env.prod
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      LOG_LEVEL: ${SYNC_LOG_LEVEL:-INFO}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+      # API Configuration
+      DENDREO_API_KEY: ${DENDREO_API_KEY}
+      DENDREO_BASE_URL: ${DENDREO_BASE_URL}
+      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY}
+      # Redis configuration (optional)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Sync Configuration
+      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 8 * * *}
+      DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-}
+    volumes:
+      - ./logs:/app/logs
+      - sync_logs:/app/logs/sync
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "scripts/sync_health_check.py", "--nagios", "--exit-code"]
+      interval: 1h
+      timeout: 30s
+      retries: 3
+      start_period: 5m
+
+  # Production Frontend
+  frontend:
+    image: node:18-alpine
+    working_dir: /app
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-/api}
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${FRONTEND_PORT:-3000}
+      GENERATE_SOURCEMAP: ${GENERATE_SOURCEMAP:-false}
+      SKIP_PREFLIGHT_CHECK: ${SKIP_PREFLIGHT_CHECK:-true}
+      FAST_REFRESH: ${FAST_REFRESH:-true}
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+    ports:
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    command: sh -c "npm ci && npm start"
+    networks:
+      - dendreo_network
+    depends_on:
+      - backend
+
+  # Portainer - Container Management UI
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: dendreo_portainer_prod
+    ports:
+      - "${PORTAINER_HTTP_PORT:-9000}:9000"
+      - "${PORTAINER_HTTPS_PORT:-9443}:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_prod_data:/data
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+
+  # Production Database
+  postgres:
+    image: postgres:15
+    container_name: dendreo_postgres_prod
+    env_file:
+      - .env.prod
+    # Remove external port exposure for security
+    expose:
+      - "5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d/
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dendreo_prod_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: dendreo_redis_prod
+    expose:
+      - "6379"
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    env_file:
+      - .env.prod
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  frontend_node_modules:
+    driver: local
+  portainer_prod_data:
+    driver: local
+  sync_logs:
+    driver: local
+  redis_prod_data:
+    driver: local
+
+networks:
+  dendreo_network:
+    driver: bridge 

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://192.168.254.24:8000/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -57,6 +57,11 @@ export const apiService = {
 
   async getElearningSyncStats() {
     const response = await api.get('/sync/elearning-sync-stats');
+    return response.data;
+  },
+
+  async getLastSync() {
+    const response = await api.get('/sync/last-sync');
     return response.data;
   },
 };
