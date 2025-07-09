@@ -11,6 +11,9 @@ services:
       - ./logs/nginx:/var/log/nginx
       # Uncomment for SSL support:
       # - ./ssl:/etc/nginx/ssl:ro
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     networks:
       - dendreo_network
     depends_on:
@@ -49,6 +52,9 @@ services:
       - "${BACKEND_PORT:-8000}"
     volumes:
       - ./logs:/app/logs
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,6 +95,9 @@ services:
     volumes:
       - ./logs:/app/logs
       - sync_logs:/app/logs/sync
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -126,6 +135,9 @@ services:
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     command: sh -c "npm ci && npm start"
     networks:
       - dendreo_network
@@ -142,6 +154,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_prod_data:/data
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     networks:
       - dendreo_network
     restart: unless-stopped
@@ -160,6 +175,9 @@ services:
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d/
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     networks:
       - dendreo_network
     restart: unless-stopped
@@ -178,6 +196,9 @@ services:
       - "6379"
     volumes:
       - redis_prod_data:/data
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     networks:
       - dendreo_network
     restart: unless-stopped
