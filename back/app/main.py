@@ -6,14 +6,22 @@ import os
 # Create logs directory if it doesn't exist
 os.makedirs("logs", exist_ok=True)
 
-# Configure logging - both console and file output
+# Configure logging - console and file output (with fallback)
+handlers = [logging.StreamHandler()]  # Console logging
+
+# Try to add file logging, but fall back gracefully if permissions fail
+try:
+    file_handler = logging.FileHandler('logs/app.log')
+    handlers.append(file_handler)
+    print("✅ File logging enabled: logs/app.log")
+except (PermissionError, OSError) as e:
+    print(f"⚠️  File logging disabled due to permission error: {e}")
+    print("📄 Using console logging only")
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),  # Console logging restored
-        logging.FileHandler('logs/app.log')  # File logging
-    ]
+    handlers=handlers
 )
 
 # Set specific logger levels
@@ -29,6 +37,8 @@ logging.getLogger('sqlalchemy.engine.Engine').setLevel(logging.WARNING)
 logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
 logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
 logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
+logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
 
 app = FastAPI(title="Dendreo Progression API", version="1.0.0")
 

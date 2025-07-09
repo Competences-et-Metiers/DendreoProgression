@@ -1,0 +1,16 @@
+[Unit]
+Description=Dendreo Sync Timer
+Requires=dendreo-sync.service
+
+[Timer]
+# Run every 6 hours
+OnCalendar=*-*-* 00,06,12,18:00:00
+# Run 5 minutes after boot if we missed a scheduled run
+OnBootSec=5min
+# If the system was off during a scheduled run, run it when we come back up
+Persistent=true
+# Add some randomization to avoid thundering herd (up to 10 minutes)
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target 

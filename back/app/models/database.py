@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 import logging
+import os
 from contextlib import contextmanager
 from typing import Generator
 from app.config.settings import settings
@@ -18,8 +19,9 @@ def create_database_engine():
         'pool_pre_ping': True,  # Verify connections before use
         'pool_recycle': 3600,   # Recycle connections every hour
         'pool_timeout': 30,     # Connection timeout
-        'echo': settings.is_development and settings.log_level == 'DEBUG',
-        'echo_pool': settings.is_development and settings.log_level == 'DEBUG',
+        # Only enable SQL logging when explicitly needed for debugging
+        'echo': os.getenv('SQLALCHEMY_ECHO', 'false').lower() == 'true',
+        'echo_pool': os.getenv('SQLALCHEMY_ECHO_POOL', 'false').lower() == 'true',
     }
     
     # PostgreSQL specific configuration
@@ -96,7 +98,7 @@ def create_tables():
     """Create all database tables with proper error handling."""
     try:
         # Import all models to ensure they're registered
-        from app.models.models import Participant, Course, Module, ParticipantCourse
+        from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, SyncMetadata
         
         logger.info("Creating database tables...")
         

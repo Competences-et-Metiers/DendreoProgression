@@ -59,6 +59,11 @@ export const apiService = {
     const response = await api.get('/sync/elearning-sync-stats');
     return response.data;
   },
+
+  async getLastSync() {
+    const response = await api.get('/sync/last-sync');
+    return response.data;
+  },
 };
 
 export default api; 

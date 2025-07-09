@@ -32,8 +32,8 @@ RUN pip install --no-cache-dir \
     isort \
     mypy
 
-# Create logs directory
-RUN mkdir -p logs
+# Create logs directory with proper permissions
+RUN mkdir -p logs && chmod 777 logs
 
 # Create a development startup script
 RUN echo '#!/bin/bash\n\

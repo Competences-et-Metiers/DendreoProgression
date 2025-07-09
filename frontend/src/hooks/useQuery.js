@@ -74,6 +74,18 @@ export const useSyncStats = () => {
   });
 };
 
+export const useLastSync = () => {
+  return useQuery({
+    queryKey: ['lastSync'],
+    queryFn: apiService.getLastSync,
+    staleTime: 1 * 60 * 1000, // 1 minute - shorter since this changes frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    refetchOnWindowFocus: true, // Refetch when window gets focus
+    refetchOnMount: true, // Always refresh sync info
+  });
+};
+
 // Mutation hooks for cache invalidation
 export const useSyncMutation = () => {
   const queryClient = useQueryClient();
@@ -85,6 +97,7 @@ export const useSyncMutation = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats });
       queryClient.invalidateQueries({ queryKey: queryKeys.courses });
       queryClient.invalidateQueries({ queryKey: queryKeys.participants });
+      queryClient.invalidateQueries({ queryKey: ['lastSync'] });
     },
   });
 };
