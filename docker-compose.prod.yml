@@ -30,6 +30,8 @@ services:
     build:
       context: ./back
       dockerfile: Dockerfile.prod
+    env_file:
+      - .env.prod
     environment:
       APP_ENV: ${APP_ENV:-production}
       DATABASE_URL: ${DATABASE_URL}
@@ -42,8 +44,6 @@ services:
       # Redis configuration (optional)
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_ENABLED: ${REDIS_ENABLED:-false}
-    env_file:
-      - .env.prod
     # Backend only exposed internally - nginx handles external traffic
     expose:
       - "${BACKEND_PORT:-8000}"
@@ -69,6 +69,8 @@ services:
     build:
       context: ./back
       dockerfile: Dockerfile.sync
+    env_file:
+      - .env.prod
     environment:
       APP_ENV: ${APP_ENV:-production}
       DATABASE_URL: ${DATABASE_URL}
@@ -82,10 +84,8 @@ services:
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_ENABLED: ${REDIS_ENABLED:-false}
       # Sync Configuration
-      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 */6 * * *}
+      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 8 * * *}
       DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-}
-    env_file:
-      - .env.prod
     volumes:
       - ./logs:/app/logs
       - sync_logs:/app/logs/sync
@@ -110,6 +110,8 @@ services:
   frontend:
     image: node:18-alpine
     working_dir: /app
+    env_file:
+      - .env.prod
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       REACT_APP_API_URL: ${REACT_APP_API_URL:-/api}
