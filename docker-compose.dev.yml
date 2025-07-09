@@ -5,25 +5,25 @@ services:
       context: ./back
       dockerfile: Dockerfile.dev
     environment:
-      APP_ENV: ${APP_ENV}
-      DATABASE_URL: ${DATABASE_URL}
-      LOG_LEVEL: ${LOG_LEVEL}
-      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED}
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:admin@postgres:5432/dendreo_dev_db}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
       # API Configuration
-      DENDREO_API_KEY: ${DENDREO_API_KEY}
-      DENDREO_BASE_URL: ${DENDREO_BASE_URL}
-      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY}
+      DENDREO_API_KEY: ${DENDREO_API_KEY:-your_dendreo_api_key_here}
+      DENDREO_BASE_URL: ${DENDREO_BASE_URL:-https://pro.dendreo.com/competences_et_metiers/api}
+      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY:-your_hubspot_api_key_here}
       # Redis configuration (optional)
-      REDIS_URL: ${REDIS_URL}
-      REDIS_ENABLED: ${REDIS_ENABLED}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
     env_file:
       - .env.dev
     ports:
-      - "${BACKEND_PORT}:${BACKEND_PORT}"
+      - "${BACKEND_PORT:-8000}:${BACKEND_PORT:-8000}"
     volumes:
       - ./dev-logs:/app/logs:rw
       - ./back:/app
-    command: sh -c "chmod 777 /app/logs && uvicorn app.main:app --host ${HOST} --port ${PORT} --reload --log-level info"
+    command: sh -c "chmod 777 /app/logs && uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload --log-level info"
     depends_on:
       - postgres
     networks:
@@ -34,16 +34,16 @@ services:
     image: node:18-alpine
     working_dir: /app
     environment:
-      NODE_ENV: ${NODE_ENV}
-      REACT_APP_API_URL: ${REACT_APP_API_URL}
-      HOST: ${HOST}
-      PORT: ${FRONTEND_PORT}
-      GENERATE_SOURCEMAP: ${GENERATE_SOURCEMAP}
-      SKIP_PREFLIGHT_CHECK: ${SKIP_PREFLIGHT_CHECK}
-      FAST_REFRESH: ${FAST_REFRESH}
-      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING}
+      NODE_ENV: ${NODE_ENV:-development}
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api}
+      HOST: ${HOST:-0.0.0.0}
+      PORT: ${FRONTEND_PORT:-3000}
+      GENERATE_SOURCEMAP: ${GENERATE_SOURCEMAP:-false}
+      SKIP_PREFLIGHT_CHECK: ${SKIP_PREFLIGHT_CHECK:-true}
+      FAST_REFRESH: ${FAST_REFRESH:-true}
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
     ports:
-      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+      - "${FRONTEND_PORT:-3000}:${FRONTEND_PORT:-3000}"
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
@@ -58,8 +58,8 @@ services:
     image: portainer/portainer-ce:latest
     container_name: dendreo_portainer_dev
     ports:
-      - "${PORTAINER_HTTP_PORT}:9000"
-      - "${PORTAINER_HTTPS_PORT}:9443"
+      - "${PORTAINER_HTTP_PORT:-9000}:9000"
+      - "${PORTAINER_HTTPS_PORT:-9443}:9443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_dev_data:/data
@@ -71,20 +71,17 @@ services:
   postgres:
     image: postgres:15
     container_name: dendreo_postgres_dev
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PGDATA: ${PGDATA}
+    env_file:
+      - .env.dev
     ports:
-      - "${POSTGRES_EXTERNAL_PORT}:5432"  # External port to avoid conflicts
+      - "${POSTGRES_EXTERNAL_PORT:-5433}:5432"  # External port to avoid conflicts
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d/
     networks:
       - dendreo_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dendreo_dev_db}"]
       interval: 30s
       timeout: 10s
       retries: 3

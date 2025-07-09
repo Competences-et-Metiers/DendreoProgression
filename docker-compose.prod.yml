@@ -52,6 +52,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - dendreo_network
     restart: unless-stopped
@@ -61,6 +63,48 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Production Sync Service
+  sync:
+    build:
+      context: ./back
+      dockerfile: Dockerfile.sync
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      LOG_LEVEL: ${SYNC_LOG_LEVEL:-INFO}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+      # API Configuration
+      DENDREO_API_KEY: ${DENDREO_API_KEY}
+      DENDREO_BASE_URL: ${DENDREO_BASE_URL}
+      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY}
+      # Redis configuration (optional)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Sync Configuration
+      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 */6 * * *}
+      DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-}
+    env_file:
+      - .env.prod
+    volumes:
+      - ./logs:/app/logs
+      - sync_logs:/app/logs/sync
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "scripts/sync_health_check.py", "--nagios", "--exit-code"]
+      interval: 1h
+      timeout: 30s
+      retries: 3
+      start_period: 5m
 
   # Production Frontend
   frontend:
@@ -106,15 +150,6 @@ services:
   postgres:
     image: postgres:15
     container_name: dendreo_postgres_prod
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-dendreo_prod_db}
-      POSTGRES_USER: ${POSTGRES_USER:-dendreo_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      PGDATA: ${PGDATA:-/var/lib/postgresql/data/pgdata}
-      # Production performance settings
-      POSTGRES_SHARED_BUFFERS: ${POSTGRES_SHARED_BUFFERS:-256MB}
-      POSTGRES_EFFECTIVE_CACHE_SIZE: ${POSTGRES_EFFECTIVE_CACHE_SIZE:-1GB}
-      POSTGRES_MAX_CONNECTIONS: ${POSTGRES_MAX_CONNECTIONS:-200}
     env_file:
       - .env.prod
     # Remove external port exposure for security
@@ -127,30 +162,30 @@ services:
       - dendreo_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dendreo_user} -d ${POSTGRES_DB:-dendreo_prod_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dendreo_prod_db}"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
 
-  # Optional: Redis for caching (uncomment if needed)
-  # redis:
-  #   image: redis:7-alpine
-  #   container_name: dendreo_redis_prod
-  #   expose:
-  #     - "6379"
-  #   volumes:
-  #     - redis_prod_data:/data
-  #   networks:
-  #     - dendreo_network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #   env_file:
-  #     - .env.prod
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: dendreo_redis_prod
+    expose:
+      - "6379"
+    volumes:
+      - redis_prod_data:/data
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    env_file:
+      - .env.prod
 
 volumes:
   postgres_prod_data:
@@ -159,8 +194,10 @@ volumes:
     driver: local
   portainer_prod_data:
     driver: local
-  # redis_prod_data:
-  #   driver: local
+  sync_logs:
+    driver: local
+  redis_prod_data:
+    driver: local
 
 networks:
   dendreo_network:
