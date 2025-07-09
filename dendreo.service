@@ -1,0 +1,34 @@
+[Unit]
+Description=Dendreo Progression Production Service
+Documentation=https://github.com/your-org/dendreo-progression
+After=network.target docker.service
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+Group=root
+WorkingDirectory=/home/cm/DendreoProgression
+ExecStart=/home/cm/DendreoProgression/dendreo-service-manager.sh start
+ExecStop=/home/cm/DendreoProgression/dendreo-service-manager.sh stop
+ExecReload=/home/cm/DendreoProgression/dendreo-service-manager.sh restart
+TimeoutStartSec=300
+TimeoutStopSec=60
+Restart=no
+StandardOutput=journal
+StandardError=journal
+
+# Environment
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Security settings
+NoNewPrivileges=false
+PrivateTmp=false
+PrivateDevices=false
+ProtectSystem=false
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target 
