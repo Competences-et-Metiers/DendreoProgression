@@ -21,7 +21,7 @@ Add sync-specific variables to your `.env.prod`:
 
 ```bash
 # Sync Configuration
-SYNC_SCHEDULE=0 */6 * * *     # Every 6 hours
+SYNC_SCHEDULE=0 8 * * *       # Daily at 8AM
 SYNC_LOG_LEVEL=INFO           # Sync logging level
 DENDREO_ADF_LIMIT=            # Optional: limit ADFs for testing
 
@@ -48,7 +48,10 @@ docker-compose -f docker-compose.prod.yml logs -f sync
 Set the `SYNC_SCHEDULE` environment variable in `.env.prod`:
 
 ```bash
-# Every 6 hours (recommended)
+# Daily at 8AM (recommended)
+SYNC_SCHEDULE=0 8 * * *
+
+# Every 6 hours
 SYNC_SCHEDULE=0 */6 * * *
 
 # Every 4 hours
