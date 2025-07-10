@@ -74,17 +74,17 @@ def get_sync_health() -> Dict[str, Any]:
                 health_score = 0
                 messages.append(f"Last sync failed: {sync_metadata.error_message}")
             
-            # Check if sync is overdue
+            # Check if sync is overdue (daily sync schedule)
             elif sync_metadata.status == 'success':
                 if time_since_sync:
-                    if time_since_sync > timedelta(hours=8):
+                    if time_since_sync > timedelta(hours=26):  # Allow 2 hours buffer for daily sync
                         health_status = "critical"
                         health_score = 0
-                        messages.append("No successful sync in over 8 hours")
-                    elif time_since_sync > timedelta(hours=7):
+                        messages.append("No successful sync in over 26 hours")
+                    elif time_since_sync > timedelta(hours=25):  # Warning at 25 hours
                         health_status = "warning"
                         health_score = 30
-                        messages.append("Sync is overdue (expected every 6 hours)")
+                        messages.append("Sync is overdue (expected daily)")
                     else:
                         messages.append("Sync is up to date")
             

@@ -13,10 +13,12 @@ import {
   Calendar,
   RefreshCw,
   ChevronRight,
-  Filter
+  Filter,
+  Search
 } from 'lucide-react';
 
 const Dashboard = () => {
+  const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
   const [filterBy, setFilterBy] = useState('all');
   const navigate = useNavigate();
@@ -73,13 +75,21 @@ const Dashboard = () => {
   const getFilteredAndSortedCourses = () => {
     let filtered = courses;
     
-    // Filter courses
+    // Filter by search term
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(course => 
+        course.intitule.toLowerCase().includes(search)
+      );
+    }
+    
+    // Filter courses by completion status
     if (filterBy === 'completed') {
-      filtered = courses.filter(course => course.average_progression >= 100);
+      filtered = filtered.filter(course => course.average_progression >= 100);
     } else if (filterBy === 'in-progress') {
-      filtered = courses.filter(course => course.average_progression > 0 && course.average_progression < 100);
+      filtered = filtered.filter(course => course.average_progression > 0 && course.average_progression < 100);
     } else if (filterBy === 'not-started') {
-      filtered = courses.filter(course => course.average_progression === 0);
+      filtered = filtered.filter(course => course.average_progression === 0);
     }
     
     // Sort courses
@@ -260,14 +270,30 @@ const Dashboard = () => {
         <div className="bg-white rounded-lg border border-gray-200">
           {/* Courses Header */}
           <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Courses</h2>
-                <p className="text-sm text-gray-600">Click on a course to view participants</p>
+                <p className="text-sm text-gray-600">
+                  {filteredCourses.length} of {courses.length} courses
+                  {searchTerm && ' matching your search'}
+                </p>
               </div>
               
-              {/* Filters and Sort */}
-              <div className="flex items-center space-x-4 mt-4 sm:mt-0">
+              {/* Search and Filters */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 mt-4 lg:mt-0">
+                {/* Search */}
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search courses..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm w-64"
+                  />
+                </div>
+                
+                {/* Filter */}
                 <div className="flex items-center space-x-2">
                   <Filter size={16} className="text-gray-500" />
                   <select
@@ -301,7 +327,20 @@ const Dashboard = () => {
             {filteredCourses.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No courses found matching your criteria</p>
+                <p className="text-gray-500">
+                  {searchTerm || filterBy !== 'all' 
+                    ? 'No courses found matching your criteria'
+                    : 'No courses found'
+                  }
+                </p>
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="mt-2 text-sm text-primary-600 hover:text-primary-700"
+                  >
+                    Clear search
+                  </button>
+                )}
               </div>
             ) : (
               filteredCourses.map((course) => (

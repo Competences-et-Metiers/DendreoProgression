@@ -27,10 +27,20 @@ RUN chmod +x scripts/sync_dendreo.py
 
 # Create sync wrapper script
 RUN echo '#!/bin/bash\n\
+# Source environment variables\n\
 export PYTHONPATH="/app:$PYTHONPATH"\n\
+export DATABASE_URL="${DATABASE_URL}"\n\
+export DENDREO_API_KEY="${DENDREO_API_KEY}"\n\
+export DENDREO_BASE_URL="${DENDREO_BASE_URL}"\n\
+export HUBSPOT_API_KEY="${HUBSPOT_API_KEY}"\n\
+export REDIS_URL="${REDIS_URL}"\n\
+export REDIS_ENABLED="${REDIS_ENABLED}"\n\
+export DENDREO_ADF_LIMIT="${DENDREO_ADF_LIMIT}"\n\
+export LOG_LEVEL="${LOG_LEVEL:-INFO}"\n\
+export APP_ENV="${APP_ENV:-production}"\n\
 cd /app\n\
 echo "$(date) - Starting sync process"\n\
-python3 scripts/sync_dendreo.py --log-level ${LOG_LEVEL:-INFO} >> logs/sync.log 2>&1\n\
+python3 scripts/sync_dendreo.py --log-level ${LOG_LEVEL:-INFO}\n\
 echo "$(date) - Sync process completed"\n\
 ' > /app/sync_wrapper.sh && chmod +x /app/sync_wrapper.sh
 
@@ -38,7 +48,7 @@ echo "$(date) - Sync process completed"\n\
 RUN echo '#!/bin/bash\n\
 echo "=== Dendreo Sync Container Starting ==="\n\
 echo "Environment: ${APP_ENV:-production}"\n\
-echo "Sync Schedule: ${SYNC_SCHEDULE:-0 */6 * * *}"\n\
+echo "Sync Schedule: ${SYNC_SCHEDULE:-0 8 * * *}"\n\
 echo "Log Level: ${LOG_LEVEL:-INFO}"\n\
 echo "========================================"\n\
 \n\
@@ -47,14 +57,43 @@ echo "Waiting for database..."\n\
 timeout 60 bash -c "until python -c '\''from app.models.database import engine; from sqlalchemy import text; engine.connect().execute(text(\"SELECT 1\"))'\'' 2>/dev/null; do echo '\''Waiting for database...'\''; sleep 2; done"\n\
 echo "Database is ready!"\n\
 \n\
+# Create environment file for cron\n\
+cat > /app/cron_env.sh << EOF\n\
+export DATABASE_URL="${DATABASE_URL}"\n\
+export DENDREO_API_KEY="${DENDREO_API_KEY}"\n\
+export DENDREO_BASE_URL="${DENDREO_BASE_URL}"\n\
+export HUBSPOT_API_KEY="${HUBSPOT_API_KEY}"\n\
+export REDIS_URL="${REDIS_URL}"\n\
+export REDIS_ENABLED="${REDIS_ENABLED}"\n\
+export DENDREO_ADF_LIMIT="${DENDREO_ADF_LIMIT}"\n\
+export LOG_LEVEL="${LOG_LEVEL:-INFO}"\n\
+export APP_ENV="${APP_ENV:-production}"\n\
+export PYTHONPATH="/app:$PYTHONPATH"\n\
+EOF\n\
+\n\
+# Create enhanced sync wrapper that sources environment\n\
+cat > /app/sync_wrapper_cron.sh << EOF\n\
+#!/bin/bash\n\
+source /app/cron_env.sh\n\
+cd /app\n\
+echo "$(date) - Starting sync process (PID: $$)"\n\
+python3 scripts/sync_dendreo.py --log-level ${LOG_LEVEL:-INFO}\n\
+echo "$(date) - Sync process completed (PID: $$)"\n\
+EOF\n\
+chmod +x /app/sync_wrapper_cron.sh\n\
+\n\
 # Set up cron job\n\
-SYNC_SCHEDULE="${SYNC_SCHEDULE:-0 */6 * * *}"\n\
+SYNC_SCHEDULE="${SYNC_SCHEDULE:-0 8 * * *}"\n\
 echo "Setting up sync cron job: $SYNC_SCHEDULE"\n\
-echo "$SYNC_SCHEDULE /app/sync_wrapper.sh" | crontab -\n\
+echo "$SYNC_SCHEDULE /app/sync_wrapper_cron.sh >> /app/logs/cron.log 2>&1" | crontab -\n\
 \n\
 # Verify cron job\n\
 echo "📋 Configured cron jobs:"\n\
 crontab -l\n\
+\n\
+# Test the sync wrapper can run\n\
+echo "🧪 Testing sync wrapper..."\n\
+/app/sync_wrapper_cron.sh --help || echo "Warning: Could not test sync wrapper"\n\
 \n\
 # Start cron in the foreground (required for Docker)\n\
 echo "🚀 Starting cron daemon in foreground..."\n\

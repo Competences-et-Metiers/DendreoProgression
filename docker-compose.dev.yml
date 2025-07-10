@@ -6,7 +6,8 @@ services:
       dockerfile: Dockerfile.dev
     environment:
       APP_ENV: ${APP_ENV:-development}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:admin@postgres:5432/dendreo_dev_db}
+      # Use postgres:5432 when running in Docker containers
+      DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
       # API Configuration
