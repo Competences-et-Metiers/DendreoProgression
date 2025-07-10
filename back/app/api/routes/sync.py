@@ -8,7 +8,7 @@ import logging
 import httpx
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from app.models.models import Participant, Course, Module, ParticipantCourse, SyncMetadata
 from sqlalchemy import text
 from app.config.settings import settings
@@ -44,7 +44,7 @@ async def sync_all(
     _: bool = Depends(verify_sync_api_key)
 ) -> Dict[str, Any]:
     """Synchronize all data from Dendreo"""
-    sync_start_time = datetime.utcnow()
+    sync_start_time = datetime.now(timezone.utc)
     
     # Create or update sync metadata record
     sync_metadata = db.query(SyncMetadata).filter(SyncMetadata.sync_type == 'sync_all').first()

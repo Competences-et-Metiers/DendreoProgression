@@ -8,7 +8,7 @@ import sys
 import os
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -83,7 +83,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
             # Check for recent successful sync (within last hour)
             if not force:
                 from datetime import timedelta
-                one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+                one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
                 recent_sync = db.query(SyncMetadata).filter(
                     SyncMetadata.sync_type == 'sync_all',
                     SyncMetadata.status == 'success',
@@ -102,7 +102,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
             logger.info("🧪 DRY RUN MODE - No database changes will be made")
         
         logger.info("🚀 Starting Dendreo sync process...")
-        sync_start_time = datetime.utcnow()
+        sync_start_time = datetime.now(timezone.utc)
         
         # Create sync metadata record
         with get_db_session() as db:
@@ -149,7 +149,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
                 if sync_metadata:
                     sync_metadata.status = 'success'
                     sync_metadata.stats = json.dumps(result.get('stats', {}))
-                    sync_metadata.updated_at = datetime.utcnow()
+                    sync_metadata.updated_at = datetime.now(timezone.utc)
                     db.commit()
         
         logger.info(f"✅ Sync completed successfully: {result.get('message', 'No message')}")
@@ -169,7 +169,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
                     if sync_metadata:
                         sync_metadata.status = 'error'
                         sync_metadata.error_message = str(e)
-                        sync_metadata.updated_at = datetime.utcnow()
+                        sync_metadata.updated_at = datetime.now(timezone.utc)
                         db.commit()
             except Exception as meta_error:
                 logger.error(f"Failed to update sync metadata: {meta_error}")
@@ -177,7 +177,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
         return {
             "status": "error",
             "message": str(e),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
 def main():
