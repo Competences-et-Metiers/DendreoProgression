@@ -47,6 +47,9 @@ services:
       # Redis configuration (optional)
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Timezone configuration
+      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
+      TZ: ${TZ:-Europe/Paris}
     # Backend only exposed internally - nginx handles external traffic
     expose:
       - "${BACKEND_PORT:-8000}"
@@ -90,6 +93,9 @@ services:
       # Redis configuration (optional)
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Timezone configuration
+      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
+      TZ: ${TZ:-Europe/Paris}
       # Sync Configuration - Production schedule (8 AM daily)
       SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 8 * * *}
       DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-}
@@ -179,6 +185,10 @@ services:
     container_name: dendreo_postgres_prod
     env_file:
       - .env.prod
+    environment:
+      # Set PostgreSQL timezone to match container timezone
+      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
+      TZ: ${TZ:-Europe/Paris}
     # Remove external port exposure for security
     expose:
       - "5432"

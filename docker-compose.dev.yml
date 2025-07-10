@@ -17,6 +17,9 @@ services:
       # Redis configuration (optional)
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Timezone configuration
+      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
+      TZ: ${TZ:-Europe/Paris}
     env_file:
       - .env.dev
     ports:
@@ -51,6 +54,9 @@ services:
       # Redis configuration (optional)
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Timezone configuration
+      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
+      TZ: ${TZ:-Europe/Paris}
       # Sync Configuration for development
       SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 8 * * *}  # Every day at 8 AM
       DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-10}  # Limit to 10 for development
@@ -125,6 +131,10 @@ services:
     container_name: dendreo_postgres_dev
     env_file:
       - .env.dev
+    environment:
+      # Set PostgreSQL timezone to match container timezone
+      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
+      TZ: ${TZ:-Europe/Paris}
     ports:
       - "${POSTGRES_EXTERNAL_PORT:-5433}:5432"  # External port to avoid conflicts
     volumes:

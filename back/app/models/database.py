@@ -26,10 +26,12 @@ def create_database_engine():
     
     # PostgreSQL specific configuration
     if database_url.startswith(('postgresql://', 'postgresql+psycopg2://')):
+        # Use local timezone instead of forcing UTC
+        timezone_setting = os.getenv('POSTGRES_TZ', 'Europe/Paris')
         engine_config.update({
             'connect_args': {
                 'connect_timeout': 30,
-                'options': '-c timezone=UTC -c client_encoding=utf8',
+                'options': f'-c timezone={timezone_setting} -c client_encoding=utf8',
             },
             'poolclass': QueuePool,
             'pool_size': 10 if settings.is_production else 5,

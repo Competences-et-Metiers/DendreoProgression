@@ -3,9 +3,10 @@
 ### 
 ### Features
 
-- [ ] Add search bar
+- [x] Add search bar
 - [ ] Add `time spent`
-- [ ] 
+- [ ] Add "last sync"
+	- [ ] Fix incorrect date/time
 
 #### Cleanup
 - [ ] Clean up endpoints
