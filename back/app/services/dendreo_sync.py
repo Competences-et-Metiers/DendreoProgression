@@ -17,7 +17,13 @@ class DendreoSync:
         self.client = client
         self.batch_size = 50
         # Get ADF limit from environment variable, default to None (no limit)
-        self.adf_limit = int(os.getenv('DENDREO_ADF_LIMIT', '0')) or None
+        adf_limit_str = os.getenv('DENDREO_ADF_LIMIT', '').strip()
+        if adf_limit_str and adf_limit_str.isdigit():
+            adf_limit_value = int(adf_limit_str)
+            # Treat 0 as no limit
+            self.adf_limit = adf_limit_value if adf_limit_value > 0 else None
+        else:
+            self.adf_limit = None
         self.stats = {
             "participants_created": 0,
             "participants_updated": 0,
