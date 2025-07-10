@@ -104,25 +104,26 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
         logger.info("🚀 Starting Dendreo sync process...")
         sync_start_time = datetime.now(timezone.utc)
         
-        # Create sync metadata record
-        with get_db_session() as db:
-            sync_metadata = db.query(SyncMetadata).filter(
-                SyncMetadata.sync_type == 'sync_all'
-            ).first()
-            
-            if not sync_metadata:
-                sync_metadata = SyncMetadata(
-                    sync_type='sync_all',
-                    last_sync_at=sync_start_time,
-                    status='in_progress'
-                )
-                db.add(sync_metadata)
-            else:
-                sync_metadata.last_sync_at = sync_start_time
-                sync_metadata.status = 'in_progress'
-                sync_metadata.error_message = None
-            
-            if not dry_run:
+        # Create sync metadata record (only for real syncs, not dry runs)
+        sync_metadata = None
+        if not dry_run:
+            with get_db_session() as db:
+                sync_metadata = db.query(SyncMetadata).filter(
+                    SyncMetadata.sync_type == 'sync_all'
+                ).first()
+                
+                if not sync_metadata:
+                    sync_metadata = SyncMetadata(
+                        sync_type='sync_all',
+                        last_sync_at=sync_start_time,
+                        status='in_progress'
+                    )
+                    db.add(sync_metadata)
+                else:
+                    sync_metadata.last_sync_at = sync_start_time
+                    sync_metadata.status = 'in_progress'
+                    sync_metadata.error_message = None
+                
                 db.commit()
         
         # Run the sync
@@ -139,7 +140,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
                 "stats": {"note": "This was a dry run - no actual changes made"}
             }
         
-        # Update sync metadata with success
+        # Update sync metadata with success (only for real syncs)
         if not dry_run:
             with get_db_session() as db:
                 sync_metadata = db.query(SyncMetadata).filter(
@@ -158,7 +159,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
     except Exception as e:
         logger.error(f"❌ Sync failed: {str(e)}")
         
-        # Update sync metadata with error
+        # Update sync metadata with error (only for real syncs)
         if not dry_run:
             try:
                 with get_db_session() as db:
@@ -180,6 +181,36 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
+def cleanup_stuck_sync_metadata():
+    """Clean up any sync metadata records stuck in 'in_progress' state"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        with get_db_session() as db:
+            # Find sync metadata stuck in 'in_progress' for more than 2 hours
+            from datetime import timedelta
+            two_hours_ago = datetime.now(timezone.utc) - timedelta(hours=2)
+            
+            stuck_syncs = db.query(SyncMetadata).filter(
+                SyncMetadata.status == 'in_progress',
+                SyncMetadata.last_sync_at < two_hours_ago
+            ).all()
+            
+            if stuck_syncs:
+                logger.info(f"🔧 Found {len(stuck_syncs)} stuck sync metadata records, cleaning up...")
+                for sync in stuck_syncs:
+                    sync.status = 'error'
+                    sync.error_message = 'Sync process was interrupted or timed out'
+                    sync.updated_at = datetime.now(timezone.utc)
+                
+                db.commit()
+                logger.info("✅ Cleaned up stuck sync metadata records")
+            else:
+                logger.debug("No stuck sync metadata records found")
+                
+    except Exception as e:
+        logger.error(f"Failed to cleanup stuck sync metadata: {e}")
+
 def main():
     """Main function with CLI argument parsing"""
     import argparse
@@ -193,6 +224,7 @@ Examples:
   python sync_dendreo.py --force           # Force sync (ignore recent syncs)
   python sync_dendreo.py --dry-run         # Test run without changes
   python sync_dendreo.py --log-level DEBUG # Debug mode
+  python sync_dendreo.py --cleanup-stuck   # Clean up stuck sync records
         """
     )
     
@@ -215,10 +247,25 @@ Examples:
         help='Set logging level'
     )
     
+    parser.add_argument(
+        '--cleanup-stuck',
+        action='store_true',
+        help='Clean up stuck sync metadata records and exit'
+    )
+    
     args = parser.parse_args()
     
     # Setup logging
     logger = setup_logging(args.log_level)
+    
+    # Handle cleanup-stuck option
+    if args.cleanup_stuck:
+        cleanup_stuck_sync_metadata()
+        logger.info("🧹 Cleanup completed, exiting...")
+        sys.exit(0)
+    
+    # Clean up any stuck sync metadata records (automatic cleanup)
+    cleanup_stuck_sync_metadata()
     
     # Print startup info
     logger.info("=" * 60)
