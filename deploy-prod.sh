@@ -123,12 +123,12 @@ source_env_variables() {
 validate_env() {
     log_info "Validating environment variables..."
     
-    # Check required variables
-    required_vars=("POSTGRES_PASSWORD" "DENDREO_API_KEY")
+    # Check required variables (including sync-related ones)
+    required_vars=("POSTGRES_PASSWORD" "DENDREO_API_KEY" "DENDREO_BASE_URL" "DATABASE_URL")
     missing_vars=()
     
     for var in "${required_vars[@]}"; do
-        if [ -z "${!var}" ] || [ "${!var}" = "CHANGE_ME_TO_SECURE_PASSWORD" ] || [ "${!var}" = "YOUR_DENDREO_API_KEY_HERE" ]; then
+        if [ -z "${!var}" ] || [ "${!var}" = "CHANGE_ME_TO_SECURE_PASSWORD" ] || [ "${!var}" = "YOUR_DENDREO_API_KEY_HERE" ] || [ "${!var}" = "your_dendreo_api_key_here" ]; then
             missing_vars+=("$var")
         fi
     done
@@ -140,7 +140,28 @@ validate_env() {
         exit 1
     fi
     
+    # Check if API keys are not placeholder values
+    if [[ "$DENDREO_API_KEY" == "your_dendreo_api_key_here" ]]; then
+        log_error "DENDREO_API_KEY is still set to placeholder value"
+        exit 1
+    fi
+    
     log_success "Environment validation passed"
+}
+
+# Prepare sync scripts
+prepare_sync_scripts() {
+    log_info "Preparing sync scripts..."
+    
+    # Make sync scripts executable
+    chmod +x ./back/scripts/sync_wrapper_prod.sh 2>/dev/null || log_warning "sync_wrapper_prod.sh not found"
+    chmod +x ./back/scripts/sync_wrapper_fixed.sh 2>/dev/null || log_warning "sync_wrapper_fixed.sh not found"
+    chmod +x ./back/scripts/diagnose_cron.py 2>/dev/null || log_warning "diagnose_cron.py not found"
+    chmod +x ./back/scripts/check_sync_status.py 2>/dev/null || log_warning "check_sync_status.py not found"
+    chmod +x ./back/scripts/setup_sync_table.py 2>/dev/null || log_warning "setup_sync_table.py not found"
+    chmod +x ./back/scripts/test_sync_cron.py 2>/dev/null || log_warning "test_sync_cron.py not found"
+    
+    log_success "Sync scripts prepared"
 }
 
 # Build and start services
@@ -212,7 +233,66 @@ deploy() {
         exit 1
     fi
     
+    # Check sync service
+    if docker compose -f docker-compose.prod.yml ps sync | grep -q "Up"; then
+        log_success "Sync service is running"
+    else
+        log_error "Sync service failed to start"
+        docker compose -f docker-compose.prod.yml logs sync
+        exit 1
+    fi
+    
     log_success "All services are running successfully!"
+}
+
+# Initialize database and sync tables
+initialize_database() {
+    log_info "Initializing database and sync tables..."
+    
+    # Wait for database to be fully ready
+    log_info "Waiting for database to be ready..."
+    local timeout=60
+    local counter=0
+    
+    while ! docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U postgres > /dev/null 2>&1; do
+        if [ $counter -ge $timeout ]; then
+            log_error "Database failed to be ready within $timeout seconds"
+            exit 1
+        fi
+        sleep 2
+        counter=$((counter + 2))
+        echo -n "."
+    done
+    echo
+    
+    # Run database setup script for sync tables
+    log_info "Setting up sync metadata tables..."
+    if docker compose -f docker-compose.prod.yml exec -T sync python3 scripts/setup_sync_table.py 2>/dev/null; then
+        log_success "Database and sync tables initialized successfully"
+    else
+        log_warning "Database initialization had issues (may already be initialized)"
+    fi
+}
+
+# Test sync functionality
+test_sync() {
+    log_info "Testing sync functionality..."
+    
+    # Run sync diagnostic
+    log_info "Running sync diagnostic..."
+    if docker compose -f docker-compose.prod.yml exec -T sync python3 scripts/diagnose_cron.py 2>/dev/null; then
+        log_success "Sync diagnostic passed"
+    else
+        log_warning "Sync diagnostic found issues - check logs for details"
+    fi
+    
+    # Check sync status
+    log_info "Checking sync status..."
+    if docker compose -f docker-compose.prod.yml exec -T sync python3 scripts/check_sync_status.py 2>/dev/null; then
+        log_success "Sync status check passed"
+    else
+        log_warning "Sync status check found issues - run manual checks"
+    fi
 }
 
 # Show status and URLs
@@ -227,11 +307,25 @@ show_status() {
     echo "   API: http://localhost/api"
     echo "   Health Check: http://localhost/health"
     echo
+    echo "🔄 Sync Configuration:"
+    if [ -f ".env.prod" ]; then
+        echo "   Schedule: $(grep SYNC_SCHEDULE .env.prod | cut -d'=' -f2 || echo '0 8 * * *')"
+        echo "   Log Level: $(grep SYNC_LOG_LEVEL .env.prod | cut -d'=' -f2 || echo 'INFO')"
+        echo "   ADF Limit: $(grep DENDREO_ADF_LIMIT .env.prod | cut -d'=' -f2 || echo 'unlimited')"
+    fi
+    echo
     echo "📝 Useful Commands:"
     echo "   View logs: docker compose -f docker-compose.prod.yml logs -f [service]"
     echo "   Stop services: docker compose -f docker-compose.prod.yml down"
     echo "   Restart services: docker compose -f docker-compose.prod.yml restart"
     echo "   Update services: docker compose -f docker-compose.prod.yml up --build -d"
+    echo
+    echo "🔄 Sync Management:"
+    echo "   Check sync status: docker compose -f docker-compose.prod.yml exec sync python3 scripts/check_sync_status.py"
+    echo "   Manual sync test: docker compose -f docker-compose.prod.yml exec sync python3 scripts/sync_dendreo.py"
+    echo "   View sync logs: docker compose -f docker-compose.prod.yml exec sync cat /app/logs/cron.log"
+    echo "   Sync diagnostic: docker compose -f docker-compose.prod.yml exec sync python3 scripts/diagnose_cron.py"
+    echo "   Monitor database: docker compose -f docker-compose.prod.yml exec postgres psql -U postgres -d dendreo_prod_db -c \"SELECT * FROM sync_metadata ORDER BY last_sync_at DESC LIMIT 5;\""
     echo
     echo "🔧 For SSL setup:"
     echo "   1. Place SSL certificates in ./ssl/ directory"
@@ -241,15 +335,68 @@ show_status() {
 
 # Usage information
 show_usage() {
+    echo "Production Deployment Script for Dendreo Progression"
+    echo "===================================================="
+    echo ""
+    echo "This script deploys the complete production environment including:"
+    echo "  • Frontend (React application)"
+    echo "  • Backend (FastAPI server)"
+    echo "  • Database (PostgreSQL)"
+    echo "  • Sync Service (Automated data synchronization)"
+    echo "  • Nginx (Reverse proxy and load balancer)"
+    echo "  • Redis (Caching layer)"
+    echo ""
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
     echo "  DEBUG=true    Enable debug mode to show loaded environment variables"
+    echo "  -h, --help    Show this help message"
+    echo ""
+    echo "Prerequisites:"
+    echo "  • Docker and Docker Compose installed"
+    echo "  • .env.prod file configured with production values"
+    echo "  • Required API keys set in environment file"
     echo ""
     echo "Examples:"
-    echo "  ./deploy-prod.sh                    # Normal deployment"
+    echo "  ./deploy-prod.sh                    # Normal production deployment"
     echo "  DEBUG=true ./deploy-prod.sh         # Debug deployment"
     echo ""
+    echo "After deployment, the sync service will automatically:"
+    echo "  • Run daily at 8 AM (configurable via SYNC_SCHEDULE)"
+    echo "  • Synchronize data from Dendreo API"
+    echo "  • Update HubSpot progression data"
+    echo "  • Log all activities for monitoring"
+    echo ""
+}
+
+# Create backup
+create_backup() {
+    log_info "Creating backup of current deployment..."
+    
+    local backup_dir="./backups/$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$backup_dir"
+    
+    # Backup database if it exists
+    if docker compose -f docker-compose.prod.yml ps postgres | grep -q "Up" 2>/dev/null; then
+        log_info "Backing up database..."
+        if docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U postgres dendreo_prod_db > "$backup_dir/database_backup.sql" 2>/dev/null; then
+            log_success "Database backup created: $backup_dir/database_backup.sql"
+        else
+            log_warning "Database backup failed (database may not be running)"
+        fi
+    fi
+    
+    # Backup logs
+    if [ -d "./logs" ]; then
+        cp -r ./logs "$backup_dir/logs_backup"
+        log_success "Logs backup created: $backup_dir/logs_backup"
+    fi
+    
+    # Backup environment file
+    if [ -f ".env.prod" ]; then
+        cp .env.prod "$backup_dir/env_backup"
+        log_success "Environment backup created: $backup_dir/env_backup"
+    fi
 }
 
 # Main execution
@@ -260,8 +407,8 @@ main() {
         exit 0
     fi
     
-    echo "🚀 Dendreo Progression - Production Deployment"
-    echo "=============================================="
+    echo "🚀 Dendreo Progression - Production Deployment with Sync"
+    echo "========================================================"
     echo
     
     check_dependencies
@@ -269,7 +416,11 @@ main() {
     check_env_file
     source_env_variables
     validate_env
+    prepare_sync_scripts
+    create_backup
     deploy
+    initialize_database
+    test_sync
     show_status
 }
 

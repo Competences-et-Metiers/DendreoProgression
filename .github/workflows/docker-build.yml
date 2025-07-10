@@ -21,10 +21,13 @@ jobs:
     strategy:
       matrix:
         include:
-          - dockerfile: ./back/Dockerfile
+          - dockerfile: ./back/Dockerfile.prod
             image: backend
             context: ./back
-          - dockerfile: ./frontend/Dockerfile
+          - dockerfile: ./back/Dockerfile.sync
+            image: sync
+            context: ./back
+          - dockerfile: ./frontend/Dockerfile.prod
             image: frontend
             context: ./frontend
 

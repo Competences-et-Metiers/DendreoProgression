@@ -75,6 +75,7 @@ services:
     build:
       context: ./back
       dockerfile: Dockerfile.sync
+    container_name: dendreo_sync_prod
     env_file:
       - .env.prod
     environment:
@@ -89,12 +90,18 @@ services:
       # Redis configuration (optional)
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_ENABLED: ${REDIS_ENABLED:-false}
-      # Sync Configuration
+      # Sync Configuration - Production schedule (8 AM daily)
       SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 8 * * *}
       DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-}
     volumes:
-      - ./logs:/app/logs
+      - ./logs:/app/logs:rw
       - sync_logs:/app/logs/sync
+      # Override sync wrapper script with production version
+      - ./back/scripts/sync_wrapper_prod.sh:/app/sync_wrapper_cron.sh:ro
+      # Add diagnostic and management scripts
+      - ./back/scripts/check_sync_status.py:/app/scripts/check_sync_status.py:ro
+      - ./back/scripts/setup_sync_table.py:/app/scripts/setup_sync_table.py:ro
+      - ./back/scripts/diagnose_cron.py:/app/scripts/diagnose_cron.py:ro
       # Timezone mapping
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
@@ -114,6 +121,9 @@ services:
       timeout: 30s
       retries: 3
       start_period: 5m
+    labels:
+      - "dendreo.service=sync-prod"
+      - "dendreo.description=Production sync service for automated data synchronization"
 
   # Production Frontend
   frontend:

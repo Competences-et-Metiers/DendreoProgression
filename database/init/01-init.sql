@@ -69,6 +69,18 @@ CREATE TABLE IF NOT EXISTS participant_hubspot_data (
     CONSTRAINT _participant_adf_uc UNIQUE (participant_id, id_action_formation)
 );
 
+-- Sync metadata table for tracking sync operations
+CREATE TABLE IF NOT EXISTS sync_metadata (
+    id SERIAL PRIMARY KEY,
+    sync_type VARCHAR NOT NULL,
+    last_sync_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR NOT NULL,
+    stats TEXT,
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_participants_id_participant ON participants(id_participant);
 CREATE INDEX IF NOT EXISTS idx_courses_id_action_formation ON courses(id_action_formation);
@@ -79,6 +91,9 @@ CREATE INDEX IF NOT EXISTS idx_modules_course_id ON modules(course_id);
 CREATE INDEX IF NOT EXISTS idx_participant_courses_participant_id ON participant_courses(participant_id);
 CREATE INDEX IF NOT EXISTS idx_participant_courses_course_id ON participant_courses(course_id);
 CREATE INDEX IF NOT EXISTS idx_participant_hubspot_data_participant_id ON participant_hubspot_data(participant_id);
+CREATE INDEX IF NOT EXISTS idx_sync_metadata_sync_type ON sync_metadata(sync_type);
+CREATE INDEX IF NOT EXISTS idx_sync_metadata_last_sync_at ON sync_metadata(last_sync_at);
+CREATE INDEX IF NOT EXISTS idx_sync_metadata_status ON sync_metadata(status);
 
 -- Create a function to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -94,4 +109,5 @@ CREATE TRIGGER update_participants_updated_at BEFORE UPDATE ON participants FOR 
 CREATE TRIGGER update_courses_updated_at BEFORE UPDATE ON courses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_modules_updated_at BEFORE UPDATE ON modules FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_participant_courses_updated_at BEFORE UPDATE ON participant_courses FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_participant_hubspot_data_updated_at BEFORE UPDATE ON participant_hubspot_data FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 
+CREATE TRIGGER update_participant_hubspot_data_updated_at BEFORE UPDATE ON participant_hubspot_data FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_sync_metadata_updated_at BEFORE UPDATE ON sync_metadata FOR EACH ROW EXECUTE FUNCTION update_updated_at_column(); 

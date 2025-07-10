@@ -33,6 +33,48 @@ services:
     networks:
       - dendreo_network
 
+  # Development Sync Service
+  sync:
+    build:
+      context: ./back
+      dockerfile: Dockerfile.sync
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      # Use postgres:5432 when running in Docker containers
+      DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
+      LOG_LEVEL: ${SYNC_LOG_LEVEL:-DEBUG}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+      # API Configuration
+      DENDREO_API_KEY: ${DENDREO_API_KEY:-your_dendreo_api_key_here}
+      DENDREO_BASE_URL: ${DENDREO_BASE_URL:-https://pro.dendreo.com/competences_et_metiers/api}
+      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY:-your_hubspot_api_key_here}
+      # Redis configuration (optional)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Sync Configuration for development
+      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 8 * * *}  # Every day at 8 AM
+      DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-10}  # Limit to 10 for development
+    env_file:
+      - .env.dev
+    volumes:
+      - ./dev-logs:/app/logs:rw
+      - sync_dev_logs:/app/logs/sync
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      - postgres
+      - backend
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "scripts/sync_health_check.py", "--nagios", "--exit-code"]
+      interval: 30m  # Less frequent for development
+      timeout: 30s
+      retries: 2
+      start_period: 2m
+
   # Development Frontend - runs on remote machine
   frontend:
     image: node:18-alpine
@@ -105,6 +147,8 @@ volumes:
   frontend_node_modules:
     driver: local
   portainer_dev_data:
+    driver: local
+  sync_dev_logs:
     driver: local
 
 networks:
