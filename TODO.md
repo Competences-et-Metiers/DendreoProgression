@@ -5,9 +5,10 @@
 
 - [x] Add search bar
 - [ ] Add `time spent`
-- [ ] Add "last sync"
-	- [ ] Fix incorrect date/time
-
+- [x] Add "last sync"
+	- [x] Fix incorrect date/time
+- [ ] SSL/HTTPS
+- [ ] Filter our appropriate courses
 #### Cleanup
 - [ ] Clean up endpoints
 - [ ] Clean up table relations
