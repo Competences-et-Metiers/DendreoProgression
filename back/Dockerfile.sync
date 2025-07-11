@@ -45,8 +45,10 @@ python3 scripts/sync_dendreo.py --log-level ${LOG_LEVEL:-INFO}\n\
 echo "$(date) - Sync process completed"\n\
 ' > /app/sync_wrapper.sh && chmod +x /app/sync_wrapper.sh
 
-# Create entrypoint script
+# Create improved entrypoint script that ensures cron stays running
 RUN echo '#!/bin/bash\n\
+set -e\n\
+\n\
 echo "=== Dendreo Sync Container Starting ==="\n\
 echo "Environment: ${APP_ENV:-production}"\n\
 echo "Sync Schedule: ${SYNC_SCHEDULE:-0 8 * * *}"\n\
@@ -93,9 +95,9 @@ cat > /app/sync_wrapper_cron.sh << EOF\n\
 #!/bin/bash\n\
 source /app/cron_env.sh\n\
 cd /app\n\
-echo "$(date) - Starting scheduled sync process (PID: $$)"\n\
-python3 scripts/sync_dendreo.py --log-level ${LOG_LEVEL:-INFO}\n\
-echo "$(date) - Scheduled sync process completed (PID: $$)"\n\
+echo "\$(date) - Starting scheduled sync process (PID: \$\$)"\n\
+python3 scripts/sync_dendreo.py --log-level \${LOG_LEVEL:-INFO}\n\
+echo "\$(date) - Scheduled sync process completed (PID: \$\$)"\n\
 EOF\n\
 chmod +x /app/sync_wrapper_cron.sh\n\
 \n\
@@ -112,9 +114,47 @@ crontab -l\n\
 echo "🧪 Testing sync wrapper..."\n\
 /app/sync_wrapper_cron.sh --help || echo "Warning: Could not test sync wrapper"\n\
 \n\
-# Start cron in the foreground (required for Docker)\n\
-echo "🚀 Starting cron daemon in foreground..."\n\
-exec cron -f\n\
+# Create a function to monitor cron and restart if needed\n\
+monitor_cron() {\n\
+    while true; do\n\
+        if ! pgrep -f "cron" > /dev/null; then\n\
+            echo "$(date) - Cron service stopped, restarting..."\n\
+            service cron start\n\
+            sleep 5\n\
+        fi\n\
+        sleep 30\n\
+    done\n\
+}\n\
+\n\
+# Start cron service\n\
+echo "🚀 Starting cron service..."\n\
+service cron start\n\
+\n\
+# Wait a moment for cron to start\n\
+sleep 2\n\
+\n\
+# Verify cron is running\n\
+if pgrep -f "cron" > /dev/null; then\n\
+    echo "✅ Cron service is running"\n\
+    ps aux | grep cron\n\
+else\n\
+    echo "❌ Cron service failed to start, attempting alternative method..."\n\
+    # Alternative: try to start cron directly\n\
+    /usr/sbin/cron &\n\
+    sleep 2\n\
+    if pgrep -f "cron" > /dev/null; then\n\
+        echo "✅ Cron started with alternative method"\n\
+    else\n\
+        echo "❌ Failed to start cron service"\n\
+    fi\n\
+fi\n\
+\n\
+# Start the monitor in background\n\
+monitor_cron &\n\
+\n\
+# Keep the container running by tailing logs\n\
+echo "📊 Container ready - monitoring logs..."\n\
+tail -f /app/logs/cron.log /var/log/cron.log /var/log/syslog 2>/dev/null || tail -f /dev/null\n\
 ' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 # Health check - verify sync is working

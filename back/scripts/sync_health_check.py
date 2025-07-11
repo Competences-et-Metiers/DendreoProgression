@@ -19,8 +19,10 @@ def check_database_connection():
     """Check if database is accessible"""
     try:
         from app.models.database import get_db_session
+        from sqlalchemy import text
+        
         with get_db_session() as db:
-            result = db.execute('SELECT 1').fetchone()
+            result = db.execute(text('SELECT 1')).fetchone()
             return True, "Database connection successful"
     except Exception as e:
         return False, f"Database connection failed: {str(e)}"
@@ -73,10 +75,14 @@ def check_sync_status():
                 else:
                     return True, f"Sync currently in progress for {sync_age} (started: {latest_sync.last_sync_at})"
             
-            # Check for recent failures
+            # Check for recent failures (but ignore manually cleared records)
             if latest_sync.status == 'error':
                 if sync_age < timedelta(hours=24):
-                    return False, f"Recent sync failure {sync_age} ago: {latest_sync.error_message}"
+                    # If it was manually cleared, don't treat as a real failure
+                    if latest_sync.error_message and "Manually cleared" in latest_sync.error_message:
+                        return True, f"Previously stuck sync was manually cleared {sync_age} ago"
+                    else:
+                        return False, f"Recent sync failure {sync_age} ago: {latest_sync.error_message}"
             
             # Check for very old syncs
             if sync_age > timedelta(days=2):
