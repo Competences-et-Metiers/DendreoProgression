@@ -1,217 +1,273 @@
 #!/usr/bin/env python3
 """
-Dendreo Sync Health Check Script
-Monitors the sync process and reports status, can be used for monitoring systems.
+Sync Health Check Script
+
+This script checks the health of the sync system and provides monitoring capabilities.
+Can be used by Docker healthcheck, monitoring systems, or manual diagnostics.
 """
 
 import sys
+import os
 import json
-import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Dict, Any
 
-# Add the parent directory to the path
+# Add the parent directory to the path so we can import from app
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.config.settings import settings
-from app.models.database import get_db_session
-from app.models.models import SyncMetadata
-
-# Configure logging
-logging.basicConfig(
-    level=logging.WARNING,  # Only show warnings and errors
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-
-def get_sync_health() -> Dict[str, Any]:
-    """
-    Get the health status of the sync process
-    
-    Returns:
-        Dictionary with health status information
-    """
+def check_database_connection():
+    """Check if database is accessible"""
     try:
+        from app.models.database import get_db_session
         with get_db_session() as db:
-            # Get the latest sync metadata
-            sync_metadata = db.query(SyncMetadata).filter(
+            result = db.execute('SELECT 1').fetchone()
+            return True, "Database connection successful"
+    except Exception as e:
+        return False, f"Database connection failed: {str(e)}"
+
+def check_sync_metadata_table():
+    """Check if sync_metadata table exists"""
+    try:
+        from app.models.database import get_db_session
+        from app.models.models import SyncMetadata
+        from sqlalchemy import text
+        
+        with get_db_session() as db:
+            # Check if table exists
+            result = db.execute(text(
+                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'sync_metadata');"
+            )).fetchone()
+            
+            if not result[0]:
+                return False, "sync_metadata table does not exist"
+            
+            # Check if we can query it
+            sync_count = db.query(SyncMetadata).count()
+            return True, f"sync_metadata table exists with {sync_count} records"
+            
+    except Exception as e:
+        return False, f"Error checking sync_metadata table: {str(e)}"
+
+def check_sync_status():
+    """Check current sync status and detect issues"""
+    try:
+        from app.models.database import get_db_session
+        from app.models.models import SyncMetadata
+        
+        with get_db_session() as db:
+            # Get the most recent sync
+            latest_sync = db.query(SyncMetadata).filter(
                 SyncMetadata.sync_type == 'sync_all'
             ).order_by(SyncMetadata.last_sync_at.desc()).first()
             
-            if not sync_metadata:
-                return {
-                    "status": "unknown",
-                    "message": "No sync metadata found",
-                    "last_sync_at": None,
-                    "health_score": 0
-                }
+            if not latest_sync:
+                return False, "No sync records found"
             
-            now = datetime.utcnow()
-            last_sync = sync_metadata.last_sync_at
+            now = datetime.now(timezone.utc)
+            sync_age = now - latest_sync.last_sync_at
             
-            # Calculate time since last sync
-            time_since_sync = now - last_sync if last_sync else None
-            
-            # Determine health status
-            health_status = "healthy"
-            health_score = 100
-            messages = []
-            
-            # Check if sync is stuck "in progress"
-            if sync_metadata.status == 'in_progress':
-                if time_since_sync and time_since_sync > timedelta(hours=2):
-                    health_status = "critical"
-                    health_score = 0
-                    messages.append("Sync has been in progress for more than 2 hours")
+            # Check for stuck syncs
+            if latest_sync.status == 'in_progress':
+                if sync_age > timedelta(minutes=30):
+                    return False, f"Sync stuck in progress for {sync_age} (started: {latest_sync.last_sync_at})"
                 else:
-                    health_status = "warning"
-                    health_score = 50
-                    messages.append("Sync is currently in progress")
+                    return True, f"Sync currently in progress for {sync_age} (started: {latest_sync.last_sync_at})"
             
-            # Check if last sync failed
-            elif sync_metadata.status == 'error':
-                health_status = "critical"
-                health_score = 0
-                messages.append(f"Last sync failed: {sync_metadata.error_message}")
+            # Check for recent failures
+            if latest_sync.status == 'error':
+                if sync_age < timedelta(hours=24):
+                    return False, f"Recent sync failure {sync_age} ago: {latest_sync.error_message}"
             
-            # Check if sync is overdue (daily sync schedule)
-            elif sync_metadata.status == 'success':
-                if time_since_sync:
-                    if time_since_sync > timedelta(hours=26):  # Allow 2 hours buffer for daily sync
-                        health_status = "critical"
-                        health_score = 0
-                        messages.append("No successful sync in over 26 hours")
-                    elif time_since_sync > timedelta(hours=25):  # Warning at 25 hours
-                        health_status = "warning"
-                        health_score = 30
-                        messages.append("Sync is overdue (expected daily)")
-                    else:
-                        messages.append("Sync is up to date")
+            # Check for very old syncs
+            if sync_age > timedelta(days=2):
+                return False, f"Last sync too old: {sync_age} ago (status: {latest_sync.status})"
             
-            # Parse stats if available
-            stats = {}
-            if sync_metadata.stats:
-                try:
-                    stats = json.loads(sync_metadata.stats)
-                except json.JSONDecodeError:
-                    pass
+            # Check for successful recent sync
+            if latest_sync.status == 'success' and sync_age < timedelta(hours=25):
+                return True, f"Last successful sync: {sync_age} ago"
             
-            return {
-                "status": health_status,
-                "message": "; ".join(messages) if messages else "No issues detected",
-                "last_sync_at": last_sync.isoformat() if last_sync else None,
-                "last_sync_status": sync_metadata.status,
-                "time_since_sync_hours": time_since_sync.total_seconds() / 3600 if time_since_sync else None,
-                "health_score": health_score,
-                "stats": stats,
-                "error_message": sync_metadata.error_message if sync_metadata.status == 'error' else None
-            }
+            return True, f"Latest sync status: {latest_sync.status} ({sync_age} ago)"
             
     except Exception as e:
-        return {
-            "status": "critical",
-            "message": f"Health check failed: {str(e)}",
-            "last_sync_at": None,
-            "health_score": 0
-        }
+        return False, f"Error checking sync status: {str(e)}"
+
+def check_stuck_records():
+    """Check for stuck sync records"""
+    try:
+        from app.models.database import get_db_session
+        from app.models.models import SyncMetadata
+        
+        with get_db_session() as db:
+            # Find stuck records (in_progress for more than 30 minutes)
+            thirty_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
+            stuck_syncs = db.query(SyncMetadata).filter(
+                SyncMetadata.status == 'in_progress',
+                SyncMetadata.last_sync_at < thirty_minutes_ago
+            ).count()
+            
+            if stuck_syncs > 0:
+                return False, f"Found {stuck_syncs} stuck sync record(s)"
+            
+            return True, "No stuck sync records found"
+            
+    except Exception as e:
+        return False, f"Error checking for stuck records: {str(e)}"
+
+def check_recent_activity():
+    """Check for recent sync activity (within last 48 hours)"""
+    try:
+        from app.models.database import get_db_session
+        from app.models.models import SyncMetadata
+        
+        with get_db_session() as db:
+            # Check for any activity in last 48 hours
+            two_days_ago = datetime.now(timezone.utc) - timedelta(hours=48)
+            recent_syncs = db.query(SyncMetadata).filter(
+                SyncMetadata.last_sync_at > two_days_ago
+            ).count()
+            
+            if recent_syncs == 0:
+                return False, "No sync activity in the last 48 hours"
+            
+            # Check for successful syncs in last 48 hours
+            successful_syncs = db.query(SyncMetadata).filter(
+                SyncMetadata.last_sync_at > two_days_ago,
+                SyncMetadata.status == 'success'
+            ).count()
+            
+            if successful_syncs == 0:
+                return False, f"No successful syncs in last 48 hours ({recent_syncs} attempts found)"
+            
+            return True, f"Found {successful_syncs} successful syncs in last 48 hours"
+            
+    except Exception as e:
+        return False, f"Error checking recent activity: {str(e)}"
+
+def run_health_checks():
+    """Run all health checks and return results"""
+    checks = [
+        ("Database Connection", check_database_connection),
+        ("Sync Metadata Table", check_sync_metadata_table),
+        ("Sync Status", check_sync_status),
+        ("Stuck Records", check_stuck_records),
+        ("Recent Activity", check_recent_activity),
+    ]
+    
+    results = {}
+    overall_healthy = True
+    
+    for check_name, check_func in checks:
+        try:
+            is_healthy, message = check_func()
+            results[check_name] = {
+                "healthy": is_healthy,
+                "message": message
+            }
+            if not is_healthy:
+                overall_healthy = False
+        except Exception as e:
+            results[check_name] = {
+                "healthy": False,
+                "message": f"Check failed with exception: {str(e)}"
+            }
+            overall_healthy = False
+    
+    return overall_healthy, results
+
+def print_health_report(overall_healthy, results):
+    """Print a human-readable health report"""
+    print("🏥 Dendreo Sync Health Check")
+    print("=" * 50)
+    print(f"Overall Status: {'✅ HEALTHY' if overall_healthy else '❌ UNHEALTHY'}")
+    print(f"Timestamp: {datetime.now(timezone.utc)}")
+    print()
+    
+    for check_name, result in results.items():
+        status_emoji = "✅" if result["healthy"] else "❌"
+        print(f"{status_emoji} {check_name}")
+        print(f"   {result['message']}")
+        print()
 
 def main():
-    """Main function with CLI output"""
+    """Main function with CLI argument parsing"""
     import argparse
     
     parser = argparse.ArgumentParser(
         description="Dendreo Sync Health Check",
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python sync_health_check.py                 # Human-readable report
+  python sync_health_check.py --json         # JSON output
+  python sync_health_check.py --nagios       # Nagios-compatible output
+  python sync_health_check.py --exit-code    # Exit with non-zero if unhealthy
+        """
     )
     
     parser.add_argument(
-        '--format',
-        choices=['human', 'json'],
-        default='human',
-        help='Output format'
-    )
-    
-    parser.add_argument(
-        '--nagios',
+        '--json', 
         action='store_true',
-        help='Output in Nagios/Icinga format'
+        help='Output results in JSON format'
     )
     
     parser.add_argument(
-        '--exit-code',
+        '--nagios', 
         action='store_true',
-        help='Exit with code based on health status'
+        help='Output in Nagios-compatible format'
+    )
+    
+    parser.add_argument(
+        '--exit-code', 
+        action='store_true',
+        help='Exit with non-zero code if unhealthy (useful for monitoring)'
+    )
+    
+    parser.add_argument(
+        '--quiet', 
+        action='store_true',
+        help='Suppress output (useful with --exit-code)'
     )
     
     args = parser.parse_args()
     
-    # Get health status
-    health = get_sync_health()
-    
-    # Format output
-    if args.format == 'json':
-        print(json.dumps(health, indent=2))
-    elif args.nagios:
-        # Nagios format
-        status_map = {
-            'healthy': 'OK',
-            'warning': 'WARNING',
-            'critical': 'CRITICAL',
-            'unknown': 'UNKNOWN'
-        }
+    try:
+        overall_healthy, results = run_health_checks()
         
-        nagios_status = status_map.get(health['status'], 'UNKNOWN')
-        print(f"SYNC {nagios_status} - {health['message']}")
+        if args.json:
+            output = {
+                "overall_healthy": overall_healthy,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "checks": results
+            }
+            print(json.dumps(output, indent=2))
+        elif args.nagios:
+            # Nagios output format
+            status = "OK" if overall_healthy else "CRITICAL"
+            failed_checks = [name for name, result in results.items() if not result["healthy"]]
+            
+            if failed_checks:
+                message = f"Sync health issues: {', '.join(failed_checks)}"
+            else:
+                message = "All sync health checks passed"
+            
+            print(f"SYNC {status} - {message}")
+        elif not args.quiet:
+            print_health_report(overall_healthy, results)
         
-        if health.get('last_sync_at'):
-            print(f"Last sync: {health['last_sync_at']}")
-        if health.get('time_since_sync_hours'):
-            print(f"Hours since last sync: {health['time_since_sync_hours']:.1f}")
-    else:
-        # Human readable format
-        print("=" * 50)
-        print("🔍 Dendreo Sync Health Check")
-        print("=" * 50)
+        # Exit with appropriate code
+        if args.exit_code:
+            sys.exit(0 if overall_healthy else 1)
+        else:
+            sys.exit(0)
         
-        # Status with emoji
-        status_emoji = {
-            'healthy': '✅',
-            'warning': '⚠️',
-            'critical': '❌',
-            'unknown': '❓'
-        }
-        
-        emoji = status_emoji.get(health['status'], '❓')
-        print(f"Status: {emoji} {health['status'].upper()}")
-        print(f"Message: {health['message']}")
-        print(f"Health Score: {health['health_score']}/100")
-        
-        if health.get('last_sync_at'):
-            print(f"Last Sync: {health['last_sync_at']}")
-        
-        if health.get('time_since_sync_hours'):
-            print(f"Time Since Last Sync: {health['time_since_sync_hours']:.1f} hours")
-        
-        if health.get('last_sync_status'):
-            print(f"Last Sync Status: {health['last_sync_status']}")
-        
-        if health.get('error_message'):
-            print(f"Error: {health['error_message']}")
-        
-        if health.get('stats'):
-            print("\nLast Sync Statistics:")
-            for key, value in health['stats'].items():
-                print(f"  {key}: {value}")
-    
-    # Exit with appropriate code
-    if args.exit_code:
-        exit_codes = {
-            'healthy': 0,
-            'warning': 1,
-            'critical': 2,
-            'unknown': 3
-        }
-        sys.exit(exit_codes.get(health['status'], 3))
+    except KeyboardInterrupt:
+        if not args.quiet:
+            print("\n🛑 Health check interrupted by user")
+        sys.exit(130)
+    except Exception as e:
+        if not args.quiet:
+            print(f"\n💥 Health check failed: {str(e)}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main() 

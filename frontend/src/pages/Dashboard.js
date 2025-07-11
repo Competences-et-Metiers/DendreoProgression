@@ -270,7 +270,7 @@ const Dashboard = () => {
         <div className="bg-white rounded-lg border border-gray-200">
           {/* Courses Header */}
           <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Courses</h2>
                 <p className="text-sm text-gray-600">
@@ -280,17 +280,24 @@ const Dashboard = () => {
               </div>
               
               {/* Search and Filters */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 mt-4 lg:mt-0">
+              <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
                 {/* Search */}
                 <div className="relative">
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Search Courses</label>
                   <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Search courses..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm w-64"
+                    className="pl-10 pr-4 py-2 border-2 border-blue-300 rounded-md text-sm w-64 bg-white"
+                    style={{ minWidth: '250px' }}
                   />
+                  {searchTerm && (
+                    <div className="absolute top-full left-0 mt-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      Searching: "{searchTerm}"
+                    </div>
+                  )}
                 </div>
                 
                 {/* Filter */}
