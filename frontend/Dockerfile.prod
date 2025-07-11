@@ -6,41 +6,42 @@ ENV GIT_BRANCH=${BRANCH}
 
 WORKDIR /app
 
-# Install production tools
-RUN apk add --no-cache git curl vim
+# Install build dependencies
+RUN apk add --no-cache git curl
 
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including prod dependencies)
+# Install all dependencies for building
 RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Create production startup script that properly binds to all interfaces
-RUN echo '#!/bin/sh\n\
-echo "=== Dendreo Frontend Production Environment ==="\n\
-echo "Branch: ${GIT_BRANCH}"\n\
-echo "Environment: production"\n\
-echo "Node Version: $(node --version)"\n\
-echo "Host: ${HOST:-0.0.0.0}"\n\
-echo "Port: ${PORT:-3000}"\n\
-echo "==============================================="\n\
-echo "Starting React production server on all interfaces..."\n\
-export HOST=${HOST:-0.0.0.0}\n\
-export PORT=${PORT:-3000}\n\
-export GENERATE_SOURCEMAP=false\n\
-export SKIP_PREFLIGHT_CHECK=true\n\
-exec npm start\n\
-' > /app/start-prod.sh && chmod +x /app/start-prod.sh
+# Set build environment
+ENV NODE_ENV=production
+ENV GENERATE_SOURCEMAP=false
+ENV SKIP_PREFLIGHT_CHECK=true
+# Force API URL to be relative (this will be passed from docker-compose)
+ARG REACT_APP_API_URL=/api
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
 
-# Expose port for production server
-EXPOSE 3000
+# Show what API URL we're building with
+RUN echo "Building React app with API URL: ${REACT_APP_API_URL}"
 
-# Health check for production server
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:3000 || exit 1
+# Build the React app for production
+RUN npm run build
 
-# Default production command
-CMD ["/app/start-prod.sh"] 
+# Copy built files to nginx html directory for volume mounting
+RUN mkdir -p /usr/share/nginx/html && cp -r build/* /usr/share/nginx/html/
+
+# Create the build volume directory  
+RUN mkdir -p /app/build
+
+# Show build info
+RUN echo "Frontend build completed successfully" && \
+    echo "API URL: $REACT_APP_API_URL" && \
+    ls -la /usr/share/nginx/html/
+
+# Default command - this will be overridden by docker-compose
+CMD ["sh", "-c", "echo 'Frontend build completed - files ready for nginx' && sleep infinity"] 

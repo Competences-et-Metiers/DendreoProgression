@@ -166,7 +166,7 @@ prepare_sync_scripts() {
 
 # Build and start services
 deploy() {
-    log_info "Starting production deployment..."
+    log_info "Starting production deployment with optimized frontend architecture..."
     
     # Ensure environment variables are available to docker-compose
     log_info "Verifying environment variables for Docker Compose..."
@@ -186,13 +186,17 @@ deploy() {
     log_info "Stopping any existing containers..."
     docker compose -f docker-compose.prod.yml down --remove-orphans
     
-    # Build and start services
-    log_info "Building and starting services..."
-    docker compose -f docker-compose.prod.yml up --build -d
+    # Build services (only rebuild if needed)
+    log_info "Building services..."
+    docker compose -f docker-compose.prod.yml build
     
-    # Wait for services to be healthy
-    log_info "Waiting for services to be healthy..."
-    sleep 10
+    # Start all services (dependencies will handle order)
+    log_info "Starting all services..."
+    docker compose -f docker-compose.prod.yml up -d
+    
+    # Wait for services to start
+    log_info "Waiting for services to start..."
+    sleep 15
     
     # Check service health
     log_info "Checking service health..."
@@ -215,12 +219,13 @@ deploy() {
         exit 1
     fi
     
-    # Check frontend
-    if docker compose -f docker-compose.prod.yml ps frontend | grep -q "Up"; then
-        log_success "Frontend is running"
+    # Check frontend build (verify files are available to nginx)
+    if docker compose -f docker-compose.prod.yml exec nginx ls /usr/share/nginx/html/index.html >/dev/null 2>&1; then
+        log_success "Frontend build is available to nginx"
     else
-        log_error "Frontend failed to start"
+        log_error "Frontend build files not found in nginx"
         docker compose -f docker-compose.prod.yml logs frontend
+        docker compose -f docker-compose.prod.yml logs nginx
         exit 1
     fi
     
@@ -243,6 +248,23 @@ deploy() {
     fi
     
     log_success "All services are running successfully!"
+    
+    # Test the new frontend architecture
+    log_info "Testing frontend architecture..."
+    
+    # Test frontend serving
+    if curl -f http://localhost >/dev/null 2>&1; then
+        log_success "Frontend is accessible via nginx"
+    else
+        log_warning "Frontend not accessible via nginx (may take a moment to start)"
+    fi
+    
+    # Test API routing through nginx
+    if curl -f http://localhost/api/courses/stats >/dev/null 2>&1; then
+        log_success "API routing through nginx is working"
+    else
+        log_warning "API routing may still be starting (check logs if issues persist)"
+    fi
 }
 
 # Initialize database and sync tables
@@ -303,9 +325,14 @@ show_status() {
     docker compose -f docker-compose.prod.yml ps
     echo
     echo "🌐 Application URLs:"
-    echo "   Frontend: http://localhost"
-    echo "   API: http://localhost/api"
+    echo "   Frontend: http://localhost (nginx serves React app directly)"
+    echo "   API: http://localhost/api (nginx proxy to backend)"
     echo "   Health Check: http://localhost/health"
+    echo
+    echo "📁 Frontend Architecture:"
+    echo "   ✅ Optimized: Nginx serves static files directly"
+    echo "   ✅ API Routing: /api/* requests proxied to backend"
+    echo "   ✅ Universal: Works on any domain (localhost, IP, custom domain)"
     echo
     echo "🔄 Sync Configuration:"
     if [ -f ".env.prod" ]; then
@@ -339,12 +366,18 @@ show_usage() {
     echo "===================================================="
     echo ""
     echo "This script deploys the complete production environment including:"
-    echo "  • Frontend (React application)"
+    echo "  • Frontend (React application - optimized static build)"
     echo "  • Backend (FastAPI server)"
     echo "  • Database (PostgreSQL)"
     echo "  • Sync Service (Automated data synchronization)"
-    echo "  • Nginx (Reverse proxy and load balancer)"
+    echo "  • Nginx (Serves frontend + API proxy)"
     echo "  • Redis (Caching layer)"
+    echo ""
+    echo "🏗️  Optimized Frontend Architecture:"
+    echo "  • Nginx serves React static files directly (no separate frontend server)"
+    echo "  • API calls routed through nginx proxy to backend"
+    echo "  • Works universally across domains and IP addresses"
+    echo "  • Eliminates CORS and CSP issues"
     echo ""
     echo "Usage: $0 [OPTIONS]"
     echo ""
