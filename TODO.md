@@ -3,16 +3,15 @@
 ### 
 ### Features
 
-- [x] Add search bar
+
 - [ ] Add `time spent`
-- [x] Add "last sync"
-	- [x] Fix incorrect date/time
 - [ ] SSL/HTTPS
-- [ ] Filter our appropriate courses
+- [ ] Filter our inappropriate courses
+- [ ] Make French language select + default lang
 #### Cleanup
 - [ ] Clean up endpoints
 - [ ] Clean up table relations
-- [x] Add progression view PER MODULES
+
 - [ ] Ensure that removed participants are also removed from database
 #### HubSpot transaction ID fetcher
 From contact -> GET HS property `formation_detaillee`
@@ -34,11 +33,9 @@ Relate property with contact ID in the `participants_hubspot_data` table
 
 # Done
 
-### ~~HubSpot transaction migration‼️PRIORITY: HIGH~~
 - [x] From existing participant database:
 	- [x] Find all existing deals related to contact
 		- [x] Save transaction ID
-### ~~HupSpot integration ‼️PRIORITY: HIGH~~
 
 - [x] Add transaction of each participant per ADF
 	 **Description:**
@@ -47,3 +44,9 @@ Relate property with contact ID in the `participants_hubspot_data` table
  - [x] Add progression to transaction 
 	  **Description**
 	  Using transaction ID -> Update `progression_e_learning` field
+
+
+- [x] Add search bar
+- [x] - [x] Add "last sync"
+	- [x] Fix incorrect date/time
+- [x] Add progression view PER MODULES
