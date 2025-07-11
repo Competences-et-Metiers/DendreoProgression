@@ -1,236 +1,267 @@
 # Dendreo Systemd Service Setup
 
-This document explains how to set up the Dendreo application as a systemd service on your Debian server, enabling automatic startup and easy management with `systemctl` commands.
+This document describes how to set up and manage the Dendreo Progression application as a systemd service on your Debian server.
 
-## Files Created
+## Overview
 
-1. **`dendreo-service-manager.sh`** - Main service management script
-2. **`dendreo.service`** - Systemd service unit file
-3. **`setup-dendreo-service.sh`** - Installation and setup script
-4. **`SYSTEMD_SERVICE_SETUP.md`** - This documentation file
+The Dendreo service system consists of:
+- **`dendreo.service`** - The systemd service unit file
+- **`dendreo-service-manager.sh`** - Service management script
+- **`deploy.sh`** - Main deployment script (with production mode support)
+- **`setup-dendreo-service.sh`** - Installation and configuration script
 
-## Installation Instructions
+## Quick Setup
 
-### Step 1: Copy Files to Your Server
-
-Copy all the new files to your Debian server in the `/home/cm/DendreoProgression` directory:
-
-```bash
-# On your Debian server
-cd /home/cm/DendreoProgression
-
-# Copy the files from your local machine (use scp, rsync, or any method you prefer)
-# Make sure you have these files:
-# - dendreo-service-manager.sh
-# - dendreo.service
-# - setup-dendreo-service.sh
-# - SYSTEMD_SERVICE_SETUP.md
-```
-
-### Step 2: Run the Setup Script
-
-Execute the setup script to install and configure the service:
+### 1. Install the Service
 
 ```bash
-# Make the setup script executable
-chmod +x setup-dendreo-service.sh
-
-# Install the service
+# Run the setup script as root
 sudo ./setup-dendreo-service.sh install
 ```
 
 This will:
-- Install the systemd service file
-- Make scripts executable
-- Enable the service for automatic startup
-- Start the service
-- Show service status
+- ✅ Check prerequisites (Docker, Docker Compose)
+- ✅ Make scripts executable
+- ✅ Install the systemd service
+- ✅ Enable auto-start on boot
+- ✅ Perform installation tests
 
-### Step 3: Verify Installation
-
-Check if the service is running:
-
-```bash
-sudo systemctl status dendreo
-```
-
-## Usage
-
-### Basic systemctl Commands
+### 2. Start the Service
 
 ```bash
 # Start the service
 sudo systemctl start dendreo
 
-# Stop the service
-sudo systemctl stop dendreo
-
-# Restart the service
-sudo systemctl restart dendreo
-
-# Check service status
+# Check status
 sudo systemctl status dendreo
 
-# Enable auto-start on boot
-sudo systemctl enable dendreo
-
-# Disable auto-start on boot
-sudo systemctl disable dendreo
-```
-
-### Advanced Management
-
-```bash
-# View service logs
-sudo journalctl -u dendreo
-
-# Follow service logs in real-time
+# Follow logs
 sudo journalctl -u dendreo -f
-
-# View recent logs
-sudo journalctl -u dendreo --since "1 hour ago"
-
-# View service log file
-sudo tail -f /var/log/dendreo-service.log
 ```
 
-### Container Management
+## Service Management Commands
 
-The service manager script provides additional commands:
+### Systemctl Commands (Recommended)
 
 ```bash
-# Check container status
-sudo /home/cm/DendreoProgression/dendreo-service-manager.sh status
+# Service lifecycle
+sudo systemctl start dendreo      # Start the service
+sudo systemctl stop dendreo       # Stop the service
+sudo systemctl restart dendreo    # Restart the service
+sudo systemctl reload dendreo     # Reload the service
 
-# View all container logs
-sudo /home/cm/DendreoProgression/dendreo-service-manager.sh logs
+# Service status
+sudo systemctl status dendreo     # Check service status
+sudo systemctl is-active dendreo  # Check if running
+sudo systemctl is-enabled dendreo # Check if enabled
 
-# View specific service logs
-sudo /home/cm/DendreoProgression/dendreo-service-manager.sh logs nginx
-sudo /home/cm/DendreoProgression/dendreo-service-manager.sh logs backend
-sudo /home/cm/DendreoProgression/dendreo-service-manager.sh logs frontend
-
-# Follow logs in real-time
-sudo /home/cm/DendreoProgression/dendreo-service-manager.sh logs nginx follow
+# Boot management
+sudo systemctl enable dendreo     # Enable auto-start on boot
+sudo systemctl disable dendreo    # Disable auto-start on boot
 ```
 
-## Service Behavior
+### Manual Service Management
 
-- **Automatic Startup**: The service is configured to start automatically on boot
-- **Dependency Management**: Waits for Docker service and network to be ready
-- **Health Monitoring**: Integrates with Docker Compose health checks
-- **Logging**: All operations are logged to `/var/log/dendreo-service.log`
-- **Lock File**: Prevents multiple instances from running simultaneously
+```bash
+# Direct service manager commands
+sudo ./dendreo-service-manager.sh start    # Start manually
+sudo ./dendreo-service-manager.sh stop     # Stop manually
+sudo ./dendreo-service-manager.sh restart  # Restart manually
+sudo ./dendreo-service-manager.sh status   # Check status
+sudo ./dendreo-service-manager.sh health   # Health check
+sudo ./dendreo-service-manager.sh logs     # Show logs
+```
+
+## Logging and Monitoring
+
+### View Logs
+
+```bash
+# System logs (recommended)
+sudo journalctl -u dendreo -f          # Follow service logs
+sudo journalctl -u dendreo --since "1 hour ago"  # Recent logs
+sudo journalctl -u dendreo --no-pager  # All logs without pager
+
+# Service log file
+sudo tail -f /var/log/dendreo-service.log
+
+# Container logs
+sudo ./dendreo-service-manager.sh logs
+sudo ./dendreo-service-manager.sh logs nginx follow
+```
+
+### Health Monitoring
+
+```bash
+# Check service health
+sudo ./dendreo-service-manager.sh health
+
+# Check individual container status
+sudo docker compose -f docker-compose.prod.yml ps
+
+# Check resource usage
+sudo docker stats
+```
+
+## Configuration Files
+
+### Service Configuration
+- **Service unit**: `/etc/systemd/system/dendreo.service`
+- **Environment**: `.env.prod`
+- **Docker Compose**: `docker-compose.prod.yml`
+
+### Log Files
+- **Service logs**: `/var/log/dendreo-service.log`
+- **System logs**: `journalctl -u dendreo`
+- **Container logs**: `docker compose logs`
+
+## Service Features
+
+### Auto-Recovery
+- ✅ Automatic restart on failure
+- ✅ Restart limit protection (3 attempts in 5 minutes)
+- ✅ Health checks after startup
+- ✅ Graceful shutdown handling
+
+### Resource Management
+- ✅ Proper timeouts (10min start, 2min stop)
+- ✅ Resource limits (file descriptors, processes)
+- ✅ Docker system cleanup on startup
+
+### Logging
+- ✅ Structured logging with timestamps
+- ✅ Systemd journal integration
+- ✅ Separate log files for debugging
 
 ## Troubleshooting
 
-### Service Won't Start
+### Common Issues
 
-1. Check service logs:
-   ```bash
-   sudo journalctl -u dendreo -n 50
-   ```
+#### Service Won't Start
+```bash
+# Check service status
+sudo systemctl status dendreo
 
-2. Check the service manager log:
-   ```bash
-   sudo tail -f /var/log/dendreo-service.log
-   ```
+# Check logs
+sudo journalctl -u dendreo --no-pager
 
-3. Verify environment file exists:
-   ```bash
-   ls -la /home/cm/DendreoProgression/.env.prod
-   ```
+# Check file permissions
+ls -la dendreo-service-manager.sh
+ls -la deploy.sh
 
-4. Check Docker service:
-   ```bash
-   sudo systemctl status docker
-   ```
+# Manual test
+sudo ./dendreo-service-manager.sh start
+```
 
-### Service Fails to Stop
+#### Service Fails to Stop
+```bash
+# Check what's running
+sudo ./dendreo-service-manager.sh status
 
-1. Check if containers are running:
-   ```bash
-   cd /home/cm/DendreoProgression
-   sudo docker compose -f docker-compose.prod.yml ps
-   ```
+# Force stop containers
+sudo docker compose -f docker-compose.prod.yml down
 
-2. Manually stop containers:
-   ```bash
-   cd /home/cm/DendreoProgression
-   sudo docker compose -f docker-compose.prod.yml down
-   ```
+# Check for stuck processes
+sudo ps aux | grep dendreo
+```
 
-### Permission Issues
+#### Configuration Issues
+```bash
+# Check environment file
+cat .env.prod
 
-1. Ensure scripts are executable:
-   ```bash
-   chmod +x /home/cm/DendreoProgression/dendreo-service-manager.sh
-   chmod +x /home/cm/DendreoProgression/deploy-prod.sh
-   ```
+# Check Docker Compose syntax
+sudo docker compose -f docker-compose.prod.yml config
 
-2. Check file ownership:
-   ```bash
-   sudo chown -R cm:cm /home/cm/DendreoProgression
-   ```
+# Test deployment script
+sudo ./deploy.sh --prod status
+```
 
-### Reset Service
-
-If you need to completely reset the service:
+### Log Analysis
 
 ```bash
-# Stop and disable the service
-sudo systemctl stop dendreo
-sudo systemctl disable dendreo
+# Service startup issues
+sudo journalctl -u dendreo --since "10 minutes ago"
 
-# Remove service file
-sudo rm /etc/systemd/system/dendreo.service
+# Container issues
+sudo docker compose -f docker-compose.prod.yml logs
 
-# Reload systemd
-sudo systemctl daemon-reload
+# System resource issues
+sudo dmesg | tail -20
+sudo df -h
+sudo free -h
+```
 
-# Reinstall
-sudo ./setup-dendreo-service.sh install
+## Advanced Configuration
+
+### Custom Service Timeouts
+
+Edit `/etc/systemd/system/dendreo.service`:
+
+```ini
+[Service]
+TimeoutStartSec=600    # 10 minutes
+TimeoutStopSec=120     # 2 minutes
+TimeoutReloadSec=300   # 5 minutes
+```
+
+### Resource Limits
+
+```ini
+[Service]
+LimitNOFILE=65536      # File descriptors
+LimitNPROC=32768       # Processes
+```
+
+### Custom Environment Variables
+
+Add to the service file:
+
+```ini
+[Service]
+Environment=CUSTOM_VAR=value
+Environment=ANOTHER_VAR=value
 ```
 
 ## Uninstallation
 
-To remove the service:
-
 ```bash
+# Remove the service
 sudo ./setup-dendreo-service.sh uninstall
+
+# Optional: Clean up containers and volumes
+sudo docker compose -f docker-compose.prod.yml down -v
+sudo docker system prune -a
 ```
 
-This will:
-- Stop the service
-- Disable auto-start
-- Remove the service file
-- Reload systemd
+## Integration with Deploy Script
 
-## Log Files
+The service uses the main `deploy.sh` script in production mode:
 
-- **Service logs**: `/var/log/dendreo-service.log`
-- **Systemd logs**: `journalctl -u dendreo`
-- **Container logs**: `docker compose logs` (in project directory)
+```bash
+# What the service runs internally:
+./deploy.sh --prod start    # Start production environment
+./deploy.sh --prod stop     # Stop production environment
+./deploy.sh --prod status   # Check status
+```
 
-## Configuration
+This ensures consistency between manual deployments and service management.
 
-The service uses these configuration files:
-- **Environment**: `.env.prod`
-- **Docker Compose**: `docker-compose.prod.yml`
-- **Deployment**: `deploy-prod.sh`
+## Best Practices
 
-## Security Considerations
-
-- Service runs as root (required for Docker operations)
-- Log files are created with appropriate permissions
-- Service includes basic security settings in systemd unit file
+1. **Always use systemctl commands** for production management
+2. **Monitor logs regularly** with `journalctl -u dendreo -f`
+3. **Test configuration changes** before applying to production
+4. **Keep backups** of your `.env.prod` and service configuration
+5. **Use health checks** to verify service status
+6. **Set up monitoring** for production environments
 
 ## Support
 
 For issues or questions:
-1. Check the logs first
-2. Verify all required files exist
-3. Ensure Docker service is running
-4. Check environment configuration
+1. Check the logs first: `sudo journalctl -u dendreo -f`
+2. Test manual operation: `sudo ./dendreo-service-manager.sh status`
+3. Verify configuration: `sudo ./deploy.sh --prod status`
+4. Check Docker resources: `sudo docker system df`
 
-The service manager script provides detailed error messages and logging to help diagnose issues. 
+The service is designed to be robust and self-healing, but manual intervention may be needed for configuration or resource issues. 

@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Setup script for Dendreo Production Service
-# This script installs and configures the Dendreo service on Debian/Ubuntu
+# Dendreo Service Setup Script
+# This script sets up the Dendreo application as a systemd service
 
 set -e
 
@@ -16,8 +16,8 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_NAME="dendreo"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-SERVICE_MANAGER_SCRIPT="$SCRIPT_DIR/dendreo-service-manager.sh"
-DEPLOY_SCRIPT="$SCRIPT_DIR/deploy-prod.sh"
+SERVICE_MANAGER="$SCRIPT_DIR/dendreo-service-manager.sh"
+DEPLOY_SCRIPT="$SCRIPT_DIR/deploy.sh"
 LOG_FILE="/var/log/dendreo-service.log"
 
 # Functions
@@ -45,129 +45,177 @@ check_root() {
     fi
 }
 
-# Check if required files exist
-check_files() {
-    log_info "Checking required files..."
+# Check prerequisites
+check_prerequisites() {
+    log_info "Checking prerequisites..."
     
-    local missing_files=()
-    
-    if [ ! -f "$SERVICE_MANAGER_SCRIPT" ]; then
-        missing_files+=("dendreo-service-manager.sh")
-    fi
-    
-    if [ ! -f "$DEPLOY_SCRIPT" ]; then
-        missing_files+=("deploy-prod.sh")
-    fi
-    
-    if [ ! -f "$SCRIPT_DIR/dendreo.service" ]; then
-        missing_files+=("dendreo.service")
-    fi
-    
-    if [ ! -f "$SCRIPT_DIR/docker-compose.prod.yml" ]; then
-        missing_files+=("docker-compose.prod.yml")
-    fi
-    
-    if [ ${#missing_files[@]} -ne 0 ]; then
-        log_error "Missing required files:"
-        printf '  - %s\n' "${missing_files[@]}"
+    # Check if Docker is installed
+    if ! command -v docker &> /dev/null; then
+        log_error "Docker is not installed. Please install Docker first."
         exit 1
     fi
     
-    log_success "All required files found"
+    # Check if Docker Compose is available
+    if ! docker compose version &> /dev/null; then
+        log_error "Docker Compose is not available. Please install Docker Compose."
+        exit 1
+    fi
+    
+    # Check if required files exist
+    if [ ! -f "$SERVICE_MANAGER" ]; then
+        log_error "Service manager script not found: $SERVICE_MANAGER"
+        exit 1
+    fi
+    
+    if [ ! -f "$DEPLOY_SCRIPT" ]; then
+        log_error "Deploy script not found: $DEPLOY_SCRIPT"
+        exit 1
+    fi
+    
+    if [ ! -f "$SCRIPT_DIR/dendreo.service" ]; then
+        log_error "Service file not found: $SCRIPT_DIR/dendreo.service"
+        exit 1
+    fi
+    
+    if [ ! -f "$SCRIPT_DIR/docker-compose.prod.yml" ]; then
+        log_error "Production Docker Compose file not found: $SCRIPT_DIR/docker-compose.prod.yml"
+        exit 1
+    fi
+    
+    if [ ! -f "$SCRIPT_DIR/.env.prod" ]; then
+        log_warning "Production environment file not found: $SCRIPT_DIR/.env.prod"
+        log_info "Please create .env.prod file with your configuration"
+    fi
+    
+    log_success "Prerequisites check completed"
 }
 
-# Install the service
-install_service() {
-    log_info "Installing Dendreo systemd service..."
+# Make scripts executable
+make_executable() {
+    log_info "Making scripts executable..."
     
-    # Stop existing service if it exists
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
+    chmod +x "$SERVICE_MANAGER"
+    chmod +x "$DEPLOY_SCRIPT"
+    
+    log_success "Scripts made executable"
+}
+
+# Install systemd service
+install_service() {
+    log_info "Installing systemd service..."
+    
+    # Stop existing service if running
+    if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
         log_info "Stopping existing service..."
         systemctl stop "$SERVICE_NAME"
     fi
     
-    # Disable existing service if it exists
-    if systemctl is-enabled --quiet "$SERVICE_NAME" 2>/dev/null; then
-        log_info "Disabling existing service..."
-        systemctl disable "$SERVICE_NAME"
-    fi
-    
     # Copy service file
-    log_info "Installing service file..."
     cp "$SCRIPT_DIR/dendreo.service" "$SERVICE_FILE"
     
-    # Make service manager script executable
-    chmod +x "$SERVICE_MANAGER_SCRIPT"
-    chmod +x "$DEPLOY_SCRIPT"
-    
-    # Create log file
+    # Create log file with proper permissions
     touch "$LOG_FILE"
     chmod 644 "$LOG_FILE"
     
     # Reload systemd
     systemctl daemon-reload
     
-    log_success "Service installed successfully"
-}
-
-# Enable and start the service
-enable_service() {
-    log_info "Enabling and starting Dendreo service..."
-    
     # Enable service
     systemctl enable "$SERVICE_NAME"
     
-    # Start service
-    if systemctl start "$SERVICE_NAME"; then
-        log_success "Service started successfully"
-    else
-        log_error "Failed to start service"
-        log_info "Check logs with: journalctl -xeu $SERVICE_NAME"
-        exit 1
-    fi
+    log_success "Service installed and enabled"
 }
 
-# Show service status
-show_status() {
-    log_info "Service Status:"
-    echo "=============="
-    systemctl status "$SERVICE_NAME" --no-pager
-    echo
+# Test service installation
+test_service() {
+    log_info "Testing service installation..."
     
-    log_info "Available Commands:"
-    echo "=================="
-    echo "  sudo systemctl start $SERVICE_NAME     # Start the service"
-    echo "  sudo systemctl stop $SERVICE_NAME      # Stop the service"
-    echo "  sudo systemctl restart $SERVICE_NAME   # Restart the service"
-    echo "  sudo systemctl status $SERVICE_NAME    # Check service status"
-    echo "  sudo systemctl enable $SERVICE_NAME    # Enable auto-start on boot"
-    echo "  sudo systemctl disable $SERVICE_NAME   # Disable auto-start on boot"
-    echo
-    echo "  sudo journalctl -u $SERVICE_NAME -f    # Follow service logs"
-    echo "  sudo journalctl -u $SERVICE_NAME       # View service logs"
-    echo
-    echo "  $SERVICE_MANAGER_SCRIPT status         # Check container status"
-    echo "  $SERVICE_MANAGER_SCRIPT logs           # View container logs"
-    echo "  $SERVICE_MANAGER_SCRIPT logs nginx     # View specific service logs"
+    # Check service file syntax
+    if ! systemctl cat "$SERVICE_NAME" &> /dev/null; then
+        log_error "Service file has syntax errors"
+        return 1
+    fi
+    
+    # Check if service is properly loaded
+    if ! systemctl is-enabled "$SERVICE_NAME" &> /dev/null; then
+        log_error "Service is not enabled"
+        return 1
+    fi
+    
+    # Check if service manager script is executable
+    if [ ! -x "$SERVICE_MANAGER" ]; then
+        log_error "Service manager script is not executable"
+        return 1
+    fi
+    
+    log_success "Service installation test passed"
+}
+
+# Show usage instructions
+show_usage() {
+    cat << EOF
+
+${GREEN}Dendreo Service Setup Complete!${NC}
+
+The Dendreo service has been successfully installed and configured.
+
+${YELLOW}Service Management Commands:${NC}
+  sudo systemctl start dendreo     - Start the service
+  sudo systemctl stop dendreo      - Stop the service
+  sudo systemctl restart dendreo   - Restart the service
+  sudo systemctl status dendreo    - Check service status
+  sudo systemctl enable dendreo    - Enable auto-start on boot
+  sudo systemctl disable dendreo   - Disable auto-start on boot
+
+${YELLOW}Manual Service Management:${NC}
+  sudo $SERVICE_MANAGER start      - Start the service manually
+  sudo $SERVICE_MANAGER stop       - Stop the service manually
+  sudo $SERVICE_MANAGER restart    - Restart the service manually
+  sudo $SERVICE_MANAGER status     - Check service status
+  sudo $SERVICE_MANAGER health     - Perform health check
+  sudo $SERVICE_MANAGER logs       - Show service logs
+
+${YELLOW}Log Files:${NC}
+  Service logs: $LOG_FILE
+  Container logs: sudo $SERVICE_MANAGER logs
+  System logs: sudo journalctl -u dendreo -f
+
+${YELLOW}Configuration Files:${NC}
+  Service file: $SERVICE_FILE
+  Environment: $SCRIPT_DIR/.env.prod
+  Docker Compose: $SCRIPT_DIR/docker-compose.prod.yml
+
+${YELLOW}Next Steps:${NC}
+1. Ensure your .env.prod file is properly configured
+2. Test the service: sudo systemctl start dendreo
+3. Check status: sudo systemctl status dendreo
+4. View logs: sudo journalctl -u dendreo -f
+
+${GREEN}Service is ready to use!${NC}
+
+EOF
 }
 
 # Uninstall service
 uninstall_service() {
     log_info "Uninstalling Dendreo service..."
     
-    # Stop service
-    if systemctl is-active --quiet "$SERVICE_NAME"; then
+    # Stop service if running
+    if systemctl is-active --quiet "$SERVICE_NAME" 2>/dev/null; then
+        log_info "Stopping service..."
         systemctl stop "$SERVICE_NAME"
     fi
     
     # Disable service
     if systemctl is-enabled --quiet "$SERVICE_NAME" 2>/dev/null; then
+        log_info "Disabling service..."
         systemctl disable "$SERVICE_NAME"
     fi
     
     # Remove service file
     if [ -f "$SERVICE_FILE" ]; then
-        rm "$SERVICE_FILE"
+        rm -f "$SERVICE_FILE"
+        log_success "Service file removed"
     fi
     
     # Reload systemd
@@ -176,43 +224,50 @@ uninstall_service() {
     log_success "Service uninstalled successfully"
 }
 
-# Main function
+# Main script
 main() {
-    case "$1" in
+    case "${1:-install}" in
         "install")
-            echo "🚀 Dendreo Service Installation"
-            echo "==============================="
-            echo
-            
+            log_info "Installing Dendreo systemd service..."
             check_root
-            check_files
+            check_prerequisites
+            make_executable
             install_service
-            enable_service
-            show_status
+            test_service
+            show_usage
             ;;
         "uninstall")
-            echo "🗑️  Dendreo Service Uninstallation"
-            echo "==================================="
-            echo
-            
+            log_info "Uninstalling Dendreo systemd service..."
             check_root
             uninstall_service
             ;;
-        "status")
-            show_status
+        "test")
+            log_info "Testing Dendreo service..."
+            check_root
+            test_service
+            ;;
+        "help"|"--help")
+            cat << EOF
+Dendreo Service Setup Script
+
+Usage: $0 [COMMAND]
+
+Commands:
+  install     - Install and configure the systemd service (default)
+  uninstall   - Remove the systemd service
+  test        - Test the service installation
+  help        - Show this help message
+
+Examples:
+  sudo $0 install           # Install the service
+  sudo $0 uninstall         # Remove the service
+  sudo $0 test              # Test the installation
+
+EOF
             ;;
         *)
-            echo "Usage: $0 {install|uninstall|status}"
-            echo ""
-            echo "Commands:"
-            echo "  install     - Install and start the Dendreo service"
-            echo "  uninstall   - Stop and remove the Dendreo service"
-            echo "  status      - Show service status and available commands"
-            echo ""
-            echo "Examples:"
-            echo "  sudo $0 install"
-            echo "  sudo $0 uninstall"
-            echo "  $0 status"
+            log_error "Unknown command: $1"
+            log_info "Use '$0 help' for usage information"
             exit 1
             ;;
     esac

@@ -7,7 +7,7 @@ set -e
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPLOY_SCRIPT="$SCRIPT_DIR/deploy-prod.sh"
+DEPLOY_SCRIPT="$SCRIPT_DIR/deploy.sh"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.prod.yml"
 ENV_FILE="$SCRIPT_DIR/.env.prod"
 LOCK_FILE="/tmp/dendreo-service.lock"
@@ -80,8 +80,14 @@ check_files() {
 # Create lock file
 create_lock() {
     if [ -f "$LOCK_FILE" ]; then
-        log "ERROR" "Service is already running (lock file exists: $LOCK_FILE)"
-        exit 1
+        local existing_pid=$(cat "$LOCK_FILE" 2>/dev/null)
+        if [ -n "$existing_pid" ] && kill -0 "$existing_pid" 2>/dev/null; then
+            log "ERROR" "Service is already running (PID: $existing_pid)"
+            exit 1
+        else
+            log "WARNING" "Removing stale lock file"
+            rm -f "$LOCK_FILE"
+        fi
     fi
     echo $$ > "$LOCK_FILE"
 }
@@ -106,9 +112,9 @@ start_service() {
     # Change to script directory
     cd "$SCRIPT_DIR"
     
-    # Run the deployment script
-    log "INFO" "Running deployment script..."
-    if bash "$DEPLOY_SCRIPT" >> "$LOG_FILE" 2>&1; then
+    # Run the deployment script with production environment
+    log "INFO" "Running deployment script with production environment..."
+    if bash "$DEPLOY_SCRIPT" --prod start >> "$LOG_FILE" 2>&1; then
         log "SUCCESS" "Dendreo service started successfully"
         return 0
     else
@@ -127,9 +133,9 @@ stop_service() {
     # Change to script directory
     cd "$SCRIPT_DIR"
     
-    # Stop Docker Compose services
+    # Use deploy script to stop the service
     log "INFO" "Stopping Docker containers..."
-    if docker compose -f "$COMPOSE_FILE" down --remove-orphans >> "$LOG_FILE" 2>&1; then
+    if bash "$DEPLOY_SCRIPT" --prod stop >> "$LOG_FILE" 2>&1; then
         log "SUCCESS" "Dendreo service stopped successfully"
         return 0
     else
@@ -199,6 +205,32 @@ show_logs() {
     fi
 }
 
+# Health check function
+health_check() {
+    log "INFO" "Performing health check..."
+    
+    check_docker
+    
+    # Change to script directory
+    cd "$SCRIPT_DIR"
+    
+    # Check if all expected containers are running
+    local expected_services=("backend" "frontend" "postgres" "redis" "nginx")
+    local running_services=$(docker compose -f "$COMPOSE_FILE" ps --services --filter "status=running")
+    
+    for service in "${expected_services[@]}"; do
+        if echo "$running_services" | grep -q "$service"; then
+            log "SUCCESS" "Service $service is running"
+        else
+            log "ERROR" "Service $service is not running"
+            return 1
+        fi
+    done
+    
+    log "SUCCESS" "All services are running"
+    return 0
+}
+
 # Main function
 main() {
     # Create log file if it doesn't exist
@@ -217,22 +249,27 @@ main() {
         "status")
             check_status
             ;;
+        "health")
+            health_check
+            ;;
         "logs")
             show_logs "$2" "$3"
             ;;
         *)
-            echo "Usage: $0 {start|stop|restart|status|logs [service] [follow]}"
+            echo "Usage: $0 {start|stop|restart|status|health|logs [service] [follow]}"
             echo ""
             echo "Commands:"
             echo "  start     - Start the Dendreo service"
             echo "  stop      - Stop the Dendreo service"
             echo "  restart   - Restart the Dendreo service"
             echo "  status    - Check service status"
+            echo "  health    - Perform health check"
             echo "  logs      - Show service logs"
             echo ""
             echo "Examples:"
             echo "  $0 start"
             echo "  $0 status"
+            echo "  $0 health"
             echo "  $0 logs backend"
             echo "  $0 logs nginx follow"
             exit 1
