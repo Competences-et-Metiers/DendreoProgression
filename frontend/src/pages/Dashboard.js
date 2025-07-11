@@ -283,7 +283,6 @@ const Dashboard = () => {
               <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
                 {/* Search */}
                 <div className="relative">
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Search Courses</label>
                   <div className="relative">
                     <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
