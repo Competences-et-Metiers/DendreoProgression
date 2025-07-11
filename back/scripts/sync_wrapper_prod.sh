@@ -14,7 +14,7 @@ cd /app
 # Log start
 echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Starting production sync process (PID: $$, Shell: $0)"
 
-# Check if environment file exists and source it
+# Check if environment file exists and source it (use . for sh compatibility)
 if [ -f "/app/cron_env.sh" ]; then
     echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Sourcing environment variables"
     . /app/cron_env.sh
@@ -25,8 +25,17 @@ fi
 # Verify Python is available
 if ! command -v python3 >/dev/null 2>&1; then
     echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - ERROR: python3 not found in PATH: $PATH"
-    echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Production sync process failed (PID: $$)"
-    exit 1
+    # Try alternative paths
+    if [ -f "/usr/local/bin/python3" ]; then
+        echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Found python3 at /usr/local/bin/python3"
+        export PATH="/usr/local/bin:$PATH"
+    elif [ -f "/usr/bin/python3" ]; then
+        echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Found python3 at /usr/bin/python3"
+        export PATH="/usr/bin:$PATH"
+    else
+        echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Production sync process failed (PID: $$)"
+        exit 1
+    fi
 fi
 
 # Verify sync script exists
@@ -79,7 +88,7 @@ echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - ADF Limit: ${DENDREO_ADF_LIMIT:-unli
 SYNC_TIMEOUT=1800
 
 # Run sync with timeout
-if timeout $SYNC_TIMEOUT python3 /app/scripts/sync_dendreo.py --log-level "${LOG_LEVEL:-INFO}" 2>&1; then
+if timeout $SYNC_TIMEOUT python3 /app/scripts/sync_dendreo.py --force --log-level "${LOG_LEVEL:-INFO}" 2>&1; then
     echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Production sync process completed successfully (PID: $$)"
     
     # Optional: Run HubSpot updates if configured
