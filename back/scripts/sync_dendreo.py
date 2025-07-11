@@ -164,22 +164,13 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
         sync_metadata = None
         if not dry_run:
             with get_db_session() as db:
-                sync_metadata = db.query(SyncMetadata).filter(
-                    SyncMetadata.sync_type == 'sync_all'
-                ).first()
-                
-                if not sync_metadata:
-                    sync_metadata = SyncMetadata(
-                        sync_type='sync_all',
-                        last_sync_at=sync_start_time,
-                        status='in_progress'
-                    )
-                    db.add(sync_metadata)
-                else:
-                    sync_metadata.last_sync_at = sync_start_time
-                    sync_metadata.status = 'in_progress'
-                    sync_metadata.error_message = None
-                
+                # Create a new sync metadata record for each sync operation
+                sync_metadata = SyncMetadata(
+                    sync_type='sync_all',
+                    last_sync_at=sync_start_time,
+                    status='in_progress'
+                )
+                db.add(sync_metadata)
                 db.commit()
                 logger.info(f"📝 Created sync metadata record (ID: {sync_metadata.id})")
         

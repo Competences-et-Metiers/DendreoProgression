@@ -46,20 +46,13 @@ async def sync_all(
     """Synchronize all data from Dendreo"""
     sync_start_time = datetime.now(timezone.utc)
     
-    # Create or update sync metadata record
-    sync_metadata = db.query(SyncMetadata).filter(SyncMetadata.sync_type == 'sync_all').first()
-    if not sync_metadata:
-        sync_metadata = SyncMetadata(
-            sync_type='sync_all',
-            last_sync_at=sync_start_time,
-            status='in_progress'
-        )
-        db.add(sync_metadata)
-    else:
-        sync_metadata.last_sync_at = sync_start_time
-        sync_metadata.status = 'in_progress'
-        sync_metadata.error_message = None
-    
+    # Create a new sync metadata record for each sync operation
+    sync_metadata = SyncMetadata(
+        sync_type='sync_all',
+        last_sync_at=sync_start_time,
+        status='in_progress'
+    )
+    db.add(sync_metadata)
     db.commit()
     
     try:
@@ -251,7 +244,9 @@ async def get_elearning_sync_stats(db: Session = Depends(get_db)) -> Dict[str, A
 async def get_last_sync(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get information about the last sync-all operation"""
     try:
-        sync_metadata = db.query(SyncMetadata).filter(SyncMetadata.sync_type == 'sync_all').first()
+        sync_metadata = db.query(SyncMetadata).filter(
+            SyncMetadata.sync_type == 'sync_all'
+        ).order_by(SyncMetadata.last_sync_at.desc()).first()
         
         if not sync_metadata:
             return {
