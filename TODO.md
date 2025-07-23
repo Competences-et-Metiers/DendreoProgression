@@ -6,7 +6,7 @@
 
 - [ ] Add `time spent`
 - [ ] SSL/HTTPS
-- [ ] Filter our inappropriate courses
+- [ ] Filter out irrelevant courses
 - [ ] Make French language select + default lang
 #### Cleanup
 - [ ] Clean up endpoints

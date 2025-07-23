@@ -10,8 +10,8 @@ services:
       - ./nginx/prod.conf:/etc/nginx/nginx.conf:ro
       - ./logs/nginx:/var/log/nginx
       - frontend_build:/usr/share/nginx/html
-      # Uncomment for SSL support:
-      # - ./ssl:/etc/nginx/ssl:ro
+      # SSL certificates
+      - ./ssl:/etc/nginx/ssl:ro
       # Timezone mapping
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
