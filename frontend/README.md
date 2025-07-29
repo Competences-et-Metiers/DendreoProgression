@@ -40,7 +40,7 @@ cd frontend
 
 2. Install dependencies:
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
 
 3. (Optional) Create a `.env` file to configure the API URL:

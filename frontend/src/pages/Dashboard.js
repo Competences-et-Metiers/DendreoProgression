@@ -6,7 +6,6 @@ import StatCard from '../components/StatCard';
 import ProgressBar from '../components/ProgressBar';
 import CacheStatus from '../components/CacheStatus';
 import LanguageSelector from '../components/LanguageSelector';
-import LanguageTest from '../components/LanguageTest';
 import { useDashboardStats, useCourses, usePrefetchQueries, useLastSync } from '../hooks/useQuery';
 import { 
   BookOpen, 
@@ -264,10 +263,9 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Language Test - Only show in development */}
+        {/* Cache Status - Only show in development */}
         {process.env.NODE_ENV === 'development' && (
           <div className="mb-8">
-            <LanguageTest />
             <CacheStatus />
           </div>
         )}
