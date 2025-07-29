@@ -27,12 +27,16 @@ class DendreoSync:
         self.stats = {
             "participants_created": 0,
             "participants_updated": 0,
+            "participants_removed": 0,
             "courses_created": 0,
             "courses_updated": 0,
+            "courses_removed": 0,
             "modules_created": 0,
             "modules_updated": 0,
+            "modules_removed": 0,
             "participant_courses_created": 0,
             "participant_courses_updated": 0,
+            "participant_courses_removed": 0,
             "hubspot_data_created": 0,
             "hubspot_data_updated": 0,
             "hubspot_updates_total": 0,
@@ -90,14 +94,33 @@ class DendreoSync:
             logger.info("Processing LMPs...")
             lmp_batches = [elearning_records[i:i + self.batch_size] for i in range(0, len(elearning_records), self.batch_size)]
             
+            # Track all current participant-course combinations
+            all_current_participant_courses = set()
+            
             for batch_num, lmp_batch in enumerate(lmp_batches, 1):
                 logger.info(f"Processing LMP batch {batch_num}/{len(lmp_batches)}")
-                await self._process_lmps(lmp_batch, active_courses)
+                batch_participant_courses = await self._process_lmps(lmp_batch, active_courses)
+                all_current_participant_courses.update(batch_participant_courses)
                 # Note: _process_lmps now handles its own commit
 
             # Process HubSpot data from LAPS AFTER LMPs (to update ParticipantCourse records with id_lap)
             logger.info("Processing HubSpot data from LAPS...")
             await self._process_hubspot_data(adf_data)
+            self.db.commit()
+
+            # Cleanup removed participants
+            logger.info("Cleaning up removed participants...")
+            await self._cleanup_removed_participants(active_courses, all_current_participant_courses)
+            self.db.commit()
+
+            # Cleanup orphaned participants
+            logger.info("Cleaning up orphaned participants...")
+            await self._cleanup_orphaned_participants()
+            self.db.commit()
+
+            # Cleanup orphaned courses
+            logger.info("Cleaning up orphaned courses...")
+            await self._cleanup_orphaned_courses(active_courses)
             self.db.commit()
 
             # Update HubSpot deals with progression data
@@ -435,7 +458,131 @@ class DendreoSync:
                 logger.error(f"Error creating/updating participant course for participant {participant_id}, course {course_id}: {str(e)}")
                 continue
 
-    async def _process_lmps(self, lmp_batch: List[Dict], active_courses: Dict[str, Course]):
+    async def _cleanup_removed_participants(self, active_courses: Dict[str, Course], current_participant_courses: set):
+        """Remove participants who are no longer in courses"""
+        try:
+            logger.info("Starting cleanup of removed participants...")
+            
+            # Get all current participant course records
+            existing_participant_courses = self.db.query(ParticipantCourse).all()
+            
+            # Track what should be removed
+            removed_participant_courses = 0
+            removed_modules = 0
+            
+            for pc in existing_participant_courses:
+                # Check if this participant-course combination is still active
+                if (pc.participant_id, pc.course_id) not in current_participant_courses:
+                    logger.info(f"Removing participant {pc.participant_id} from course {pc.course_id} (no longer active)")
+                    
+                    # Remove associated modules first (due to foreign key constraints)
+                    modules_to_remove = self.db.query(Module).filter(
+                        Module.participant_id == pc.participant_id,
+                        Module.course_id == pc.course_id
+                    ).all()
+                    
+                    for module in modules_to_remove:
+                        self.db.delete(module)
+                        removed_modules += 1
+                    
+                    # Remove the participant course record
+                    self.db.delete(pc)
+                    removed_participant_courses += 1
+            
+            # Update stats
+            self.stats["participant_courses_removed"] = removed_participant_courses
+            self.stats["modules_removed"] = removed_modules
+            
+            logger.info(f"Cleanup completed: {removed_participant_courses} participant courses and {removed_modules} modules removed")
+            
+        except Exception as e:
+            logger.error(f"Error during cleanup: {str(e)}")
+            self.db.rollback()
+            raise
+
+    async def _cleanup_orphaned_participants(self):
+        """Remove participants who are no longer enrolled in any courses"""
+        try:
+            logger.info("Checking for orphaned participants...")
+            
+            # Find participants who have no remaining participant_course records
+            orphaned_participants = self.db.query(Participant).outerjoin(
+                ParticipantCourse
+            ).filter(
+                ParticipantCourse.id.is_(None)
+            ).all()
+            
+            removed_participants = 0
+            for participant in orphaned_participants:
+                logger.info(f"Removing orphaned participant: {participant.id_participant} ({participant.email})")
+                
+                # Remove associated HubSpot data first
+                hubspot_data = self.db.query(ParticipantHubspotData).filter(
+                    ParticipantHubspotData.participant_id == participant.id
+                ).all()
+                
+                for hubspot_record in hubspot_data:
+                    self.db.delete(hubspot_record)
+                
+                # Remove the participant
+                self.db.delete(participant)
+                removed_participants += 1
+            
+            # Update stats
+            self.stats["participants_removed"] = removed_participants
+            
+            logger.info(f"Orphaned participants cleanup completed: {removed_participants} participants removed")
+            
+        except Exception as e:
+            logger.error(f"Error during orphaned participants cleanup: {str(e)}")
+            self.db.rollback()
+            raise
+
+    async def _cleanup_orphaned_courses(self, active_courses: Dict[str, Course]):
+        """Remove courses that are no longer active"""
+        try:
+            logger.info("Checking for orphaned courses...")
+            
+            # Get all courses that are not in the active courses list
+            all_courses = self.db.query(Course).all()
+            active_course_ids = {course.id for course in active_courses.values()}
+            
+            removed_courses = 0
+            for course in all_courses:
+                if course.id not in active_course_ids:
+                    logger.info(f"Removing orphaned course: {course.intitule} (ID: {course.id})")
+                    
+                    # Remove associated modules first (due to foreign key constraints)
+                    modules_to_remove = self.db.query(Module).filter(
+                        Module.course_id == course.id
+                    ).all()
+                    
+                    for module in modules_to_remove:
+                        self.db.delete(module)
+                    
+                    # Remove associated participant courses
+                    participant_courses_to_remove = self.db.query(ParticipantCourse).filter(
+                        ParticipantCourse.course_id == course.id
+                    ).all()
+                    
+                    for pc in participant_courses_to_remove:
+                        self.db.delete(pc)
+                    
+                    # Remove the course
+                    self.db.delete(course)
+                    removed_courses += 1
+            
+            # Update stats
+            self.stats["courses_removed"] = removed_courses
+            
+            logger.info(f"Orphaned courses cleanup completed: {removed_courses} courses removed")
+            
+        except Exception as e:
+            logger.error(f"Error during orphaned courses cleanup: {str(e)}")
+            self.db.rollback()
+            raise
+
+    async def _process_lmps(self, lmp_batch: List[Dict], active_courses: Dict[str, Course]) -> set:
         """Process LMP data to create or update modules and participants"""
         # Track participant progressions per course
         participant_course_modules = {}  # {(participant_id, course_id): [(module_id, progression, last_access)]}
@@ -568,6 +715,9 @@ class DendreoSync:
 
         # Create or update participant courses
         await self._create_participant_courses(participant_course_modules)
+        
+        # Return the set of current participant-course combinations
+        return set(participant_course_modules.keys())
 
     async def _get_or_create_participant(self, participant_data: Dict) -> Participant:
         """Get or create a participant"""
