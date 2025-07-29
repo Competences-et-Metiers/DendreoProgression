@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
 import { useCourseParticipants } from '../hooks/useQuery';
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 
 const CourseDetail = () => {
+  const { t } = useTranslation();
   const { courseId } = useParams();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
@@ -92,7 +94,7 @@ const CourseDetail = () => {
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Never';
+    if (!dateString) return t('common.never');
     return new Date(dateString).toLocaleDateString();
   };
 
@@ -123,17 +125,17 @@ const CourseDetail = () => {
     if (progression >= 100) {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
         <CheckCircle size={12} className="mr-1" />
-        Completed
+        {t('common.completed')}
       </span>;
     } else if (progression > 0) {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
         <Clock size={12} className="mr-1" />
-        In Progress
+        {t('common.inProgress')}
       </span>;
     } else {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
         <Clock size={12} className="mr-1" />
-        Not Started
+        {t('common.notStarted')}
       </span>;
     }
   };
@@ -150,19 +152,19 @@ const CourseDetail = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-600 mb-4">{error.message || 'Failed to load course data'}</p>
+          <div className="text-red-500 text-xl mb-4">⚠️ {t('common.error')}</div>
+          <p className="text-gray-600 mb-4">{error.message || t('errors.failedToLoadCourseData')}</p>
           <button 
             onClick={refetch}
             className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 mr-2"
           >
-            Retry
+            {t('common.retry')}
           </button>
           <button 
             onClick={() => navigate('/')}
             className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
           >
-            Back to Dashboard
+            {t('navigation.backToDashboard')}
           </button>
         </div>
       </div>
@@ -188,7 +190,7 @@ const CourseDetail = () => {
                 <h1 className="text-2xl font-bold text-gray-900">
                   {courseData?.course?.intitule}
                 </h1>
-                <p className="text-gray-600 mt-1">Course participants and progress</p>
+                <p className="text-gray-600 mt-1">{t('courseDetail.subtitle')}</p>
               </div>
             </div>
           </div>
@@ -205,7 +207,7 @@ const CourseDetail = () => {
                   <Users size={24} />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Participants</p>
+                  <p className="text-sm font-medium text-gray-600">{t('courseDetail.summary.totalParticipants')}</p>
                   <p className="text-2xl font-bold text-gray-900">{courseData.summary.total_participants}</p>
                 </div>
               </div>
@@ -217,7 +219,7 @@ const CourseDetail = () => {
                   <CheckCircle size={24} />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Completed</p>
+                  <p className="text-sm font-medium text-gray-600">{t('courseDetail.summary.completed')}</p>
                   <p className="text-2xl font-bold text-gray-900">{courseData.summary.completed_participants}</p>
                 </div>
               </div>
@@ -229,7 +231,7 @@ const CourseDetail = () => {
                   <Target size={24} />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Average Progress</p>
+                  <p className="text-sm font-medium text-gray-600">{t('courseDetail.summary.averageProgress')}</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {courseData.summary.average_progression.toFixed(1)}%
                   </p>
@@ -243,7 +245,7 @@ const CourseDetail = () => {
                   <ExternalLink size={24} />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">HubSpot Linked</p>
+                  <p className="text-sm font-medium text-gray-600">{t('courseDetail.summary.hubSpotLinked')}</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {courseData.participants?.filter(p => p.hubspot_data?.c_id_transaction_hubspot).length || 0}
                   </p>
@@ -259,9 +261,9 @@ const CourseDetail = () => {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Participants</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('courseDetail.participants.title')}</h2>
                 <p className="text-sm text-gray-600">
-                  {filteredParticipants.length} of {courseData?.participants?.length || 0} participants
+                  {t('courseDetail.participants.subtitle', { filtered: filteredParticipants.length, total: courseData?.participants?.length || 0 })}
                 </p>
               </div>
               
@@ -272,7 +274,7 @@ const CourseDetail = () => {
                   <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search participants..."
+                    placeholder={t('courseDetail.participants.searchPlaceholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm w-64"
@@ -287,12 +289,12 @@ const CourseDetail = () => {
                     onChange={(e) => setFilterBy(e.target.value)}
                     className="border border-gray-300 rounded-md px-3 py-2 text-sm"
                   >
-                    <option value="all">All Status</option>
-                    <option value="completed">Completed</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="not-started">Not Started</option>
-                    <option value="with-hubspot">With HubSpot</option>
-                    <option value="without-hubspot">Without HubSpot</option>
+                    <option value="all">{t('courseDetail.participants.filters.allStatus')}</option>
+                    <option value="completed">{t('courseDetail.participants.filters.completed')}</option>
+                    <option value="in-progress">{t('courseDetail.participants.filters.inProgress')}</option>
+                    <option value="not-started">{t('courseDetail.participants.filters.notStarted')}</option>
+                    <option value="with-hubspot">{t('courseDetail.participants.filters.withHubSpot')}</option>
+                    <option value="without-hubspot">{t('courseDetail.participants.filters.withoutHubSpot')}</option>
                   </select>
                 </div>
                 
@@ -302,11 +304,11 @@ const CourseDetail = () => {
                   onChange={(e) => setSortBy(e.target.value)}
                   className="border border-gray-300 rounded-md px-3 py-2 text-sm"
                 >
-                  <option value="progression">Sort by Progress</option>
-                  <option value="name">Sort by Name</option>
-                  <option value="modules">Sort by Modules</option>
-                  <option value="activity">Sort by Activity</option>
-                  <option value="hubspot">Sort by HubSpot</option>
+                  <option value="progression">{t('courseDetail.participants.sort.byProgress')}</option>
+                  <option value="name">{t('courseDetail.participants.sort.byName')}</option>
+                  <option value="modules">{t('courseDetail.participants.sort.byModules')}</option>
+                  <option value="activity">{t('courseDetail.participants.sort.byActivity')}</option>
+                  <option value="hubspot">{t('courseDetail.participants.sort.byHubSpot')}</option>
                 </select>
               </div>
             </div>
@@ -319,8 +321,8 @@ const CourseDetail = () => {
                 <Users size={48} className="mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-500">
                   {searchTerm || filterBy !== 'all' 
-                    ? 'No participants found matching your criteria'
-                    : 'No participants in this course'
+                    ? t('errors.noParticipantsMatchingCriteria')
+                    : t('common.noParticipantsInCourse')
                   }
                 </p>
               </div>
@@ -358,16 +360,16 @@ const CourseDetail = () => {
                                     );
                                   }}
                                   className="hover:underline focus:outline-none focus:underline"
-                                  title="Open HubSpot deal"
+                                  title={t('common.openHubSpotDeal')}
                                 >
-                                  HubSpot: {participant.hubspot_data.c_id_transaction_hubspot}
+                                  {t('common.hubSpot')}: {participant.hubspot_data.c_id_transaction_hubspot}
                                 </button>
                               </div>
                             )}
                             {/* Show if no HubSpot data */}
                             {(!participant.hubspot_data || !participant.hubspot_data.c_id_transaction_hubspot) && (
                               <div className="flex items-center text-sm text-gray-400 mt-1">
-                                <span>No HubSpot deal linked</span>
+                                <span>{t('common.noHubSpotDealLinked')}</span>
                               </div>
                             )}
                           </div>
@@ -378,7 +380,7 @@ const CourseDetail = () => {
                             <button
                               onClick={() => toggleParticipantExpanded(participant.id)}
                               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                              title="View module details"
+                              title={t('common.viewModuleDetails')}
                             >
                               {expandedParticipants.has(participant.id) ? (
                                 <ChevronDown size={16} />
@@ -394,15 +396,15 @@ const CourseDetail = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
                         <div className="flex items-center text-sm text-gray-600">
                           <BookOpen size={14} className="mr-1" />
-                          {participant.completed_modules}/{participant.total_modules} modules completed
+                          {participant.completed_modules}/{participant.total_modules} {t('common.modulesCompleted')}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <Target size={14} className="mr-1" />
-                          {participant.overall_progression.toFixed(1)}% progress
+                          {participant.overall_progression.toFixed(1)}% {t('common.progress')}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <Calendar size={14} className="mr-1" />
-                          Last activity: {formatDate(participant.last_activity)}
+                          {t('common.lastActivity')}: {formatDate(participant.last_activity)}
                         </div>
                       </div>
                       
@@ -418,7 +420,7 @@ const CourseDetail = () => {
                         <div className="mt-4 border-t border-gray-200 pt-4">
                           <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
                             <PlayCircle size={14} className="mr-1" />
-                            Module Progress ({participant.modules.length} modules)
+                            {t('common.moduleProgressCount', { count: participant.modules.length })}
                           </h4>
                           <div className="space-y-3">
                             {participant.modules.map((module, index) => (
@@ -429,7 +431,7 @@ const CourseDetail = () => {
                                       {index + 1}
                                     </span>
                                     <span className="text-sm font-medium text-gray-900">
-                                      {module.intitule || `Module ${module.id_lmp || module.id_lam}`}
+                                      {module.intitule || t('common.moduleNumber', { number: module.id_lmp || module.id_lam })}
                                     </span>
                                   </div>
                                   <div className="flex items-center space-x-2">
@@ -447,8 +449,8 @@ const CourseDetail = () => {
                                   className="mb-2"
                                 />
                                 <div className="flex items-center justify-between text-xs text-gray-500">
-                                  <span>Mode: {module.mode_organisation}</span>
-                                  <span>Last access: {formatDate(module.last_access)}</span>
+                                  <span>{t('common.moduleMode')}: {module.mode_organisation}</span>
+                                  <span>{t('common.moduleLastAccess')}: {formatDate(module.last_access)}</span>
                                 </div>
                               </div>
                             ))}

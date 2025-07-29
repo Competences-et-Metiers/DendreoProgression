@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
 import { useParticipantDetails } from '../hooks/useQuery';
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 const ParticipantDetail = () => {
+  const { t } = useTranslation();
   const { participantId } = useParams();
   const navigate = useNavigate();
   const [expandedCourses, setExpandedCourses] = useState(new Set());
@@ -49,23 +51,23 @@ const ParticipantDetail = () => {
     if (progression >= 100) {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
         <CheckCircle size={12} className="mr-1" />
-        Completed
+        {t('common.completed')}
       </span>;
     } else if (progression > 0) {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
         <Clock size={12} className="mr-1" />
-        In Progress
+        {t('common.inProgress')}
       </span>;
     } else {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
         <Clock size={12} className="mr-1" />
-        Not Started
+        {t('common.notStarted')}
       </span>;
     }
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return 'Never';
+    if (!dateString) return t('common.never');
     return new Date(dateString).toLocaleDateString();
   };
 
@@ -81,19 +83,19 @@ const ParticipantDetail = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-600 mb-4">{error.message || 'Failed to load participant data'}</p>
+          <div className="text-red-500 text-xl mb-4">⚠️ {t('common.error')}</div>
+          <p className="text-gray-600 mb-4">{error.message || t('errors.failedToLoadParticipantData')}</p>
           <button 
             onClick={refetch}
             className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 mr-2"
           >
-            Retry
+            {t('common.retry')}
           </button>
           <button 
             onClick={() => navigate('/participants')}
             className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
           >
-            Back to Participants
+            {t('navigation.backToParticipants')}
           </button>
         </div>
       </div>
@@ -117,7 +119,7 @@ const ParticipantDetail = () => {
                 <h1 className="text-2xl font-bold text-gray-900">
                   {participantData?.participant?.prenom} {participantData?.participant?.nom}
                 </h1>
-                <p className="text-gray-600 mt-1">Participant courses and progress</p>
+                <p className="text-gray-600 mt-1">{t('participantDetail.subtitle')}</p>
               </div>
             </div>
           </div>
@@ -128,7 +130,7 @@ const ParticipantDetail = () => {
         {/* Participant Summary */}
         <div className="bg-white rounded-lg border border-gray-200 mb-8">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Participant Information</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('participantDetail.information')}</h2>
           </div>
           <div className="px-6 py-4">
             <div className="flex items-center mb-4">
@@ -154,7 +156,7 @@ const ParticipantDetail = () => {
                     <BookOpen size={20} />
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">Total Courses</p>
+                    <p className="text-sm font-medium text-gray-600">{t('participantDetail.stats.totalCourses')}</p>
                     <p className="text-xl font-bold text-gray-900">{participantData?.summary?.total_courses || 0}</p>
                   </div>
                 </div>
@@ -166,7 +168,7 @@ const ParticipantDetail = () => {
                     <CheckCircle size={20} />
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">Completed</p>
+                    <p className="text-sm font-medium text-gray-600">{t('participantDetail.stats.completed')}</p>
                     <p className="text-xl font-bold text-gray-900">{participantData?.summary?.completed_courses || 0}</p>
                   </div>
                 </div>
@@ -178,7 +180,7 @@ const ParticipantDetail = () => {
                     <Target size={20} />
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">Average Progress</p>
+                    <p className="text-sm font-medium text-gray-600">{t('participantDetail.stats.averageProgress')}</p>
                     <p className="text-xl font-bold text-gray-900">
                       {(participantData?.summary?.average_progression || 0).toFixed(1)}%
                     </p>
@@ -192,7 +194,7 @@ const ParticipantDetail = () => {
                     <Calendar size={20} />
                   </div>
                   <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">Member Since</p>
+                    <p className="text-sm font-medium text-gray-600">{t('participantDetail.stats.memberSince')}</p>
                     <p className="text-xl font-bold text-gray-900">
                       {formatDate(participantData?.participant?.created_at)}
                     </p>
@@ -208,9 +210,9 @@ const ParticipantDetail = () => {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Enrolled Courses</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('participantDetail.enrolledCourses')}</h2>
                 <p className="text-sm text-gray-600">
-                  {participantData?.courses?.length || 0} courses enrolled
+                  {t('participantDetail.subtitleWithCount', { count: participantData?.courses?.length || 0 })}
                 </p>
               </div>
             </div>
@@ -220,7 +222,7 @@ const ParticipantDetail = () => {
             {!participantData?.courses || participantData.courses.length === 0 ? (
               <div className="px-6 py-12 text-center">
                 <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">No courses found for this participant</p>
+                <p className="text-gray-500">{t('common.noCoursesForParticipant')}</p>
               </div>
             ) : (
               participantData.courses.map((course) => (
@@ -232,7 +234,7 @@ const ParticipantDetail = () => {
                           className="text-sm font-medium text-gray-900 cursor-pointer hover:text-primary-600"
                           onClick={() => handleCourseClick(course.course_id)}
                         >
-                          {course.course_title || `Course ${course.course_id}`}
+                          {course.course_title || t('common.courseTitle', { id: course.course_id })}
                         </h3>
                         <div className="flex items-center space-x-2">
                           {getProgressBadge(course.progression)}
@@ -243,7 +245,7 @@ const ParticipantDetail = () => {
                                 toggleCourseExpanded(course.course_id);
                               }}
                               className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                              title="View module details"
+                              title={t('common.viewModuleDetails')}
                             >
                               {expandedCourses.has(course.course_id) ? (
                                 <ChevronDown size={16} />
@@ -258,15 +260,15 @@ const ParticipantDetail = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
                         <div className="flex items-center text-sm text-gray-600">
                           <Target size={14} className="mr-1" />
-                          {(course.progression || 0).toFixed(1)}% progress
+                          {(course.progression || 0).toFixed(1)}% {t('common.progress')}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <BookOpen size={14} className="mr-1" />
-                          {course.completed_modules}/{course.total_modules} modules completed
+                          {course.completed_modules}/{course.total_modules} {t('common.modulesCompleted')}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <Calendar size={14} className="mr-1" />
-                          Last activity: {formatDate(course.last_activity)}
+                          {t('common.lastActivity')}: {formatDate(course.last_activity)}
                         </div>
                       </div>
                       
@@ -281,7 +283,7 @@ const ParticipantDetail = () => {
                         <div className="mt-4 border-t border-gray-200 pt-4">
                           <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
                             <PlayCircle size={14} className="mr-1" />
-                            Module Progress ({course.modules.length} modules)
+                            {t('common.moduleProgressCount', { count: course.modules.length })}
                           </h4>
                           <div className="space-y-3">
                             {course.modules.map((module, index) => (
@@ -292,7 +294,7 @@ const ParticipantDetail = () => {
                                       {index + 1}
                                     </span>
                                     <span className="text-sm font-medium text-gray-900">
-                                      {module.intitule || `Module ${module.id_lmp || module.id_lam}`}
+                                      {module.intitule || t('common.moduleNumber', { number: module.id_lmp || module.id_lam })}
                                     </span>
                                   </div>
                                   <div className="flex items-center space-x-2">
@@ -310,8 +312,8 @@ const ParticipantDetail = () => {
                                   className="mb-2"
                                 />
                                 <div className="flex items-center justify-between text-xs text-gray-500">
-                                  <span>Mode: {module.mode_organisation}</span>
-                                  <span>Last access: {formatDate(module.last_access)}</span>
+                                  <span>{t('common.moduleMode')}: {module.mode_organisation}</span>
+                                  <span>{t('common.moduleLastAccess')}: {formatDate(module.last_access)}</span>
                                 </div>
                               </div>
                             ))}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
 import { useParticipants, usePrefetchQueries } from '../hooks/useQuery';
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 const Participants = () => {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
   const [filterBy, setFilterBy] = useState('all');
@@ -88,19 +90,19 @@ const Participants = () => {
 
     if (completedCourses > 0 && completedCourses === totalCourses) {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-        All Completed
+        {t('participants.status.allCompleted')}
       </span>;
     } else if (activeCourses > 0) {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-        Active
+        {t('participants.status.active')}
       </span>;
     } else if (totalCourses > 0) {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-        Inactive
+        {t('participants.status.inactive')}
       </span>;
     } else {
       return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-        No Courses
+        {t('participants.status.noCourses')}
       </span>;
     }
   };
@@ -117,19 +119,19 @@ const Participants = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-600 mb-4">{error.message || 'Failed to load participants'}</p>
+          <div className="text-red-500 text-xl mb-4">⚠️ {t('common.error')}</div>
+          <p className="text-gray-600 mb-4">{error.message || t('errors.failedToLoadParticipants')}</p>
           <button 
             onClick={refetch}
             className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600 mr-2"
           >
-            Retry
+            {t('common.retry')}
           </button>
           <button 
             onClick={() => navigate('/')}
             className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
           >
-            Back to Dashboard
+            {t('navigation.backToDashboard')}
           </button>
         </div>
       </div>
@@ -152,8 +154,8 @@ const Participants = () => {
                 <ArrowLeft size={20} />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Participants</h1>
-                <p className="text-gray-600 mt-1">View and manage course participants</p>
+                <h1 className="text-2xl font-bold text-gray-900">{t('participants.title')}</h1>
+                <p className="text-gray-600 mt-1">{t('participants.subtitle')}</p>
               </div>
             </div>
             
@@ -163,17 +165,17 @@ const Participants = () => {
                 onClick={refetch}
                 disabled={isFetching}
                 className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-                title="Refresh data"
+                title={t('common.refreshData')}
               >
                 <RefreshCw size={16} className={`mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-                {isFetching ? 'Refreshing...' : 'Refresh'}
+                {isFetching ? t('common.refreshing') : t('common.refresh')}
               </button>
               <button
                 onClick={() => navigate('/')}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
               >
                 <BookOpen size={16} className="mr-2" />
-                View Courses
+                {t('navigation.viewCourses')}
               </button>
             </div>
           </div>
@@ -187,9 +189,9 @@ const Participants = () => {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">All Participants</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('participants.allParticipants')}</h2>
                 <p className="text-sm text-gray-600">
-                  {filteredParticipants.length} of {participants.length} participants
+                  {t('participants.subtitleWithCount', { filtered: filteredParticipants.length, total: participants.length })}
                 </p>
               </div>
               
@@ -200,7 +202,7 @@ const Participants = () => {
                   <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search participants..."
+                    placeholder={t('participants.searchPlaceholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm w-64"
@@ -215,10 +217,10 @@ const Participants = () => {
                     onChange={(e) => setFilterBy(e.target.value)}
                     className="border border-gray-300 rounded-md px-3 py-2 text-sm"
                   >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                    <option value="inactive">Inactive</option>
+                    <option value="all">{t('participants.filters.allStatus')}</option>
+                    <option value="active">{t('participants.filters.active')}</option>
+                    <option value="completed">{t('participants.filters.completed')}</option>
+                    <option value="inactive">{t('participants.filters.inactive')}</option>
                   </select>
                 </div>
                 
@@ -228,10 +230,10 @@ const Participants = () => {
                   onChange={(e) => setSortBy(e.target.value)}
                   className="border border-gray-300 rounded-md px-3 py-2 text-sm"
                 >
-                  <option value="name">Sort by Name</option>
-                  <option value="progression">Sort by Progress</option>
-                  <option value="courses">Sort by Courses</option>
-                  <option value="email">Sort by Email</option>
+                  <option value="name">{t('participants.sort.byName')}</option>
+                  <option value="progression">{t('participants.sort.byProgress')}</option>
+                  <option value="courses">{t('participants.sort.byCourses')}</option>
+                  <option value="email">{t('participants.sort.byEmail')}</option>
                 </select>
               </div>
             </div>
@@ -244,8 +246,8 @@ const Participants = () => {
                 <Users size={48} className="mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-500">
                   {searchTerm || filterBy !== 'all' 
-                    ? 'No participants found matching your criteria'
-                    : 'No participants found'
+                    ? t('errors.noParticipantsMatchingCriteria')
+                    : t('common.noParticipantsFound')
                   }
                 </p>
               </div>
@@ -284,15 +286,15 @@ const Participants = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
                         <div className="flex items-center text-sm text-gray-600">
                           <BookOpen size={14} className="mr-1" />
-                          {participant.total_courses || 0} total courses
+                          {participant.total_courses || 0} {t('common.totalCourses')}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <Target size={14} className="mr-1" />
-                          {participant.completed_courses || 0} completed
+                          {participant.completed_courses || 0} {t('common.completed')}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <Users size={14} className="mr-1" />
-                          {participant.active_courses || 0} active
+                          {participant.active_courses || 0} {t('common.active')}
                         </div>
                       </div>
                       
