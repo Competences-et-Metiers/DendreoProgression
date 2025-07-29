@@ -3,12 +3,17 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { queryClient } from './queryClient';
+import './i18n'; // Initialize i18n
+import { useLanguageEffect } from './hooks/useLanguageEffect';
 import Dashboard from './pages/Dashboard';
 import CourseDetail from './pages/CourseDetail';
 import Participants from './pages/Participants';
 import ParticipantDetail from './pages/ParticipantDetail';
 
 function App() {
+  // Update HTML lang attribute when language changes
+  useLanguageEffect();
+
   return (
     <QueryClientProvider client={queryClient}>
       <Router>

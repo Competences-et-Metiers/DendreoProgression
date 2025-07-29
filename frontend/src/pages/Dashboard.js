@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import StatCard from '../components/StatCard';
 import ProgressBar from '../components/ProgressBar';
 import CacheStatus from '../components/CacheStatus';
+import LanguageSelector from '../components/LanguageSelector';
+import LanguageTest from '../components/LanguageTest';
 import { useDashboardStats, useCourses, usePrefetchQueries, useLastSync } from '../hooks/useQuery';
 import { 
   BookOpen, 
@@ -18,6 +21,7 @@ import {
 } from 'lucide-react';
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
   const [filterBy, setFilterBy] = useState('all');
@@ -156,13 +160,13 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-red-500 text-xl mb-4">⚠️ Error</div>
-          <p className="text-gray-600 mb-4">{error.message || 'Failed to load dashboard data'}</p>
+          <div className="text-red-500 text-xl mb-4">⚠️ {t('common.error')}</div>
+          <p className="text-gray-600 mb-4">{error.message || t('errors.failedToLoadDashboard')}</p>
           <button 
             onClick={handleRefresh}
             className="bg-primary-500 text-white px-4 py-2 rounded-lg hover:bg-primary-600"
           >
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       </div>
@@ -178,8 +182,8 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Dendreo Course Dashboard</h1>
-              <p className="text-gray-600 mt-1">Track course progress and participant engagement</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h1>
+              <p className="text-gray-600 mt-1">{t('dashboard.subtitle')}</p>
             </div>
             
             {/* Last Sync Info and Navigation Menu */}
@@ -189,38 +193,39 @@ const Dashboard = () => {
                 <div className="flex items-center space-x-2">
                   <Calendar size={14} className="text-gray-500" />
                   <span className="text-sm text-gray-600">
-                    Last sync: <span className="font-medium">{formatLastSyncDate(lastSync)}</span>
+                    {t('dashboard.sync.lastSync')}: <span className="font-medium">{formatLastSyncDate(lastSync)}</span>
                   </span>
                   {lastSync && lastSync.sync_status && (
                     <span className={`text-xs font-medium ${getLastSyncStatus(lastSync).color}`}>
-                      ({getLastSyncStatus(lastSync).status})
+                      ({t(`dashboard.sync.status.${getLastSyncStatus(lastSync).status}`)})
                     </span>
                   )}
                 </div>
                 {lastSync?.sync_status === 'error' && lastSync?.error_message && (
                   <div className="text-xs text-red-500 mt-1 max-w-md">
-                    Error: {lastSync.error_message}
+                    {t('common.error')}: {lastSync.error_message}
                   </div>
                 )}
               </div>
               
               {/* Navigation Menu */}
               <div className="flex items-center space-x-4">
+                <LanguageSelector />
                 <button
                   onClick={handleRefresh}
                   disabled={isRefetching}
                   className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-                  title="Refresh data"
+                  title={t('common.refreshData')}
                 >
                   <RefreshCw size={16} className={`mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
-                  {isRefetching ? 'Refreshing...' : 'Refresh'}
+                  {isRefetching ? t('common.refreshing') : t('common.refresh')}
                 </button>
                 <button
                   onClick={handleViewParticipants}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
                 >
                   <Users size={16} className="mr-2" />
-                  View Participants
+                  {t('navigation.viewParticipants')}
                 </button>
               </div>
             </div>
@@ -233,25 +238,25 @@ const Dashboard = () => {
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatCard
-              title="Total Courses"
+              title={t('dashboard.stats.totalCourses')}
               value={stats.total_courses}
               icon={BookOpen}
               color="blue"
             />
             <StatCard
-              title="Total Participants"
+              title={t('dashboard.stats.totalParticipants')}
               value={stats.total_participants}
               icon={Users}
               color="green"
             />
             <StatCard
-              title="Average Progress"
+              title={t('dashboard.stats.averageProgress')}
               value={`${stats.average_progression}%`}
               icon={Target}
               color="purple"
             />
             <StatCard
-              title="Completion Rate"
+              title={t('dashboard.stats.completionRate')}
               value={`${stats.completion_rate}%`}
               icon={TrendingUp}
               color="indigo"
@@ -259,9 +264,10 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Cache Status - Only show in development */}
+        {/* Language Test - Only show in development */}
         {process.env.NODE_ENV === 'development' && (
           <div className="mb-8">
+            <LanguageTest />
             <CacheStatus />
           </div>
         )}
@@ -272,10 +278,10 @@ const Dashboard = () => {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Courses</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('dashboard.courses.title')}</h2>
                 <p className="text-sm text-gray-600">
-                  {filteredCourses.length} of {courses.length} courses
-                  {searchTerm && ' matching your search'}
+                  {t('dashboard.courses.subtitle', { count: filteredCourses.length, total: courses.length })}
+                  {searchTerm && ` ${t('common.matchingCriteria')}`}
                 </p>
               </div>
               
@@ -287,7 +293,7 @@ const Dashboard = () => {
                     <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Search courses..."
+                      placeholder={t('dashboard.courses.searchPlaceholder')}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10 pr-4 py-2 border-2 border-blue-300 rounded-md text-sm w-64 bg-white"
@@ -296,7 +302,7 @@ const Dashboard = () => {
                   </div>
                   {searchTerm && (
                     <div className="absolute top-full left-0 mt-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      Searching: "{searchTerm}"
+                      {t('dashboard.courses.searching', { term: searchTerm })}
                     </div>
                   )}
                 </div>
@@ -309,10 +315,10 @@ const Dashboard = () => {
                     onChange={(e) => setFilterBy(e.target.value)}
                     className="border border-gray-300 rounded-md px-3 py-1 text-sm"
                   >
-                    <option value="all">All Courses</option>
-                    <option value="completed">Completed</option>
-                    <option value="in-progress">In Progress</option>
-                    <option value="not-started">Not Started</option>
+                    <option value="all">{t('dashboard.courses.filters.allCourses')}</option>
+                    <option value="completed">{t('dashboard.courses.filters.completed')}</option>
+                    <option value="in-progress">{t('dashboard.courses.filters.inProgress')}</option>
+                    <option value="not-started">{t('dashboard.courses.filters.notStarted')}</option>
                   </select>
                 </div>
                 
@@ -321,10 +327,10 @@ const Dashboard = () => {
                   onChange={(e) => setSortBy(e.target.value)}
                   className="border border-gray-300 rounded-md px-3 py-1 text-sm"
                 >
-                  <option value="progression">Sort by Progress</option>
-                  <option value="participants">Sort by Participants</option>
-                  <option value="title">Sort by Title</option>
-                  <option value="modules">Sort by Modules</option>
+                  <option value="progression">{t('dashboard.courses.sort.byProgress')}</option>
+                  <option value="participants">{t('dashboard.courses.sort.byParticipants')}</option>
+                  <option value="title">{t('dashboard.courses.sort.byTitle')}</option>
+                  <option value="modules">{t('dashboard.courses.sort.byModules')}</option>
                 </select>
               </div>
             </div>
@@ -337,8 +343,8 @@ const Dashboard = () => {
                 <BookOpen size={48} className="mx-auto text-gray-400 mb-4" />
                 <p className="text-gray-500">
                   {searchTerm || filterBy !== 'all' 
-                    ? 'No courses found matching your criteria'
-                    : 'No courses found'
+                    ? t('errors.noCoursesMatchingCriteria')
+                    : t('common.noCoursesFound')
                   }
                 </p>
                 {searchTerm && (
@@ -346,7 +352,7 @@ const Dashboard = () => {
                     onClick={() => setSearchTerm('')}
                     className="mt-2 text-sm text-primary-600 hover:text-primary-700"
                   >
-                    Clear search
+                    {t('common.clearSearch')}
                   </button>
                 )}
               </div>
@@ -369,11 +375,11 @@ const Dashboard = () => {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
                         <div className="flex items-center text-sm text-gray-600">
                           <Users size={14} className="mr-1" />
-                          {course.participant_count} participants
+                          {course.participant_count} {t('common.participants')}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <BookOpen size={14} className="mr-1" />
-                          {course.total_modules} modules
+                          {course.total_modules} {t('common.modules')}
                         </div>
                       </div>
                       

@@ -1,0 +1,206 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "back": "Back",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "refresh": "Refresh",
+    "refreshData": "Refresh data",
+    "refreshing": "Refreshing...",
+    "noData": "No data",
+    "view": "View",
+    "details": "Details",
+    "completed": "Completed",
+    "inProgress": "In Progress",
+    "notStarted": "Not Started",
+    "active": "Active",
+    "inactive": "Inactive",
+    "all": "All",
+    "never": "Never",
+    "unknown": "Unknown",
+    "lastActivity": "Last activity",
+    "lastSync": "Last sync",
+    "memberSince": "Member since",
+    "modules": "modules",
+    "participants": "participants",
+    "courses": "courses",
+    "progress": "progress",
+    "completion": "completion",
+    "average": "average",
+    "total": "total",
+    "completedModules": "modules completed",
+    "totalModules": "total modules",
+    "averageProgress": "average progress",
+    "completionRate": "completion rate",
+    "totalCourses": "total courses",
+    "totalParticipants": "total participants",
+    "withHubSpot": "With HubSpot",
+    "withoutHubSpot": "Without HubSpot",
+    "hubSpotLinked": "HubSpot Linked",
+    "noHubSpotDeal": "No HubSpot deal linked",
+    "openHubSpotDeal": "Open HubSpot deal",
+    "hubSpot": "HubSpot",
+    "transaction": "Transaction",
+    "mode": "Mode",
+    "lastAccess": "Last access",
+    "moduleProgress": "Module progress",
+    "viewModuleDetails": "View module details",
+    "viewDetails": "View details",
+    "clearSearch": "Clear search",
+    "noResultsFound": "No results found",
+    "matchingCriteria": "matching your criteria",
+    "noParticipantsFound": "No participants found",
+    "noCoursesFound": "No courses found",
+    "noParticipantsInCourse": "No participants in this course",
+    "noCoursesForParticipant": "No courses found for this participant"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "courses": "Courses",
+    "participants": "Participants",
+    "viewCourses": "View Courses",
+    "viewParticipants": "View Participants",
+    "backToDashboard": "Back to Dashboard",
+    "backToParticipants": "Back to Participants"
+  },
+  "dashboard": {
+    "title": "Dendreo Course Dashboard",
+    "subtitle": "Track course progress and participant engagement",
+    "stats": {
+      "totalCourses": "Total Courses",
+      "totalParticipants": "Total Participants",
+      "averageProgress": "Average Progress",
+      "completionRate": "Completion Rate"
+    },
+    "courses": {
+      "title": "Courses",
+      "subtitle": "{{count}} of {{total}} courses",
+      "searchPlaceholder": "Search courses...",
+      "searching": "Searching: \"{{term}}\"",
+      "filters": {
+        "allCourses": "All Courses",
+        "completed": "Completed",
+        "inProgress": "In Progress",
+        "notStarted": "Not Started"
+      },
+      "sort": {
+        "byProgress": "Sort by Progress",
+        "byParticipants": "Sort by Participants",
+        "byTitle": "Sort by Title",
+        "byModules": "Sort by Modules"
+      }
+    },
+    "sync": {
+      "lastSync": "Last sync",
+      "status": {
+        "success": "success",
+        "error": "error",
+        "inProgress": "in progress",
+        "never": "never",
+        "unknown": "unknown"
+      }
+    }
+  },
+  "courseDetail": {
+    "title": "Course Details",
+    "subtitle": "Course participants and progress",
+    "summary": {
+      "totalParticipants": "Total Participants",
+      "completed": "Completed",
+      "averageProgress": "Average Progress",
+      "hubSpotLinked": "HubSpot Linked"
+    },
+    "participants": {
+      "title": "Participants",
+      "subtitle": "{{filtered}} of {{total}} participants",
+      "searchPlaceholder": "Search participants...",
+      "filters": {
+        "allStatus": "All Status",
+        "completed": "Completed",
+        "inProgress": "In Progress",
+        "notStarted": "Not Started",
+        "withHubSpot": "With HubSpot",
+        "withoutHubSpot": "Without HubSpot"
+      },
+      "sort": {
+        "byProgress": "Sort by Progress",
+        "byName": "Sort by Name",
+        "byModules": "Sort by Modules",
+        "byActivity": "Sort by Activity",
+        "byHubSpot": "Sort by HubSpot"
+      }
+    }
+  },
+  "participants": {
+    "title": "Participants",
+    "subtitle": "View and manage course participants",
+    "allParticipants": "All Participants",
+    "subtitleWithCount": "{{filtered}} of {{total}} participants",
+    "searchPlaceholder": "Search participants...",
+    "filters": {
+      "allStatus": "All Status",
+      "active": "Active",
+      "completed": "Completed",
+      "inactive": "Inactive"
+    },
+    "sort": {
+      "byName": "Sort by Name",
+      "byProgress": "Sort by Progress",
+      "byCourses": "Sort by Courses",
+      "byEmail": "Sort by Email"
+    },
+    "status": {
+      "allCompleted": "All Completed",
+      "active": "Active",
+      "inactive": "Inactive",
+      "noCourses": "No Courses"
+    }
+  },
+  "participantDetail": {
+    "title": "Participant Details",
+    "subtitle": "Participant courses and progress",
+    "information": "Participant Information",
+    "enrolledCourses": "Enrolled Courses",
+    "subtitleWithCount": "{{count}} courses enrolled",
+    "stats": {
+      "totalCourses": "Total Courses",
+      "completed": "Completed",
+      "averageProgress": "Average Progress",
+      "memberSince": "Member Since"
+    }
+  },
+  "cache": {
+    "title": "Cache Status",
+    "subtitle": "{{total}} queries, {{size}}",
+    "actions": {
+      "refreshAll": "Refresh All",
+      "clearCache": "Clear Cache"
+    },
+    "stats": {
+      "fresh": "Fresh",
+      "stale": "Stale",
+      "inactive": "Inactive",
+      "error": "Error"
+    },
+    "confirmClear": "Are you sure you want to clear all cached data? This will force a refresh of all data.",
+    "confirmInvalidate": "Are you sure you want to invalidate all cached data? This will trigger a background refresh."
+  },
+  "errors": {
+    "failedToLoadDashboard": "Failed to load dashboard data",
+    "failedToLoadCourses": "Failed to load courses",
+    "failedToLoadParticipants": "Failed to load participants",
+    "failedToLoadCourseData": "Failed to load course data",
+    "failedToLoadParticipantData": "Failed to load participant data",
+    "noParticipantsMatchingCriteria": "No participants found matching your criteria",
+    "noCoursesMatchingCriteria": "No courses found matching your criteria"
+  },
+  "language": {
+    "french": "French",
+    "english": "English",
+    "selectLanguage": "Select language",
+    "currentLanguage": "Current language"
+  }
+} 

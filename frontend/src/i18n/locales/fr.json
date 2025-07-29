@@ -1,0 +1,206 @@
+{
+  "common": {
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "retry": "Réessayer",
+    "back": "Retour",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "sort": "Trier",
+    "refresh": "Actualiser",
+    "refreshData": "Actualiser les données",
+    "refreshing": "Actualisation...",
+    "noData": "Aucune donnée",
+    "view": "Voir",
+    "details": "Détails",
+    "completed": "Terminé",
+    "inProgress": "En cours",
+    "notStarted": "Non commencé",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "all": "Tous",
+    "never": "Jamais",
+    "unknown": "Inconnu",
+    "lastActivity": "Dernière activité",
+    "lastSync": "Dernière synchronisation",
+    "memberSince": "Membre depuis",
+    "modules": "modules",
+    "participants": "participants",
+    "courses": "cours",
+    "progress": "progression",
+    "completion": "completion",
+    "average": "moyenne",
+    "total": "total",
+    "completedModules": "modules terminés",
+    "totalModules": "modules au total",
+    "averageProgress": "progression moyenne",
+    "completionRate": "taux de completion",
+    "totalCourses": "cours totaux",
+    "totalParticipants": "participants totaux",
+    "withHubSpot": "Avec HubSpot",
+    "withoutHubSpot": "Sans HubSpot",
+    "hubSpotLinked": "HubSpot lié",
+    "noHubSpotDeal": "Aucun deal HubSpot lié",
+    "openHubSpotDeal": "Ouvrir le deal HubSpot",
+    "hubSpot": "HubSpot",
+    "transaction": "Transaction",
+    "mode": "Mode",
+    "lastAccess": "Dernier accès",
+    "moduleProgress": "Progression des modules",
+    "viewModuleDetails": "Voir les détails des modules",
+    "viewDetails": "Voir les détails",
+    "clearSearch": "Effacer la recherche",
+    "noResultsFound": "Aucun résultat trouvé",
+    "matchingCriteria": "correspondant à vos critères",
+    "noParticipantsFound": "Aucun participant trouvé",
+    "noCoursesFound": "Aucun cours trouvé",
+    "noParticipantsInCourse": "Aucun participant dans ce cours",
+    "noCoursesForParticipant": "Aucun cours trouvé pour ce participant"
+  },
+  "navigation": {
+    "dashboard": "Tableau de bord",
+    "courses": "Cours",
+    "participants": "Participants",
+    "viewCourses": "Voir les cours",
+    "viewParticipants": "Voir les participants",
+    "backToDashboard": "Retour au tableau de bord",
+    "backToParticipants": "Retour aux participants"
+  },
+  "dashboard": {
+    "title": "Tableau de bord des cours Dendreo",
+    "subtitle": "Suivre la progression des cours et l'engagement des participants",
+    "stats": {
+      "totalCourses": "Cours totaux",
+      "totalParticipants": "Participants totaux",
+      "averageProgress": "Progression moyenne",
+      "completionRate": "Taux de completion"
+    },
+    "courses": {
+      "title": "Cours",
+      "subtitle": "{{count}} de {{total}} cours",
+      "searchPlaceholder": "Rechercher des cours...",
+      "searching": "Recherche : \"{{term}}\"",
+      "filters": {
+        "allCourses": "Tous les cours",
+        "completed": "Terminés",
+        "inProgress": "En cours",
+        "notStarted": "Non commencés"
+      },
+      "sort": {
+        "byProgress": "Trier par progression",
+        "byParticipants": "Trier par participants",
+        "byTitle": "Trier par titre",
+        "byModules": "Trier par modules"
+      }
+    },
+    "sync": {
+      "lastSync": "Dernière sync",
+      "status": {
+        "success": "succès",
+        "error": "erreur",
+        "inProgress": "en cours",
+        "never": "jamais",
+        "unknown": "inconnu"
+      }
+    }
+  },
+  "courseDetail": {
+    "title": "Détails du cours",
+    "subtitle": "Participants du cours et progression",
+    "summary": {
+      "totalParticipants": "Participants totaux",
+      "completed": "Terminés",
+      "averageProgress": "Progression moyenne",
+      "hubSpotLinked": "HubSpot lié"
+    },
+    "participants": {
+      "title": "Participants",
+      "subtitle": "{{filtered}} de {{total}} participants",
+      "searchPlaceholder": "Rechercher des participants...",
+      "filters": {
+        "allStatus": "Tous les statuts",
+        "completed": "Terminés",
+        "inProgress": "En cours",
+        "notStarted": "Non commencés",
+        "withHubSpot": "Avec HubSpot",
+        "withoutHubSpot": "Sans HubSpot"
+      },
+      "sort": {
+        "byProgress": "Trier par progression",
+        "byName": "Trier par nom",
+        "byModules": "Trier par modules",
+        "byActivity": "Trier par activité",
+        "byHubSpot": "Trier par HubSpot"
+      }
+    }
+  },
+  "participants": {
+    "title": "Participants",
+    "subtitle": "Voir et gérer les participants aux cours",
+    "allParticipants": "Tous les participants",
+    "subtitleWithCount": "{{filtered}} de {{total}} participants",
+    "searchPlaceholder": "Rechercher des participants...",
+    "filters": {
+      "allStatus": "Tous les statuts",
+      "active": "Actifs",
+      "completed": "Terminés",
+      "inactive": "Inactifs"
+    },
+    "sort": {
+      "byName": "Trier par nom",
+      "byProgress": "Trier par progression",
+      "byCourses": "Trier par cours",
+      "byEmail": "Trier par email"
+    },
+    "status": {
+      "allCompleted": "Tous terminés",
+      "active": "Actif",
+      "inactive": "Inactif",
+      "noCourses": "Aucun cours"
+    }
+  },
+  "participantDetail": {
+    "title": "Détails du participant",
+    "subtitle": "Cours du participant et progression",
+    "information": "Informations du participant",
+    "enrolledCourses": "Cours inscrits",
+    "subtitleWithCount": "{{count}} cours inscrits",
+    "stats": {
+      "totalCourses": "Cours totaux",
+      "completed": "Terminés",
+      "averageProgress": "Progression moyenne",
+      "memberSince": "Membre depuis"
+    }
+  },
+  "cache": {
+    "title": "Statut du cache",
+    "subtitle": "{{total}} requêtes, {{size}}",
+    "actions": {
+      "refreshAll": "Actualiser tout",
+      "clearCache": "Vider le cache"
+    },
+    "stats": {
+      "fresh": "Frais",
+      "stale": "Périmé",
+      "inactive": "Inactif",
+      "error": "Erreur"
+    },
+    "confirmClear": "Êtes-vous sûr de vouloir vider toutes les données en cache ? Cela forcera un rafraîchissement de toutes les données.",
+    "confirmInvalidate": "Êtes-vous sûr de vouloir invalider toutes les données en cache ? Cela déclenchera un rafraîchissement en arrière-plan."
+  },
+  "errors": {
+    "failedToLoadDashboard": "Échec du chargement des données du tableau de bord",
+    "failedToLoadCourses": "Échec du chargement des cours",
+    "failedToLoadParticipants": "Échec du chargement des participants",
+    "failedToLoadCourseData": "Échec du chargement des données du cours",
+    "failedToLoadParticipantData": "Échec du chargement des données du participant",
+    "noParticipantsMatchingCriteria": "Aucun participant trouvé correspondant à vos critères",
+    "noCoursesMatchingCriteria": "Aucun cours trouvé correspondant à vos critères"
+  },
+  "language": {
+    "french": "Français",
+    "english": "Anglais",
+    "selectLanguage": "Sélectionner la langue",
+    "currentLanguage": "Langue actuelle"
+  }
+} 

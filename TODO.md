@@ -8,6 +8,7 @@
 - [ ] SSL/HTTPS
 - [ ] Filter out irrelevant courses
 - [ ] Make French language select + default lang
+- [ ] Remove unused participants
 #### Cleanup
 - [ ] Clean up endpoints
 - [ ] Clean up table relations

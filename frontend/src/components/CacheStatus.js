@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCacheManager } from '../hooks/useQuery';
 import { 
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 
 const CacheStatus = () => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
   const queryClient = useQueryClient();
   const { clearCache, invalidateAll } = useCacheManager();
@@ -64,13 +66,13 @@ const CacheStatus = () => {
   };
 
   const handleClearCache = () => {
-    if (window.confirm('Are you sure you want to clear all cached data? This will force a refresh of all data.')) {
+    if (window.confirm(t('cache.confirmClear'))) {
       clearCache();
     }
   };
 
   const handleInvalidateAll = () => {
-    if (window.confirm('Are you sure you want to invalidate all cached data? This will trigger a background refresh.')) {
+    if (window.confirm(t('cache.confirmInvalidate'))) {
       invalidateAll();
     }
   };
@@ -87,9 +89,9 @@ const CacheStatus = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Database size={16} className="text-blue-500" />
-            <span className="font-medium text-gray-900">Cache Status</span>
+            <span className="font-medium text-gray-900">{t('cache.title')}</span>
             <span className="text-sm text-gray-500">
-              ({stats.total} queries, {formatBytes(cacheSize)})
+              {t('cache.subtitle', { total: stats.total, size: formatBytes(cacheSize) })}
             </span>
           </div>
           <div className="flex items-center space-x-2">
@@ -119,14 +121,14 @@ const CacheStatus = () => {
               className="inline-flex items-center px-3 py-1 border border-gray-300 rounded text-xs font-medium text-gray-700 bg-white hover:bg-gray-50"
             >
               <RefreshCw size={12} className="mr-1" />
-              Refresh All
+              {t('cache.actions.refreshAll')}
             </button>
             <button
               onClick={handleClearCache}
               className="inline-flex items-center px-3 py-1 border border-red-300 rounded text-xs font-medium text-red-700 bg-white hover:bg-red-50"
             >
               <Trash2 size={12} className="mr-1" />
-              Clear Cache
+              {t('cache.actions.clearCache')}
             </button>
           </div>
 
@@ -134,19 +136,19 @@ const CacheStatus = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="text-center p-2 bg-green-50 rounded">
               <div className="text-lg font-semibold text-green-600">{stats.fresh}</div>
-              <div className="text-xs text-green-600">Fresh</div>
+              <div className="text-xs text-green-600">{t('cache.stats.fresh')}</div>
             </div>
             <div className="text-center p-2 bg-yellow-50 rounded">
               <div className="text-lg font-semibold text-yellow-600">{stats.stale}</div>
-              <div className="text-xs text-yellow-600">Stale</div>
+              <div className="text-xs text-yellow-600">{t('cache.stats.stale')}</div>
             </div>
             <div className="text-center p-2 bg-gray-50 rounded">
               <div className="text-lg font-semibold text-gray-600">{stats.inactive}</div>
-              <div className="text-xs text-gray-600">Inactive</div>
+              <div className="text-xs text-gray-600">{t('cache.stats.inactive')}</div>
             </div>
             <div className="text-center p-2 bg-red-50 rounded">
               <div className="text-lg font-semibold text-red-600">{stats.error}</div>
-              <div className="text-xs text-red-600">Error</div>
+              <div className="text-xs text-red-600">{t('cache.stats.error')}</div>
             </div>
           </div>
         </div>
