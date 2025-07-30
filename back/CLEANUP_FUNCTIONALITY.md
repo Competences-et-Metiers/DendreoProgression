@@ -79,7 +79,25 @@ This script:
 
 ## Configuration
 
-The cleanup process is enabled by default and runs automatically during each sync operation. No additional configuration is required.
+The cleanup process is enabled by default and runs automatically during each sync operation.
+
+### Disabling Cleanup
+
+To completely disable cleanup (useful for testing or troubleshooting):
+
+```bash
+# Set environment variable to disable cleanup
+export DENDREO_ENABLE_CLEANUP=false
+
+# Or add to your .env file
+DENDREO_ENABLE_CLEANUP=false
+```
+
+When cleanup is disabled:
+- All participants, courses, and modules are preserved
+- Only new data is added/updated
+- No data is removed during sync
+- Logs will show "🧹 Skipping cleanup (DENDREO_ENABLE_CLEANUP=false)"
 
 ## Logging
 
@@ -93,12 +111,32 @@ The cleanup process provides detailed logging:
 
 The cleanup process includes several safety features:
 
-- **Conservative Approach**: Only removes participants/courses that have no modules
+- **Ultra-Conservative Approach**: Only removes participants/courses that meet strict criteria
 - **Foreign Key Handling**: Removes child records before parent records
 - **Transaction Rollback**: Rolls back changes on errors
 - **Detailed Logging**: Logs all operations for audit purposes
 - **Statistics Tracking**: Tracks all cleanup operations
-- **Module-Based Validation**: Validates that participants/courses have no modules before removal
+- **Multi-Criteria Validation**: Validates multiple conditions before removal
+- **Configurable**: Can be disabled via `DENDREO_ENABLE_CLEANUP=false`
+
+## Ultra-Conservative Rules
+
+The cleanup now follows these ultra-conservative rules:
+
+### Removed Participants Cleanup
+- **Only removes** if course is no longer active AND participant has no modules
+- **Keeps** participants in active courses regardless of module count
+- **Keeps** participants with modules even in inactive courses
+
+### Orphaned Participants Cleanup  
+- **Only removes** if participant has no modules AND no HubSpot data
+- **Keeps** participants with modules or HubSpot data
+- **Keeps** participants who might be enrolled but haven't started modules
+
+### Orphaned Courses Cleanup
+- **Only removes** if course has no modules AND no participant courses
+- **Keeps** courses with modules or participant enrollments
+- **Keeps** courses that might have participants but no modules in current sync
 
 ## API Response
 
