@@ -93,10 +93,12 @@ The cleanup process provides detailed logging:
 
 The cleanup process includes several safety features:
 
+- **Conservative Approach**: Only removes participants/courses that have no modules
 - **Foreign Key Handling**: Removes child records before parent records
 - **Transaction Rollback**: Rolls back changes on errors
 - **Detailed Logging**: Logs all operations for audit purposes
 - **Statistics Tracking**: Tracks all cleanup operations
+- **Module-Based Validation**: Validates that participants/courses have no modules before removal
 
 ## API Response
 
@@ -139,6 +141,8 @@ If cleanup issues occur:
 2. **Verify Foreign Keys**: Ensure proper foreign key relationships
 3. **Test Cleanup**: Run the test script to verify functionality
 4. **Database Backup**: Always backup before major sync operations
+5. **Analyze Removals**: Run `python3 back/restore_removed_participants.py` to analyze what was removed
+6. **Restore from Backup**: If participants were incorrectly removed, restore from database backup
 
 ## Future Enhancements
 

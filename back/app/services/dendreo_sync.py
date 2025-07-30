@@ -470,30 +470,38 @@ class DendreoSync:
             removed_participant_courses = 0
             removed_modules = 0
             
+            # Only remove participant-course combinations that are explicitly marked as removed
+            # This is a more conservative approach to avoid removing participants who might still be enrolled
+            # but don't have modules in the current sync data
+            
             for pc in existing_participant_courses:
                 # Check if this participant-course combination is still active
                 if (pc.participant_id, pc.course_id) not in current_participant_courses:
-                    logger.info(f"Removing participant {pc.participant_id} from course {pc.course_id} (no longer active)")
-                    
-                    # Remove associated modules first (due to foreign key constraints)
-                    modules_to_remove = self.db.query(Module).filter(
-                        Module.participant_id == pc.participant_id,
-                        Module.course_id == pc.course_id
-                    ).all()
-                    
-                    for module in modules_to_remove:
-                        self.db.delete(module)
-                        removed_modules += 1
-                    
-                    # Remove the participant course record
-                    self.db.delete(pc)
-                    removed_participant_courses += 1
+                    # Additional safety check: only remove if the course is still active
+                    # and we have explicit evidence the participant is no longer enrolled
+                    course = self.db.query(Course).filter(Course.id == pc.course_id).first()
+                    if course and course.id_lam in active_courses:
+                        # Check if there are any modules for this participant in this course
+                        # If there are modules, don't remove (participant might still be enrolled)
+                        module_count = self.db.query(Module).filter(
+                            Module.participant_id == pc.participant_id,
+                            Module.course_id == pc.course_id
+                        ).count()
+                        
+                        if module_count == 0:
+                            logger.info(f"Removing participant {pc.participant_id} from course {pc.course_id} (no modules found)")
+                            
+                            # Remove the participant course record
+                            self.db.delete(pc)
+                            removed_participant_courses += 1
+                        else:
+                            logger.debug(f"Keeping participant {pc.participant_id} in course {pc.course_id} (has {module_count} modules)")
             
             # Update stats
             self.stats["participant_courses_removed"] = removed_participant_courses
             self.stats["modules_removed"] = removed_modules
             
-            logger.info(f"Cleanup completed: {removed_participant_courses} participant courses and {removed_modules} modules removed")
+            logger.info(f"Cleanup completed: {removed_participant_courses} participant courses removed (conservative approach)")
             
         except Exception as e:
             logger.error(f"Error during cleanup: {str(e)}")
@@ -514,24 +522,33 @@ class DendreoSync:
             
             removed_participants = 0
             for participant in orphaned_participants:
-                logger.info(f"Removing orphaned participant: {participant.id_participant} ({participant.email})")
+                # Additional safety check: only remove if participant has no modules at all
+                # This prevents removing participants who might be enrolled but don't have modules yet
+                module_count = self.db.query(Module).filter(
+                    Module.participant_id == participant.id
+                ).count()
                 
-                # Remove associated HubSpot data first
-                hubspot_data = self.db.query(ParticipantHubspotData).filter(
-                    ParticipantHubspotData.participant_id == participant.id
-                ).all()
-                
-                for hubspot_record in hubspot_data:
-                    self.db.delete(hubspot_record)
-                
-                # Remove the participant
-                self.db.delete(participant)
-                removed_participants += 1
+                if module_count == 0:
+                    logger.info(f"Removing orphaned participant: {participant.id_participant} ({participant.email}) - no modules found")
+                    
+                    # Remove associated HubSpot data first
+                    hubspot_data = self.db.query(ParticipantHubspotData).filter(
+                        ParticipantHubspotData.participant_id == participant.id
+                    ).all()
+                    
+                    for hubspot_record in hubspot_data:
+                        self.db.delete(hubspot_record)
+                    
+                    # Remove the participant
+                    self.db.delete(participant)
+                    removed_participants += 1
+                else:
+                    logger.debug(f"Keeping participant {participant.id_participant} ({participant.email}) - has {module_count} modules")
             
             # Update stats
             self.stats["participants_removed"] = removed_participants
             
-            logger.info(f"Orphaned participants cleanup completed: {removed_participants} participants removed")
+            logger.info(f"Orphaned participants cleanup completed: {removed_participants} participants removed (conservative approach)")
             
         except Exception as e:
             logger.error(f"Error during orphaned participants cleanup: {str(e)}")
@@ -550,32 +567,33 @@ class DendreoSync:
             removed_courses = 0
             for course in all_courses:
                 if course.id not in active_course_ids:
-                    logger.info(f"Removing orphaned course: {course.intitule} (ID: {course.id})")
-                    
-                    # Remove associated modules first (due to foreign key constraints)
-                    modules_to_remove = self.db.query(Module).filter(
+                    # Additional safety check: only remove if course has no modules
+                    # This prevents removing courses that might still have participants but no modules in current sync
+                    module_count = self.db.query(Module).filter(
                         Module.course_id == course.id
-                    ).all()
+                    ).count()
                     
-                    for module in modules_to_remove:
-                        self.db.delete(module)
-                    
-                    # Remove associated participant courses
-                    participant_courses_to_remove = self.db.query(ParticipantCourse).filter(
-                        ParticipantCourse.course_id == course.id
-                    ).all()
-                    
-                    for pc in participant_courses_to_remove:
-                        self.db.delete(pc)
-                    
-                    # Remove the course
-                    self.db.delete(course)
-                    removed_courses += 1
+                    if module_count == 0:
+                        logger.info(f"Removing orphaned course: {course.intitule} (ID: {course.id}) - no modules found")
+                        
+                        # Remove associated participant courses first
+                        participant_courses_to_remove = self.db.query(ParticipantCourse).filter(
+                            ParticipantCourse.course_id == course.id
+                        ).all()
+                        
+                        for pc in participant_courses_to_remove:
+                            self.db.delete(pc)
+                        
+                        # Remove the course
+                        self.db.delete(course)
+                        removed_courses += 1
+                    else:
+                        logger.debug(f"Keeping course {course.intitule} (ID: {course.id}) - has {module_count} modules")
             
             # Update stats
             self.stats["courses_removed"] = removed_courses
             
-            logger.info(f"Orphaned courses cleanup completed: {removed_courses} courses removed")
+            logger.info(f"Orphaned courses cleanup completed: {removed_courses} courses removed (conservative approach)")
             
         except Exception as e:
             logger.error(f"Error during orphaned courses cleanup: {str(e)}")
