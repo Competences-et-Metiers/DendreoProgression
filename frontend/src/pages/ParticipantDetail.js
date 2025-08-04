@@ -117,18 +117,19 @@ const ParticipantDetail = () => {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  <button
-                    onClick={() => {
-                      if (participantData?.participant?.id_participant) {
+                  {participantData?.participant?.prenom} {participantData?.participant?.nom}
+                  {participantData?.participant?.id_participant && (
+                    <button
+                      onClick={() => {
                         window.open(`https://pro.dendreo.com/competences_et_metiers/participants.php?id_participant=${participantData.participant.id_participant}`, '_blank', 'noopener,noreferrer');
-                      }
-                    }}
-                    className="hover:text-primary-600 hover:underline focus:outline-none focus:underline"
-                    title={t('common.openDendreoProfile')}
-                    disabled={!participantData?.participant?.id_participant}
-                  >
-                    {participantData?.participant?.prenom} {participantData?.participant?.nom}
-                  </button>
+                      }}
+                      className="ml-3 inline-flex items-center px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                      title={t('common.openDendreoProfile')}
+                    >
+                      <ExternalLink size={14} className="mr-1" />
+                      Dendreo
+                    </button>
+                  )}
                 </h1>
                 <p className="text-gray-600 mt-1">{t('participantDetail.subtitle')}</p>
               </div>
@@ -150,18 +151,19 @@ const ParticipantDetail = () => {
               </div>
               <div>
                 <h3 className="text-xl font-medium text-gray-900">
-                  <button
-                    onClick={() => {
-                      if (participantData?.participant?.id_participant) {
+                  {participantData?.participant?.prenom} {participantData?.participant?.nom}
+                  {participantData?.participant?.id_participant && (
+                    <button
+                      onClick={() => {
                         window.open(`https://pro.dendreo.com/competences_et_metiers/participants.php?id_participant=${participantData.participant.id_participant}`, '_blank', 'noopener,noreferrer');
-                      }
-                    }}
-                    className="hover:text-primary-600 hover:underline focus:outline-none focus:underline"
-                    title={t('common.openDendreoProfile')}
-                    disabled={!participantData?.participant?.id_participant}
-                  >
-                    {participantData?.participant?.prenom} {participantData?.participant?.nom}
-                  </button>
+                      }}
+                      className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                      title={t('common.openDendreoProfile')}
+                    >
+                      <ExternalLink size={12} className="mr-1" />
+                      Dendreo
+                    </button>
+                  )}
                 </h3>
                 <div className="flex items-center text-gray-600 mt-1">
                   <Mail size={16} className="mr-2" />

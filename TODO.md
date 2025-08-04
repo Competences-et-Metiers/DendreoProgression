@@ -7,7 +7,7 @@
 - [ ] Add `time spent`
 - [ ] SSL/HTTPS
 - [ ] Filter out irrelevant courses
-- [ ] Make French language select + default lang
+- [x] Make French language select + default lang
 - [ ] Remove unused participants
 #### Cleanup
 - [ ] Clean up endpoints
@@ -20,8 +20,8 @@ Relate property with contact ID in the `participants_hubspot_data` table
 - This allows us to see transactions/courses related to the contact
 
 
-- [ ] Make contacts clickable -> redirect to Dendreo contact page
-	- [ ] Make DB store contacts entreprise ID using link 
+- [x] Make contacts clickable -> redirect to Dendreo contact page
+	- [x] Make DB store contacts entreprise ID using link 
 		pro.dendreo.com/competences_et_metiers/participants.php?id_participant=22
 - [ ] Make ADF clickable -> Dendreo 
 		https://pro.dendreo.com/competences_et_metiers/actions_de_formation.php?id_action_de_formation=313

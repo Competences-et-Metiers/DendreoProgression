@@ -341,19 +341,20 @@ const CourseDetail = () => {
                           </div>
                           <div className="ml-3">
                             <h3 className="text-sm font-medium text-gray-900">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (participant.id_participant) {
+                              {participant.prenom} {participant.nom}
+                              {participant.id_participant && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     window.open(`https://pro.dendreo.com/competences_et_metiers/participants.php?id_participant=${participant.id_participant}`, '_blank', 'noopener,noreferrer');
-                                  }
-                                }}
-                                className="hover:text-primary-600 hover:underline focus:outline-none focus:underline"
-                                title={t('common.openDendreoProfile')}
-                                disabled={!participant.id_participant}
-                              >
-                                {participant.prenom} {participant.nom}
-                              </button>
+                                  }}
+                                  className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                                  title={t('common.openDendreoProfile')}
+                                >
+                                  <ExternalLink size={12} className="mr-1" />
+                                  Dendreo
+                                </button>
+                              )}
                             </h3>
                             <div className="flex items-center text-sm text-gray-600">
                               <Mail size={12} className="mr-1" />
