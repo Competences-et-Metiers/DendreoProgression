@@ -83,8 +83,11 @@ services:
 
   # Development Frontend - runs on remote machine
   frontend:
-    image: node:18-alpine
-    working_dir: /app
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+      args:
+        BRANCH: ${DEV_BRANCH:-dev}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api}
@@ -102,11 +105,17 @@ services:
       # Timezone mapping
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
-    command: sh -c "npm ci && npm start"
+    command: sh -c "npm ci --legacy-peer-deps && npm start"
     networks:
       - dendreo_network
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # Portainer - Container Management UI
   portainer:

@@ -110,8 +110,17 @@ const ParticipantDetail = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <button
-                onClick={() => navigate('/participants')}
+                onClick={(e) => {
+                  // Check if Ctrl/Cmd key is pressed or middle mouse button for new tab
+                  if (e.ctrlKey || e.metaKey || e.button === 1) {
+                    // Open in new tab
+                    window.open('/participants', '_blank', 'noopener,noreferrer');
+                  } else {
+                    navigate('/participants');
+                  }
+                }}
                 className="mr-4 p-2 text-gray-400 hover:text-gray-600"
+                title="Back to Participants (Ctrl+Click or middle-click to open in new tab)"
               >
                 <ArrowLeft size={20} />
               </button>

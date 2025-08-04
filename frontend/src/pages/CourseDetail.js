@@ -181,8 +181,17 @@ const CourseDetail = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <button
-                onClick={() => navigate('/')}
+                onClick={(e) => {
+                  // Check if Ctrl/Cmd key is pressed or middle mouse button for new tab
+                  if (e.ctrlKey || e.metaKey || e.button === 1) {
+                    // Open in new tab
+                    window.open('/', '_blank', 'noopener,noreferrer');
+                  } else {
+                    navigate('/');
+                  }
+                }}
                 className="mr-4 p-2 text-gray-400 hover:text-gray-600"
+                title="Back to Dashboard (Ctrl+Click or middle-click to open in new tab)"
               >
                 <ArrowLeft size={20} />
               </button>
