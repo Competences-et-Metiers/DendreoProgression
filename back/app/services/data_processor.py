@@ -79,7 +79,8 @@ class DataProcessor:
             participant = Participant(
                 nom=participant_data.get('nom', ''),
                 prenom=participant_data.get('prenom', ''),
-                email=email
+                email=email,
+                id_entreprise=participant_data.get('id_entreprise')
             )
             self.db.add(participant)
             self.db.flush()  # Get the ID
@@ -89,6 +90,7 @@ class DataProcessor:
             # Update existing participant
             participant.nom = participant_data.get('nom', participant.nom)
             participant.prenom = participant_data.get('prenom', participant.prenom)
+            participant.id_entreprise = participant_data.get('id_entreprise', participant.id_entreprise)
             participant.updated_at = datetime.utcnow()
             stats['participants_updated'] += 1
             logger.debug(f"Updated participant: {email}")

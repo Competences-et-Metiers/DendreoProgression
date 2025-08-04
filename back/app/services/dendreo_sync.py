@@ -327,6 +327,11 @@ class DendreoSync:
                 logger.warning(f"LAP record {id_lap} missing participant data")
                 return
             
+            # Extract id_entreprise from the LAP record (available at top level)
+            id_entreprise = lap_record.get('id_entreprise')
+            if id_entreprise:
+                participant_data['id_entreprise'] = id_entreprise
+            
             # Debug: Log participant data from LAP record
             lap_participant_id = participant_data.get('id_participant')
             logger.debug(f"Processing LAP {id_lap} for ADF {id_adf} with participant ID {lap_participant_id}")
@@ -756,7 +761,8 @@ class DendreoSync:
                     id_participant=participant_data.get('id_participant'),
                     nom=participant_data.get('nom', ''),
                     prenom=participant_data.get('prenom', ''),
-                    email=participant_data.get('email', '')
+                    email=participant_data.get('email', ''),
+                    id_entreprise=participant_data.get('id_entreprise')
                 )
                 self.db.add(participant)
                 try:
@@ -776,6 +782,7 @@ class DendreoSync:
                 participant.nom = participant_data.get('nom', participant.nom)
                 participant.prenom = participant_data.get('prenom', participant.prenom)
                 participant.email = participant_data.get('email', participant.email)
+                participant.id_entreprise = participant_data.get('id_entreprise', participant.id_entreprise)
                 self.stats["participants_updated"] += 1
                 logger.debug(f"Updated participant: {participant.id_participant}")
                 

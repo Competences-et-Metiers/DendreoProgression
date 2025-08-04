@@ -162,6 +162,7 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                     "nom": participant.nom,
                     "prenom": participant.prenom,
                     "email": participant.email,
+                    "id_entreprise": participant.id_entreprise,
                     "overall_progression": round(calculated_progression, 2),
                     "activity_status": pc.activity_status,
                     "hubspot_data": {
@@ -274,6 +275,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "nom": participant.nom,
                 "prenom": participant.prenom,
                 "email": participant.email,
+                "id_entreprise": participant.id_entreprise,
                 "overall_progression": round(calculated_progression, 2),  # Use calculated progression
                 "activity_status": pc.activity_status,
                 "last_activity": last_activity,
@@ -427,6 +429,7 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                 "nom": participant.nom,
                 "prenom": participant.prenom,
                 "email": participant.email,
+                "id_entreprise": participant.id_entreprise,
                 "created_at": participant.created_at.isoformat() if participant.created_at else None
             },
             "courses": courses_data,

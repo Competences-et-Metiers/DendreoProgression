@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS participants (
     nom VARCHAR,
     prenom VARCHAR,
     email VARCHAR,
+    id_entreprise VARCHAR,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

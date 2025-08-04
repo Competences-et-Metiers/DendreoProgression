@@ -29,6 +29,7 @@ class ParticipantBase(BaseModel):
     nom: Optional[str] = None
     prenom: Optional[str] = None
     email: Optional[str] = None
+    id_entreprise: Optional[str] = None
 
 class ParticipantCreate(ParticipantBase):
     id_participant: str
