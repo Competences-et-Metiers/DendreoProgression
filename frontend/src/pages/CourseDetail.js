@@ -341,7 +341,19 @@ const CourseDetail = () => {
                           </div>
                           <div className="ml-3">
                             <h3 className="text-sm font-medium text-gray-900">
-                              {participant.prenom} {participant.nom}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (participant.id_participant) {
+                                    window.open(`https://pro.dendreo.com/competences_et_metiers/participants.php?id_participant=${participant.id_participant}`, '_blank', 'noopener,noreferrer');
+                                  }
+                                }}
+                                className="hover:text-primary-600 hover:underline focus:outline-none focus:underline"
+                                title={t('common.openDendreoProfile')}
+                                disabled={!participant.id_participant}
+                              >
+                                {participant.prenom} {participant.nom}
+                              </button>
                             </h3>
                             <div className="flex items-center text-sm text-gray-600">
                               <Mail size={12} className="mr-1" />

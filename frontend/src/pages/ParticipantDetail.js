@@ -117,7 +117,18 @@ const ParticipantDetail = () => {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {participantData?.participant?.prenom} {participantData?.participant?.nom}
+                  <button
+                    onClick={() => {
+                      if (participantData?.participant?.id_participant) {
+                        window.open(`https://pro.dendreo.com/competences_et_metiers/participants.php?id_participant=${participantData.participant.id_participant}`, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    className="hover:text-primary-600 hover:underline focus:outline-none focus:underline"
+                    title={t('common.openDendreoProfile')}
+                    disabled={!participantData?.participant?.id_participant}
+                  >
+                    {participantData?.participant?.prenom} {participantData?.participant?.nom}
+                  </button>
                 </h1>
                 <p className="text-gray-600 mt-1">{t('participantDetail.subtitle')}</p>
               </div>
@@ -139,7 +150,18 @@ const ParticipantDetail = () => {
               </div>
               <div>
                 <h3 className="text-xl font-medium text-gray-900">
-                  {participantData?.participant?.prenom} {participantData?.participant?.nom}
+                  <button
+                    onClick={() => {
+                      if (participantData?.participant?.id_participant) {
+                        window.open(`https://pro.dendreo.com/competences_et_metiers/participants.php?id_participant=${participantData.participant.id_participant}`, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                    className="hover:text-primary-600 hover:underline focus:outline-none focus:underline"
+                    title={t('common.openDendreoProfile')}
+                    disabled={!participantData?.participant?.id_participant}
+                  >
+                    {participantData?.participant?.prenom} {participantData?.participant?.nom}
+                  </button>
                 </h3>
                 <div className="flex items-center text-gray-600 mt-1">
                   <Mail size={16} className="mr-2" />
