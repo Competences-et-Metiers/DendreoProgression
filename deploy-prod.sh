@@ -186,9 +186,15 @@ deploy() {
     log_info "Stopping any existing containers..."
     docker compose -f docker-compose.prod.yml down --remove-orphans
     
-    # Build services (only rebuild if needed)
-    log_info "Building services..."
-    docker compose -f docker-compose.prod.yml build
+    # Set cache-busting environment variables
+    export BUILD_DATE=$(date)
+    export BUILD_VERSION=$(git rev-parse HEAD 2>/dev/null || echo 'no-git')
+    log_info "Build date: $BUILD_DATE"
+    log_info "Build version: $BUILD_VERSION"
+    
+    # Build services with no cache to ensure fresh builds
+    log_info "Building services with no cache..."
+    docker compose -f docker-compose.prod.yml build --no-cache
     
     # Start all services (dependencies will handle order)
     log_info "Starting all services..."
@@ -432,6 +438,27 @@ create_backup() {
     fi
 }
 
+# Clean Docker cache and volumes
+clean_docker_cache() {
+    log_info "Cleaning Docker cache and volumes for fresh build..."
+    
+    # Remove frontend build volume if it exists
+    if docker volume ls | grep -q "frontend_build"; then
+        log_info "Removing frontend build volume..."
+        docker volume rm dendreoprogression_frontend_build 2>/dev/null || log_warning "Frontend build volume not found"
+    fi
+    
+    # Clean Docker builder cache
+    log_info "Cleaning Docker builder cache..."
+    docker builder prune -f
+    
+    # Clean unused Docker resources
+    log_info "Cleaning unused Docker resources..."
+    docker system prune -f
+    
+    log_success "Docker cache cleaned"
+}
+
 # Main execution
 main() {
     # Check for help flag
@@ -451,6 +478,7 @@ main() {
     validate_env
     prepare_sync_scripts
     create_backup
+    clean_docker_cache
     deploy
     initialize_database
     test_sync

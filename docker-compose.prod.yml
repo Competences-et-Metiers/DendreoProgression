@@ -142,6 +142,8 @@ services:
       args:
         BRANCH: ${PROD_BRANCH:-main}
         REACT_APP_API_URL: /api
+        BUILD_DATE: ${BUILD_DATE:-$(date)}
+        BUILD_VERSION: ${BUILD_VERSION:-$(git rev-parse HEAD 2>/dev/null || echo 'no-git')}
     env_file:
       - .env.prod
     environment:
