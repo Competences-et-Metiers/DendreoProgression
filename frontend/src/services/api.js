@@ -29,8 +29,31 @@ export const apiService = {
   },
 
   // Participants
-  async getAllParticipants() {
-    const response = await api.get('/participants/');
+  async getAllParticipants(page = 1, pageSize = 25, searchTerm = '') {
+    const skip = (page - 1) * pageSize;
+    const params = {
+      skip,
+      limit: pageSize
+    };
+    
+    // Add search parameters if provided
+    if (searchTerm) {
+      params.search = searchTerm;
+    }
+    
+    const response = await api.get('/participants/', { params });
+    return response.data;
+  },
+
+  async getParticipantsCount(searchTerm = '') {
+    const params = {};
+    
+    // Add search parameters if provided
+    if (searchTerm) {
+      params.search = searchTerm;
+    }
+    
+    const response = await api.get('/participants/count', { params });
     return response.data;
   },
 

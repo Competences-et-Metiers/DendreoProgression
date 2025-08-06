@@ -10,6 +10,7 @@
     "refresh": "Refresh",
     "refreshData": "Refresh data",
     "refreshing": "Refreshing...",
+    "updating": "Updating...",
     "noData": "No data",
     "view": "View",
     "details": "Details",
@@ -295,5 +296,14 @@
     "english": "English",
     "selectLanguage": "Select language",
     "currentLanguage": "Current language"
+  },
+  "pagination": {
+    "show": "Show",
+    "perPage": "per page",
+    "showing": "Showing {{start}} to {{end}} of {{total}} results",
+    "firstPage": "First page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "lastPage": "Last page"
   }
 } 

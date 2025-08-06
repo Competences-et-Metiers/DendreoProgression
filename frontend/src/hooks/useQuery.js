@@ -39,10 +39,21 @@ export const useCourseParticipants = (courseId) => {
 };
 
 // Participant hooks
-export const useParticipants = () => {
+export const useParticipants = (page = 1, pageSize = 25, searchTerm = '') => {
   return useQuery({
-    queryKey: queryKeys.participants,
-    queryFn: apiService.getAllParticipants,
+    queryKey: [...queryKeys.participants, page, pageSize, searchTerm],
+    queryFn: () => apiService.getAllParticipants(page, pageSize, searchTerm),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useParticipantsCount = (searchTerm = '') => {
+  return useQuery({
+    queryKey: [...queryKeys.participants, 'count', searchTerm],
+    queryFn: () => apiService.getParticipantsCount(searchTerm),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     refetchOnMount: false,

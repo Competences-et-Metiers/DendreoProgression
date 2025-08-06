@@ -10,6 +10,7 @@
     "refresh": "Actualiser",
     "refreshData": "Actualiser les données",
     "refreshing": "Actualisation...",
+    "updating": "Mise à jour...",
     "noData": "Aucune donnée",
     "view": "Voir",
     "details": "Détails",
@@ -295,5 +296,14 @@
     "english": "Anglais",
     "selectLanguage": "Sélectionner la langue",
     "currentLanguage": "Langue actuelle"
+  },
+  "pagination": {
+    "show": "Afficher",
+    "perPage": "par page",
+    "showing": "Affichage de {{start}} à {{end}} sur {{total}} résultats",
+    "firstPage": "Première page",
+    "previousPage": "Page précédente",
+    "nextPage": "Page suivante",
+    "lastPage": "Dernière page"
   }
 } 

@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
-import { useParticipants, usePrefetchQueries } from '../hooks/useQuery';
+import Pagination from '../components/Pagination';
+import { useParticipants, useParticipantsCount, usePrefetchQueries } from '../hooks/useQuery';
 import { 
   Users, 
   User,
@@ -21,20 +22,76 @@ import {
 const Participants = () => {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
   const [filterBy, setFilterBy] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const searchInputRef = useRef(null);
   const navigate = useNavigate();
   
-  // Use React Query hook for data fetching with caching
+  // Use React Query hooks for data fetching with caching
   const { 
     data: participants = [], 
     isLoading: loading, 
     error,
     refetch,
     isFetching
-  } = useParticipants();
+  } = useParticipants(currentPage, pageSize, debouncedSearchTerm);
+  
+  // Keep previous data visible during refetch to avoid jarring reloads
+  const [stableParticipants, setStableParticipants] = useState([]);
+  
+  // Update stable participants when new data arrives, but keep previous data during loading
+  useEffect(() => {
+    if (participants.length > 0) {
+      setStableParticipants(participants);
+    }
+  }, [participants]);
+  
+  // Use stable participants for display to avoid flickering
+  const displayParticipants = stableParticipants.length > 0 ? stableParticipants : participants;
+  
+  const { 
+    data: countData,
+    isLoading: countLoading
+  } = useParticipantsCount(debouncedSearchTerm);
   
   const { prefetchParticipantDetails } = usePrefetchQueries();
+
+  // Debounce search term to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Maintain focus on search input after re-renders
+  useEffect(() => {
+    if (searchInputRef.current && document.activeElement !== searchInputRef.current) {
+      // Only restore focus if the search input was previously focused
+      const wasSearchFocused = sessionStorage.getItem('searchInputFocused') === 'true';
+      if (wasSearchFocused) {
+        searchInputRef.current.focus();
+      }
+    }
+  });
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, filterBy, sortBy]);
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
 
   const handleParticipantClick = (participantId, event) => {
     // Check if Ctrl/Cmd key is pressed or middle mouse button for new tab
@@ -49,20 +106,9 @@ const Participants = () => {
   };
 
   const getFilteredAndSortedParticipants = () => {
-    let filtered = participants;
+    let filtered = displayParticipants;
     
-    // Filter by search term
-    if (searchTerm) {
-      const search = searchTerm.toLowerCase();
-      filtered = filtered.filter(participant => 
-        participant.prenom?.toLowerCase().includes(search) ||
-        participant.nom?.toLowerCase().includes(search) ||
-        participant.email?.toLowerCase().includes(search) ||
-        `${participant.prenom} ${participant.nom}`.toLowerCase().includes(search)
-      );
-    }
-    
-    // Filter by status
+    // Filter by status (client-side filtering for status is still needed)
     if (filterBy === 'active') {
       filtered = filtered.filter(p => p.active_courses > 0);
     } else if (filterBy === 'completed') {
@@ -114,7 +160,7 @@ const Participants = () => {
     }
   };
 
-  if (loading) {
+  if (loading || countLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="large" />
@@ -206,9 +252,9 @@ const Participants = () => {
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">{t('participants.allParticipants')}</h2>
-                <p className="text-sm text-gray-600">
-                  {t('participants.subtitleWithCount', { filtered: filteredParticipants.length, total: participants.length })}
-                </p>
+                                  <p className="text-sm text-gray-600">
+                    {t('participants.subtitleWithCount', { filtered: filteredParticipants.length, total: countData?.total || 0 })}
+                  </p>
               </div>
               
               {/* Search and Filters */}
@@ -217,12 +263,20 @@ const Participants = () => {
                 <div className="relative">
                   <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                   <input
+                    ref={searchInputRef}
                     type="text"
                     placeholder={t('participants.searchPlaceholder')}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() => sessionStorage.setItem('searchInputFocused', 'true')}
+                    onBlur={() => sessionStorage.removeItem('searchInputFocused')}
                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm w-64"
                   />
+                  {searchTerm !== debouncedSearchTerm && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="Searching..."></div>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Filter */}
@@ -256,19 +310,30 @@ const Participants = () => {
           </div>
 
           {/* Participants List */}
-          <div className="divide-y divide-gray-200">
-            {filteredParticipants.length === 0 ? (
-              <div className="px-6 py-12 text-center">
-                <Users size={48} className="mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500">
-                  {searchTerm || filterBy !== 'all' 
-                    ? t('errors.noParticipantsMatchingCriteria')
-                    : t('common.noParticipantsFound')
-                  }
-                </p>
+          <div className="relative">
+            {/* Subtle loading overlay - only shows when fetching new data */}
+            {isFetching && (
+              <div className="absolute inset-0 bg-white bg-opacity-50 z-10 flex items-center justify-center">
+                <div className="flex items-center space-x-2 text-gray-600">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-primary-500 rounded-full animate-spin"></div>
+                  <span className="text-sm">{t('common.updating')}</span>
+                </div>
               </div>
-            ) : (
-              filteredParticipants.map((participant) => (
+            )}
+            
+            <div className="divide-y divide-gray-200">
+              {filteredParticipants.length === 0 ? (
+                <div className="px-6 py-12 text-center">
+                  <Users size={48} className="mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-500">
+                    {searchTerm || filterBy !== 'all' 
+                      ? t('errors.noParticipantsMatchingCriteria')
+                      : t('common.noParticipantsFound')
+                    }
+                  </p>
+                </div>
+              ) : (
+                filteredParticipants.map((participant) => (
                 <div
                   key={participant.id}
                   onClick={(e) => handleParticipantClick(participant.id, e)}
@@ -339,7 +404,18 @@ const Participants = () => {
                 </div>
               ))
             )}
+            </div>
           </div>
+
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil((countData?.total || 0) / pageSize)}
+            totalItems={countData?.total || 0}
+            pageSize={pageSize}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
         </div>
       </div>
     </div>

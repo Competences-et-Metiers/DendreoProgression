@@ -30,7 +30,7 @@ services:
       # Timezone mapping
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
-    command: sh -c "chmod 777 /app/logs && uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload --log-level info"
+    command: sh -c "uvicorn app.main:app --host ${HOST:-0.0.0.0} --port ${PORT:-8000} --reload --log-level info"
     depends_on:
       - postgres
     networks:
