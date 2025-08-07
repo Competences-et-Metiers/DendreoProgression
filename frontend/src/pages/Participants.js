@@ -44,12 +44,13 @@ const Participants = () => {
   
   // Update stable participants when new data arrives, but keep previous data during loading
   useEffect(() => {
-    if (participants.length > 0) {
-      setStableParticipants(participants);
-    }
+    // Always update stable participants with current data, even if empty
+    // This ensures we show empty state when no results are found
+    setStableParticipants(participants);
   }, [participants]);
   
   // Use stable participants for display to avoid flickering
+  // If we have stable data, use it. Otherwise, use current participants (even if empty)
   const displayParticipants = stableParticipants.length > 0 ? stableParticipants : participants;
   
   const { 
@@ -160,7 +161,9 @@ const Participants = () => {
     }
   };
 
-  if (loading || countLoading) {
+  // Only show full loading screen if we have no data at all and are loading for the first time
+  // If we have stable data, we can show the page with a loading overlay instead
+  if ((loading || countLoading) && stableParticipants.length === 0 && participants.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner size="large" />
@@ -309,20 +312,20 @@ const Participants = () => {
             </div>
           </div>
 
-          {/* Participants List */}
-          <div className="relative">
-            {/* Subtle loading overlay - only shows when fetching new data */}
-            {isFetching && (
-              <div className="absolute inset-0 bg-white bg-opacity-50 z-10 flex items-center justify-center">
-                <div className="flex items-center space-x-2 text-gray-600">
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-primary-500 rounded-full animate-spin"></div>
-                  <span className="text-sm">{t('common.updating')}</span>
-                </div>
-              </div>
-            )}
-            
-            <div className="divide-y divide-gray-200">
-              {filteredParticipants.length === 0 ? (
+                                {/* Participants List */}
+           <div className="relative">
+             <div className="divide-y divide-gray-200">
+               {/* Subtle loading overlay - only covers the list content */}
+               {(isFetching || (loading && stableParticipants.length > 0)) && (
+                 <div className="absolute inset-0 bg-white bg-opacity-50 z-10 flex items-center justify-center">
+                   <div className="flex items-center space-x-2 text-gray-600">
+                     <div className="w-4 h-4 border-2 border-gray-300 border-t-primary-500 rounded-full animate-spin"></div>
+                     <span className="text-sm">{t('common.updating')}</span>
+                   </div>
+                 </div>
+               )}
+               
+               {filteredParticipants.length === 0 ? (
                 <div className="px-6 py-12 text-center">
                   <Users size={48} className="mx-auto text-gray-400 mb-4" />
                   <p className="text-gray-500">

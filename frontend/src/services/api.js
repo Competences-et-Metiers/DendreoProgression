@@ -28,6 +28,11 @@ export const apiService = {
     return response.data;
   },
 
+  async getCourseTimeStats(courseId) {
+    const response = await api.get(`/courses/courses/${courseId}/time-stats`);
+    return response.data;
+  },
+
   // Participants
   async getAllParticipants(page = 1, pageSize = 25, searchTerm = '') {
     const skip = (page - 1) * pageSize;

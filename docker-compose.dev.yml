@@ -5,21 +5,17 @@ services:
       context: ./back
       dockerfile: Dockerfile.dev
     environment:
-      APP_ENV: ${APP_ENV:-development}
+      APP_ENV: development
       # Use postgres:5432 when running in Docker containers
       DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
-      # API Configuration
-      DENDREO_API_KEY: ${DENDREO_API_KEY:-your_dendreo_api_key_here}
-      DENDREO_BASE_URL: ${DENDREO_BASE_URL:-https://pro.dendreo.com/competences_et_metiers/api}
-      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY:-your_hubspot_api_key_here}
+      LOG_LEVEL: INFO
+      PYTHONUNBUFFERED: 1
       # Redis configuration (optional)
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_ENABLED: false
       # Timezone configuration
-      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
-      TZ: ${TZ:-Europe/Paris}
+      POSTGRES_TZ: Europe/Paris
+      TZ: Europe/Paris
     env_file:
       - .env.dev
     ports:
@@ -42,24 +38,20 @@ services:
       context: ./back
       dockerfile: Dockerfile.sync
     environment:
-      APP_ENV: ${APP_ENV:-development}
+      APP_ENV: development
       # Use postgres:5432 when running in Docker containers
       DATABASE_URL: postgresql://postgres:admin@postgres:5432/dendreo_dev_db
-      LOG_LEVEL: ${SYNC_LOG_LEVEL:-DEBUG}
-      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
-      # API Configuration
-      DENDREO_API_KEY: ${DENDREO_API_KEY:-your_dendreo_api_key_here}
-      DENDREO_BASE_URL: ${DENDREO_BASE_URL:-https://pro.dendreo.com/competences_et_metiers/api}
-      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY:-your_hubspot_api_key_here}
+      LOG_LEVEL: DEBUG
+      PYTHONUNBUFFERED: 1
       # Redis configuration (optional)
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
-      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      REDIS_URL: redis://redis:6379/0
+      REDIS_ENABLED: false
       # Timezone configuration
-      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
-      TZ: ${TZ:-Europe/Paris}
+      POSTGRES_TZ: Europe/Paris
+      TZ: Europe/Paris
       # Sync Configuration for development
-      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 8 * * *}  # Every day at 8 AM
-      DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-10}  # Limit to 10 for development
+      SYNC_SCHEDULE: 0 8 * * *  # Every day at 8 AM
+      DENDREO_ADF_LIMIT: 10  # Limit to 10 for development
     env_file:
       - .env.dev
     volumes:

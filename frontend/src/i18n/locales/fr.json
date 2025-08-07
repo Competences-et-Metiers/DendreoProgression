@@ -149,7 +149,9 @@
     "moduleProgressInsights": "Aperçus de progression du module",
     "moduleProgressData": "Données de progression du module",
     "moduleProgressInfo": "Informations de progression du module",
-    "moduleProgressDetails": "Détails de progression du module"
+    "moduleProgressDetails": "Détails de progression du module",
+    "timeSpent": "Temps passé",
+    "plannedDuration": "Durée prévue"
   },
   "navigation": {
     "dashboard": "Tableau de bord",
@@ -205,7 +207,9 @@
       "totalParticipants": "Participants totaux",
       "completed": "Terminés",
       "averageProgress": "Progression moyenne",
-      "hubSpotLinked": "HubSpot lié"
+      "hubSpotLinked": "HubSpot lié",
+      "plannedDuration": "Durée prévue",
+      "actual": "réel"
     },
     "participants": {
       "title": "Participants",

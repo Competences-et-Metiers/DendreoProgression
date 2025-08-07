@@ -1,92 +1,143 @@
 #!/usr/bin/env python3
 """
-Standalone Dendreo Sync Script
-Runs the sync process independently of the API for scheduled execution.
+Dendreo Sync Script
+Synchronizes data from Dendreo API to local database
 """
 
-import sys
-import os
 import asyncio
 import logging
+import sys
+import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Optional
 
-# Add the parent directory to the path so we can import from app
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add the app directory to the path
+sys.path.append(str(Path(__file__).parent.parent))
 
-from app.config.settings import settings
 from app.models.database import get_db_session
+from app.models.models import SyncMetadata
 from app.services.dendreo_sync import DendreoSync
 from app.services.dendreo_client import DendreoClient
-from app.models.models import SyncMetadata
-import json
+from app.config.settings import settings
 
-# Configure logging specifically for this script
 def setup_logging(log_level: str = "INFO"):
-    """Setup logging for the sync script"""
-    
-    # Create logs directory if it doesn't exist
-    log_dir = Path(__file__).parent.parent / "logs"
-    log_dir.mkdir(exist_ok=True)
-    
-    # Configure logging
-    log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    
-    # File handler for sync-specific logs
-    sync_log_file = log_dir / f"sync_{datetime.now().strftime('%Y%m%d')}.log"
-    
+    """Setup logging configuration"""
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
-        format=log_format,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(sync_log_file),
-            logging.StreamHandler()  # Also log to console
+            logging.StreamHandler(),
+            logging.FileHandler('logs/sync.log')
         ]
     )
-    
-    # Silence noisy loggers
-    logging.getLogger('httpx').setLevel(logging.WARNING)
-    logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
-    
     return logging.getLogger(__name__)
 
 def cleanup_stuck_sync_metadata(force_cleanup: bool = False):
-    """Clean up any sync metadata records stuck in 'in_progress' state"""
+    """
+    Clean up stuck sync metadata records
+    
+    Args:
+        force_cleanup: Force cleanup even if records are recent
+        
+    Returns:
+        Number of records cleaned up
+    """
     logger = logging.getLogger(__name__)
     
     try:
         with get_db_session() as db:
-            # Define timeout for stuck syncs (default: 30 minutes, but can be forced)
-            timeout_minutes = 5 if force_cleanup else 30
-            timeout_ago = datetime.now(timezone.utc) - timedelta(minutes=timeout_minutes)
+            # Find stuck sync records (in_progress for more than 30 minutes)
+            thirty_minutes_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
             
-            stuck_syncs = db.query(SyncMetadata).filter(
+            stuck_records = db.query(SyncMetadata).filter(
                 SyncMetadata.status == 'in_progress',
-                SyncMetadata.last_sync_at < timeout_ago
+                SyncMetadata.last_sync_at < thirty_minutes_ago
             ).all()
             
-            if stuck_syncs:
-                logger.info(f"🔧 Found {len(stuck_syncs)} stuck sync metadata records (older than {timeout_minutes} minutes), cleaning up...")
-                for sync in stuck_syncs:
-                    # Calculate how long it was stuck
-                    stuck_duration = datetime.now(timezone.utc) - sync.last_sync_at
-                    
-                    logger.info(f"  - Cleaning sync ID {sync.id} (stuck for {stuck_duration})")
-                    sync.status = 'error'
-                    sync.error_message = f'Sync process was interrupted or timed out after {stuck_duration}'
-                    sync.updated_at = datetime.now(timezone.utc)
-                
-                db.commit()
-                logger.info("✅ Cleaned up stuck sync metadata records")
-                return len(stuck_syncs)
-            else:
-                logger.debug("✅ No stuck sync metadata records found")
+            if not stuck_records and not force_cleanup:
                 return 0
+            
+            cleaned_count = 0
+            for record in stuck_records:
+                record.status = 'error'
+                record.error_message = 'Automatically cleaned up stuck sync record'
+                record.updated_at = datetime.now(timezone.utc)
+                cleaned_count += 1
+                logger.info(f"Cleaned up stuck sync record from {record.last_sync_at}")
+            
+            if force_cleanup:
+                # Also clean up any in_progress records regardless of age
+                force_records = db.query(SyncMetadata).filter(
+                    SyncMetadata.status == 'in_progress'
+                ).all()
+                
+                for record in force_records:
+                    if record not in stuck_records:  # Avoid double processing
+                        record.status = 'error'
+                        record.error_message = 'Force cleaned up sync record'
+                        record.updated_at = datetime.now(timezone.utc)
+                        cleaned_count += 1
+                        logger.info(f"Force cleaned up sync record from {record.last_sync_at}")
+            
+            db.commit()
+            return cleaned_count
+            
+    except Exception as e:
+        logger.error(f"Error cleaning up stuck sync records: {e}")
+        return -1
+
+def should_run_sync_on_deployment() -> bool:
+    """
+    Determine if a sync should be run on deployment based on:
+    1. If no sync has ever been performed
+    2. If the last sync was more than 24 hours ago
+    3. If it's the first time the service is running (database empty)
+    
+    Returns:
+        True if sync should be run, False otherwise
+    """
+    logger = logging.getLogger(__name__)
+    
+    try:
+        with get_db_session() as db:
+            # Check if database is empty (no participants)
+            from app.models.models import Participant
+            participant_count = db.query(Participant).count()
+            
+            if participant_count == 0:
+                logger.info("📊 Database is empty - sync should run on deployment")
+                return True
+            
+            # Check for recent successful sync (within last 24 hours)
+            twenty_four_hours_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+            
+            recent_sync = db.query(SyncMetadata).filter(
+                SyncMetadata.sync_type == 'sync_all',
+                SyncMetadata.status == 'success',
+                SyncMetadata.last_sync_at > twenty_four_hours_ago
+            ).order_by(SyncMetadata.last_sync_at.desc()).first()
+            
+            if recent_sync:
+                logger.info(f"✅ Recent sync found at {recent_sync.last_sync_at} (within 24 hours) - skipping deployment sync")
+                return False
+            else:
+                # Check for any sync at all
+                last_sync = db.query(SyncMetadata).filter(
+                    SyncMetadata.sync_type == 'sync_all',
+                    SyncMetadata.status == 'success'
+                ).order_by(SyncMetadata.last_sync_at.desc()).first()
+                
+                if last_sync:
+                    logger.info(f"📅 Last sync was at {last_sync.last_sync_at} (more than 24 hours ago) - sync should run on deployment")
+                else:
+                    logger.info("🆕 No previous syncs found - sync should run on deployment")
+                
+                return True
                 
     except Exception as e:
-        logger.error(f"❌ Failed to cleanup stuck sync metadata: {e}")
-        return -1
+        logger.error(f"Error checking sync status: {e}")
+        # In case of error, be conservative and run sync
+        return True
 
 async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
     """
@@ -188,55 +239,52 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
                 "status": "success",
                 "message": "Dry run completed successfully",
                 "stats": {
-                    "note": "This was a dry run - no actual changes made",
-                    "simulated": True,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "participants_created": 0,
+                    "participants_updated": 0,
+                    "courses_created": 0,
+                    "courses_updated": 0,
+                    "modules_created": 0,
+                    "modules_updated": 0,
+                    "participant_courses_created": 0,
+                    "participant_courses_updated": 0
                 }
             }
         
-        # Update sync metadata with success (only for real syncs)
-        if not dry_run and sync_metadata:
+        # Update sync metadata with success
+        if sync_metadata and not dry_run:
             with get_db_session() as db:
-                # Refresh the sync_metadata object
-                sync_metadata = db.query(SyncMetadata).filter(
-                    SyncMetadata.id == sync_metadata.id
-                ).first()
-                
-                if sync_metadata:
-                    sync_metadata.status = 'success'
-                    sync_metadata.stats = json.dumps(result.get('stats', {}))
-                    sync_metadata.updated_at = datetime.now(timezone.utc)
-                    db.commit()
-                    logger.info(f"✅ Updated sync metadata record to success (ID: {sync_metadata.id})")
+                sync_metadata.status = 'success'
+                sync_metadata.stats = str(result.get('stats', {}))
+                sync_metadata.updated_at = datetime.now(timezone.utc)
+                db.commit()
+                logger.info("✅ Sync metadata updated with success")
         
-        logger.info(f"✅ Sync completed successfully: {result.get('message', 'No message')}")
-        return result
+        logger.info("✅ Sync completed successfully")
+        return {
+            "status": "success",
+            "message": "Sync completed successfully",
+            "stats": result.get('stats', {}),
+            "sync_start_time": sync_start_time.isoformat()
+        }
         
     except Exception as e:
         logger.error(f"❌ Sync failed: {str(e)}")
         
-        # Update sync metadata with error (only for real syncs)
-        if not dry_run and sync_metadata:
+        # Update sync metadata with error
+        if sync_metadata and not dry_run:
             try:
                 with get_db_session() as db:
-                    # Refresh the sync_metadata object
-                    sync_metadata = db.query(SyncMetadata).filter(
-                        SyncMetadata.id == sync_metadata.id
-                    ).first()
-                    
-                    if sync_metadata:
-                        sync_metadata.status = 'error'
-                        sync_metadata.error_message = str(e)
-                        sync_metadata.updated_at = datetime.now(timezone.utc)
-                        db.commit()
-                        logger.info(f"📝 Updated sync metadata record to error (ID: {sync_metadata.id})")
-            except Exception as meta_error:
-                logger.error(f"Failed to update sync metadata: {meta_error}")
+                    sync_metadata.status = 'error'
+                    sync_metadata.error_message = str(e)
+                    sync_metadata.updated_at = datetime.now(timezone.utc)
+                    db.commit()
+                    logger.info("📝 Sync metadata updated with error")
+            except Exception as metadata_error:
+                logger.error(f"Failed to update sync metadata: {metadata_error}")
         
         return {
             "status": "error",
-            "message": str(e),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "message": f"Sync failed: {str(e)}"
         }
 
 def main():

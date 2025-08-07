@@ -31,6 +31,7 @@ class Course(Base):
     intitule = Column(String)  # Course name from ADF
     status = Column(String)  # Based on id_etape_process
     total_modules = Column(Integer, default=0)  # Total number of e-learning modules
+    planned_duration_hours = Column(Float, default=0.0)  # Planned duration in hours from duree_heures
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -53,6 +54,11 @@ class Module(Base):
     lms_progression = Column(Float, default=0.0)
     lms_last_access_at = Column(DateTime(timezone=True), nullable=True)
     mode_organisation = Column(String(50), default='elearning_async')
+
+    # Time tracking data
+    lms_time_spent = Column(Integer, default=0)  # Time spent in seconds
+    lms_started_at = Column(DateTime(timezone=True), nullable=True)
+    lms_completed_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

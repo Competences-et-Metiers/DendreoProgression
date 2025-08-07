@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
 import { useParticipantDetails } from '../hooks/useQuery';
+import * as timeUtils from '../utils/timeUtils';
 import { 
   ArrowLeft, 
   User, 
@@ -290,7 +291,7 @@ const ParticipantDetail = () => {
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
                         <div className="flex items-center text-sm text-gray-600">
                           <Target size={14} className="mr-1" />
                           {(course.progression || 0).toFixed(1)}% {t('common.progress')}
@@ -298,6 +299,10 @@ const ParticipantDetail = () => {
                         <div className="flex items-center text-sm text-gray-600">
                           <BookOpen size={14} className="mr-1" />
                           {course.completed_modules}/{course.total_modules} {t('common.modulesCompleted')}
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Clock size={14} className="mr-1" />
+                          {timeUtils.formatTimeSpentInHours(course.total_time_spent || 0)}/{timeUtils.formatTimeSpentInHours((course.planned_duration_hours || 0) * 3600)}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <Calendar size={14} className="mr-1" />

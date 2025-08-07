@@ -149,7 +149,9 @@
     "moduleProgressInsights": "Module Progress Insights",
     "moduleProgressData": "Module Progress Data",
     "moduleProgressInfo": "Module Progress Information",
-    "moduleProgressDetails": "Module Progress Details"
+    "moduleProgressDetails": "Module Progress Details",
+    "timeSpent": "Time Spent",
+    "plannedDuration": "Planned Duration"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -205,7 +207,9 @@
       "totalParticipants": "Total Participants",
       "completed": "Completed",
       "averageProgress": "Average Progress",
-      "hubSpotLinked": "HubSpot Linked"
+      "hubSpotLinked": "HubSpot Linked",
+      "plannedDuration": "Planned Duration",
+      "actual": "actual"
     },
     "participants": {
       "title": "Participants",

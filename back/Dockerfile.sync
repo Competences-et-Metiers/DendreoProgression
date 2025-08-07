@@ -61,10 +61,10 @@ echo "Waiting for database..."\n\
 timeout 60 bash -c "until python -c '\''from app.models.database import engine; from sqlalchemy import text; engine.connect().execute(text(\"SELECT 1\"))'\'' 2>/dev/null; do echo '\''Waiting for database...'\''; sleep 2; done"\n\
 echo "Database is ready!"\n\
 \n\
-# Check if database is empty and run initial sync if needed\n\
-echo "🔍 Checking if database is empty..."\n\
-if python3 scripts/check_database_empty.py; then\n\
-    echo "💾 Database is empty - running initial sync..."\n\
+# Check if sync should be run on deployment using the new logic\n\
+echo "🔍 Checking if sync should run on deployment..."\n\
+if python3 -c "from scripts.sync_dendreo import should_run_sync_on_deployment; import sys; sys.exit(0 if should_run_sync_on_deployment() else 1)"; then\n\
+    echo "✅ Sync should run on deployment - executing initial sync..."\n\
     python3 scripts/sync_dendreo.py --log-level ${LOG_LEVEL:-INFO} --force\n\
     SYNC_RESULT=$?\n\
     if [ $SYNC_RESULT -eq 0 ]; then\n\
@@ -74,7 +74,8 @@ if python3 scripts/check_database_empty.py; then\n\
         echo "⚠️  Will continue with cron setup - scheduled syncs may retry"\n\
     fi\n\
 else\n\
-    echo "📊 Database has data - skipping initial sync"\n\
+    echo "📊 Recent sync found or database has data - skipping deployment sync"\n\
+    echo "ℹ️  Next scheduled sync will run at 8 AM daily"\n\
 fi\n\
 \n\
 # Create environment file for cron (sh-compatible)\n\

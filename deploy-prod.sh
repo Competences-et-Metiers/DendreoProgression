@@ -321,6 +321,14 @@ test_sync() {
     else
         log_warning "Sync status check found issues - run manual checks"
     fi
+    
+    # Test new sync deployment logic
+    log_info "Testing sync deployment logic..."
+    if docker compose -f docker-compose.prod.yml exec -T sync python3 test_sync_deployment_logic.py 2>/dev/null; then
+        log_success "Sync deployment logic test passed"
+    else
+        log_warning "Sync deployment logic test found issues - check logs for details"
+    fi
 }
 
 # Show status and URLs
@@ -356,9 +364,16 @@ show_status() {
     echo "🔄 Sync Management:"
     echo "   Check sync status: docker compose -f docker-compose.prod.yml exec sync python3 scripts/check_sync_status.py"
     echo "   Manual sync test: docker compose -f docker-compose.prod.yml exec sync python3 scripts/sync_dendreo.py"
+    echo "   Test sync logic: docker compose -f docker-compose.prod.yml exec sync python3 test_sync_deployment_logic.py"
     echo "   View sync logs: docker compose -f docker-compose.prod.yml exec sync cat /app/logs/cron.log"
     echo "   Sync diagnostic: docker compose -f docker-compose.prod.yml exec sync python3 scripts/diagnose_cron.py"
     echo "   Monitor database: docker compose -f docker-compose.prod.yml exec postgres psql -U postgres -d dendreo_prod_db -c \"SELECT * FROM sync_metadata ORDER BY last_sync_at DESC LIMIT 5;\""
+    echo
+    echo "🧠 Smart Sync Logic:"
+    echo "   • Sync only runs on deployment if no sync in last 24 hours"
+    echo "   • Database persistence prevents unnecessary syncs"
+    echo "   • Daily scheduled syncs at 8 AM continue as normal"
+    echo "   • Manual syncs can still be forced with --force flag"
     echo
     echo "🔧 For SSL setup:"
     echo "   1. Place SSL certificates in ./ssl/ directory"
