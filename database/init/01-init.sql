@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS courses (
     intitule VARCHAR,
     status VARCHAR,
     total_modules INTEGER DEFAULT 0,
+    planned_duration_hours FLOAT DEFAULT 0.0,  -- Planned duration in hours from duree_heures
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CONSTRAINT _adf_lam_uc UNIQUE (id_action_formation, id_lam)
@@ -39,6 +40,10 @@ CREATE TABLE IF NOT EXISTS modules (
     lms_progression FLOAT DEFAULT 0.0,
     lms_last_access_at TIMESTAMP WITH TIME ZONE,
     mode_organisation VARCHAR(50) DEFAULT 'elearning_async',
+    -- Time tracking data
+    lms_time_spent INTEGER DEFAULT 0,  -- Time spent in seconds
+    lms_started_at TIMESTAMP WITH TIME ZONE,
+    lms_completed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     CONSTRAINT _lmp_participant_uc UNIQUE (id_lmp, participant_id)
@@ -95,6 +100,11 @@ CREATE INDEX IF NOT EXISTS idx_participant_hubspot_data_participant_id ON partic
 CREATE INDEX IF NOT EXISTS idx_sync_metadata_sync_type ON sync_metadata(sync_type);
 CREATE INDEX IF NOT EXISTS idx_sync_metadata_last_sync_at ON sync_metadata(last_sync_at);
 CREATE INDEX IF NOT EXISTS idx_sync_metadata_status ON sync_metadata(status);
+
+-- Create indexes for new time tracking columns
+CREATE INDEX IF NOT EXISTS idx_modules_lms_time_spent ON modules(lms_time_spent);
+CREATE INDEX IF NOT EXISTS idx_modules_lms_started_at ON modules(lms_started_at);
+CREATE INDEX IF NOT EXISTS idx_modules_lms_completed_at ON modules(lms_completed_at);
 
 -- Create a function to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
