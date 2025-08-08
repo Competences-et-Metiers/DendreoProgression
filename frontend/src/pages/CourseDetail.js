@@ -267,27 +267,26 @@ const CourseDetail = () => {
               </div>
             </div>
 
-
-            
-            {/* Planned vs Actual Time */}
-            {courseData?.course?.planned_duration_hours > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <div className="flex items-center">
-                  <div className="p-3 rounded-full bg-purple-50 text-purple-600 border border-purple-200">
-                    <Clock size={24} />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">{t('courseDetail.summary.plannedDuration')}</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatTimeSpentInHours(courseData.course.planned_duration_hours * 3600)}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      vs {formatTimeSpentInHours((courseData.summary?.total_time_spent || 0))} {t('courseDetail.summary.actual')}
-                    </p>
-                  </div>
+            {/* Planned Duration vs Actual Time */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className="p-3 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200">
+                  <Clock size={24} />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">{t('courseDetail.summary.plannedDuration')}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {courseData.course?.planned_duration_hours > 0 
+                      ? formatTimeSpentInHours(courseData.course.planned_duration_hours * 3600)
+                      : '0h'
+                    }
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    vs {formatTimeSpentInHours((courseData.summary?.total_time_spent || 0))} {t('courseDetail.summary.actual')}
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 
