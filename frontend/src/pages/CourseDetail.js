@@ -276,13 +276,10 @@ const CourseDetail = () => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">{t('courseDetail.summary.plannedDuration')}</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {courseData.course?.planned_duration_hours > 0 
+                    {courseData.course?.planned_duration_hours !== null && courseData.course?.planned_duration_hours !== undefined
                       ? formatTimeSpentInHours(courseData.course.planned_duration_hours * 3600)
                       : '0h'
                     }
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    vs {formatTimeSpentInHours((courseData.summary?.total_time_spent || 0))} {t('courseDetail.summary.actual')}
                   </p>
                 </div>
               </div>
