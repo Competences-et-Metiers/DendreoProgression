@@ -36,7 +36,7 @@ The Dockerfiles have been updated to handle the dependency conflicts:
 #### Development Environment
 ```bash
 # Build with development Dockerfile
-docker build -f Dockerfile.dev -t dendreo-frontend-dev .
+docker build -f Dockerfile.frontend.prod -t dendreo-frontend-prod .
 
 # Run development container
 docker run -p 3000:3000 dendreo-frontend-dev
@@ -45,7 +45,7 @@ docker run -p 3000:3000 dendreo-frontend-dev
 #### Production Environment
 ```bash
 # Build with production Dockerfile
-docker build -f Dockerfile.prod -t dendreo-frontend-prod .
+docker build -f Dockerfile.frontend.prod -t dendreo-frontend-prod .
 
 # Run production container
 docker run -p 80:80 dendreo-frontend-prod
@@ -59,7 +59,7 @@ Update your docker-compose files to use the updated Dockerfiles:
 frontend:
   build:
     context: ./frontend
-    dockerfile: Dockerfile.dev  # or Dockerfile.prod
+          dockerfile: Dockerfile.frontend.prod
   ports:
     - "3000:3000"
   environment:
@@ -80,8 +80,7 @@ npm ci --legacy-peer-deps
 ```
 
 ### Updated Files
-- `frontend/Dockerfile.dev` - Added `--legacy-peer-deps` to npm ci
-- `frontend/Dockerfile.prod` - Added `--legacy-peer-deps` to npm ci
+- `frontend/Dockerfile.frontend.prod` - Added `--legacy-peer-deps` to npm ci
 - `frontend/package.json` - Added `install-deps` script
 
 ## 🌐 Language Features

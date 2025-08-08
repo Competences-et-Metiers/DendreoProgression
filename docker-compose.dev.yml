@@ -3,7 +3,7 @@ services:
   backend:
     build:
       context: ./back
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.backend.prod
     environment:
       APP_ENV: development
       # Use postgres:5432 when running in Docker containers
@@ -36,7 +36,7 @@ services:
   sync:
     build:
       context: ./back
-      dockerfile: Dockerfile.sync
+      dockerfile: Dockerfile.sync.prod
     environment:
       APP_ENV: development
       # Use postgres:5432 when running in Docker containers
@@ -77,7 +77,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.frontend.prod
       args:
         BRANCH: ${DEV_BRANCH:-dev}
     environment:

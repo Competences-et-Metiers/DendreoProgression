@@ -32,9 +32,6 @@ ARG BUILD_VERSION
 RUN echo "Build date: ${BUILD_DATE:-$(date)}" && \
     echo "Build version: ${BUILD_VERSION:-$(git rev-parse HEAD 2>/dev/null || echo 'no-git')}"
 
-# Force reinstall dependencies to ensure latest versions
-RUN npm ci --legacy-peer-deps --force
-
 # Show what API URL we're building with
 RUN echo "Building React app with API URL: ${REACT_APP_API_URL}"
 

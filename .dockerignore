@@ -43,6 +43,10 @@ wheels/
 *.egg
 venv/
 .venv/
+# Exclude virtual environments completely
+**/venv/
+**/.venv/
+**/node_modules/
 
 # IDE
 .vscode/

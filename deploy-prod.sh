@@ -168,6 +168,13 @@ prepare_sync_scripts() {
 deploy() {
     log_info "Starting production deployment with optimized frontend architecture..."
     
+    # Check for force rebuild flag
+    local build_args=""
+    if [[ "$FORCE_REBUILD" == "true" ]] || [[ "$1" == "--force-rebuild" ]]; then
+        build_args="--no-cache"
+        log_info "Force rebuild requested - building without cache"
+    fi
+    
     # Ensure environment variables are available to docker-compose
     log_info "Verifying environment variables for Docker Compose..."
     if [ -z "$DATABASE_URL" ]; then
@@ -192,9 +199,14 @@ deploy() {
     log_info "Build date: $BUILD_DATE"
     log_info "Build version: $BUILD_VERSION"
     
-    # Build services with no cache to ensure fresh builds
-    log_info "Building services with no cache..."
-    docker compose -f docker-compose.prod.yml build --no-cache
+    # Build services with cache for faster builds
+    if [[ -n "$build_args" ]]; then
+        log_info "Building services with $build_args..."
+        docker compose -f docker-compose.prod.yml build $build_args
+    else
+        log_info "Building services (using cache for performance)..."
+        docker compose -f docker-compose.prod.yml build
+    fi
     
     # Start all services (dependencies will handle order)
     log_info "Starting all services..."
@@ -412,8 +424,10 @@ show_usage() {
     echo "  • Required API keys set in environment file"
     echo ""
     echo "Examples:"
-    echo "  ./deploy-prod.sh                    # Normal production deployment"
+    echo "  ./deploy-prod.sh                    # Normal production deployment (with cache)"
+    echo "  ./deploy-prod.sh --force-rebuild    # Force complete rebuild (no cache)"
     echo "  DEBUG=true ./deploy-prod.sh         # Debug deployment"
+    echo "  FORCE_REBUILD=true ./deploy-prod.sh # Force rebuild via environment"
     echo ""
     echo "After deployment, the sync service will automatically:"
     echo "  • Run daily at 8 AM (configurable via SYNC_SCHEDULE)"
@@ -494,7 +508,7 @@ main() {
     prepare_sync_scripts
     create_backup
     clean_docker_cache
-    deploy
+    deploy "$@"
     initialize_database
     test_sync
     show_status

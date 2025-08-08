@@ -93,10 +93,10 @@ DendreoProgression/
 ├── env.prod.example            # Production environment template
 ├── back/
 │   ├── Dockerfile              # Production backend Dockerfile
-│   └── Dockerfile.dev          # Development backend Dockerfile
+│   └── Dockerfile.backend.prod # Production backend Dockerfile
 ├── frontend/
 │   ├── Dockerfile              # Production frontend Dockerfile
-│   └── Dockerfile.dev          # Development frontend Dockerfile
+│   └── Dockerfile.frontend.prod # Production frontend Dockerfile
 ├── nginx/
 │   └── prod.conf               # Production Nginx configuration
 └── database/
