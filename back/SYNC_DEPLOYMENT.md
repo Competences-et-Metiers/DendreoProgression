@@ -26,7 +26,7 @@ chmod +x back/scripts/sync_health_check.py
 python3 back/scripts/sync_dendreo.py --dry-run
 
 # Test actual sync
-python3 back/scripts/sync_dendreo.py --force
+python3 back/scripts/sync_dendreo.py --force                                                                       
 ```
 
 ### 3. Set Up Automated Scheduling
