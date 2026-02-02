@@ -5,18 +5,19 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
 import Pagination from '../components/Pagination';
 import { useParticipants, useParticipantsCount, usePrefetchQueries } from '../hooks/useQuery';
-import { 
-  Users, 
+import {
+  Users,
   User,
-  BookOpen, 
-  Target, 
+  BookOpen,
+  Target,
   Mail,
   ChevronRight,
   Filter,
   Search,
-  ArrowLeft,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 
 const Participants = () => {
@@ -24,11 +25,46 @@ const Participants = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
-  const [filterBy, setFilterBy] = useState('all');
+  const [sortDirection, setSortDirection] = useState(() => {
+    const cached = localStorage.getItem('participantSortDirection');
+    return cached || 'desc';
+  });
+  const [statusFilters, setStatusFilters] = useState(() => {
+    const cached = localStorage.getItem('participantStatusFilters');
+    return cached ? JSON.parse(cached) : { active: true, completed: true };
+  });
+  const [inactivityDays, setInactivityDays] = useState(() => {
+    const cached = localStorage.getItem('participantInactivityDays');
+    return cached ? parseInt(cached, 10) : 30;
+  });
+  const [inactivityFilterEnabled, setInactivityFilterEnabled] = useState(() => {
+    const cached = localStorage.getItem('participantInactivityFilterEnabled');
+    return cached ? JSON.parse(cached) : false;
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const searchInputRef = useRef(null);
   const navigate = useNavigate();
+
+  // Cache status filters in localStorage
+  useEffect(() => {
+    localStorage.setItem('participantStatusFilters', JSON.stringify(statusFilters));
+  }, [statusFilters]);
+
+  // Cache inactivity days in localStorage
+  useEffect(() => {
+    localStorage.setItem('participantInactivityDays', inactivityDays.toString());
+  }, [inactivityDays]);
+
+  // Cache inactivity filter enabled state in localStorage
+  useEffect(() => {
+    localStorage.setItem('participantInactivityFilterEnabled', JSON.stringify(inactivityFilterEnabled));
+  }, [inactivityFilterEnabled]);
+
+  // Cache sort direction in localStorage
+  useEffect(() => {
+    localStorage.setItem('participantSortDirection', sortDirection);
+  }, [sortDirection]);
   
   // Use React Query hooks for data fetching with caching
   const { 
@@ -60,14 +96,12 @@ const Participants = () => {
   
   const { prefetchParticipantDetails } = usePrefetchQueries();
 
-  // Debounce search term to avoid excessive API calls
-  useEffect(() => {
-    const timer = setTimeout(() => {
+  // Handle search submission on Enter key
+  const handleSearchSubmit = (e) => {
+    if (e.key === 'Enter') {
       setDebouncedSearchTerm(searchTerm);
-    }, 500); // Wait 500ms after user stops typing
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+    }
+  };
 
   // Maintain focus on search input after re-renders
   useEffect(() => {
@@ -83,7 +117,23 @@ const Participants = () => {
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchTerm, filterBy, sortBy]);
+  }, [debouncedSearchTerm, statusFilters, inactivityFilterEnabled, inactivityDays, sortBy, sortDirection]);
+
+  // Helper functions for status filter checkboxes
+  const allStatusesSelected = statusFilters.active && statusFilters.completed;
+
+  const toggleAllStatuses = () => {
+    const newValue = !allStatusesSelected;
+    setStatusFilters({ active: newValue, completed: newValue });
+  };
+
+  const toggleStatusFilter = (status) => {
+    setStatusFilters(prev => ({ ...prev, [status]: !prev[status] }));
+  };
+
+  const toggleSortDirection = () => {
+    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
 
   const handlePageChange = (newPage) => {
     setCurrentPage(newPage);
@@ -106,34 +156,91 @@ const Participants = () => {
     }
   };
 
+  // Helper to get participant's most recent activity from their courses
+  const getParticipantLastActivity = (participant) => {
+    if (!participant.courses || participant.courses.length === 0) return null;
+
+    const lastActivities = participant.courses
+      .map(c => c.last_activity)
+      .filter(Boolean)
+      .map(date => new Date(date));
+
+    if (lastActivities.length === 0) return null;
+    return new Date(Math.max(...lastActivities));
+  };
+
+  // Helper to calculate days since last activity
+  const getDaysSinceLastActivity = (participant) => {
+    const lastActivity = getParticipantLastActivity(participant);
+    if (!lastActivity) return Infinity;
+
+    const now = new Date();
+    const diffTime = Math.abs(now - lastActivity);
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  // Helper to check if participant has completed all their courses
+  const hasCompletedAllCourses = (participant) => {
+    const completedCourses = participant.completed_courses || 0;
+    const totalCourses = participant.total_courses || 0;
+    return totalCourses > 0 && completedCourses === totalCourses;
+  };
+
   const getFilteredAndSortedParticipants = () => {
     let filtered = displayParticipants;
-    
-    // Filter by status (client-side filtering for status is still needed)
-    if (filterBy === 'active') {
-      filtered = filtered.filter(p => p.active_courses > 0);
-    } else if (filterBy === 'completed') {
-      filtered = filtered.filter(p => p.completed_courses > 0);
-    } else if (filterBy === 'inactive') {
-      filtered = filtered.filter(p => p.active_courses === 0 && p.completed_courses === 0);
-    }
-    
+
+    // Filter by status checkboxes (multi-select)
+    filtered = filtered.filter(p => {
+      const isActive = p.active_courses > 0;
+      const isCompleted = p.completed_courses > 0;
+
+      // If inactivity filter is enabled, show participants inactive for X days
+      // BUT exclude those who have completed all their courses (they won't log in anymore)
+      if (inactivityFilterEnabled) {
+        const isInactiveForDays = getDaysSinceLastActivity(p) >= inactivityDays;
+        const completedAll = hasCompletedAllCourses(p);
+
+        // Show if inactive for X days AND not completed all courses
+        if (isInactiveForDays && !completedAll) {
+          return true;
+        }
+        return false;
+      }
+
+      // Without inactivity filter, just use active/completed filters
+      if (isActive && statusFilters.active) return true;
+      if (isCompleted && statusFilters.completed) return true;
+
+      return false;
+    });
+
     // Sort participants
+    const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
+
     return filtered.sort((a, b) => {
+      let comparison = 0;
       switch (sortBy) {
         case 'name':
           const nameA = `${a.prenom || ''} ${a.nom || ''}`.trim();
           const nameB = `${b.prenom || ''} ${b.nom || ''}`.trim();
-          return nameA.localeCompare(nameB);
+          comparison = nameA.localeCompare(nameB, 'fr');
+          break;
         case 'progression':
-          return (b.overall_progression || 0) - (a.overall_progression || 0);
+          comparison = (a.overall_progression || 0) - (b.overall_progression || 0);
+          break;
         case 'courses':
-          return (b.total_courses || 0) - (a.total_courses || 0);
+          comparison = (a.total_courses || 0) - (b.total_courses || 0);
+          break;
         case 'email':
-          return (a.email || '').localeCompare(b.email || '');
+          comparison = (a.email || '').localeCompare(b.email || '', 'fr');
+          break;
+        case 'inactivity':
+          comparison = getDaysSinceLastActivity(a) - getDaysSinceLastActivity(b);
+          break;
         default:
-          return 0;
+          comparison = 0;
       }
+      return comparison * sortMultiplier;
     });
   };
 
@@ -202,17 +309,9 @@ const Participants = () => {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <button
-                onClick={() => navigate('/')}
-                className="mr-4 p-2 text-gray-400 hover:text-gray-600"
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{t('participants.title')}</h1>
-                <p className="text-gray-600 mt-1">{t('participants.subtitle')}</p>
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">{t('participants.title')}</h1>
+              <p className="text-gray-600 mt-1">{t('participants.subtitle')}</p>
             </div>
             
             {/* Navigation Menu */}
@@ -225,22 +324,6 @@ const Participants = () => {
               >
                 <RefreshCw size={16} className={`mr-2 ${isFetching ? 'animate-spin' : ''}`} />
                 {isFetching ? t('common.refreshing') : t('common.refresh')}
-              </button>
-              <button
-                onClick={(e) => {
-                  // Check if Ctrl/Cmd key is pressed or middle mouse button for new tab
-                  if (e.ctrlKey || e.metaKey || e.button === 1) {
-                    // Open in new tab
-                    window.open('/', '_blank', 'noopener,noreferrer');
-                  } else {
-                    navigate('/');
-                  }
-                }}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                title={`${t('navigation.viewCourses')} (Ctrl+Click or middle-click to open in new tab)`}
-              >
-                <BookOpen size={16} className="mr-2" />
-                {t('navigation.viewCourses')}
               </button>
             </div>
           </div>
@@ -261,53 +344,113 @@ const Participants = () => {
               </div>
               
               {/* Search and Filters */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 mt-4 lg:mt-0">
-                {/* Search */}
-                <div className="relative">
-                  <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder={t('participants.searchPlaceholder')}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onFocus={() => sessionStorage.setItem('searchInputFocused', 'true')}
-                    onBlur={() => sessionStorage.removeItem('searchInputFocused')}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm w-64"
-                  />
-                  {searchTerm !== debouncedSearchTerm && (
-                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" title="Searching..."></div>
-                    </div>
-                  )}
+              <div className="flex flex-col space-y-4 mt-4 lg:mt-0">
+                {/* First row: Search and Sort */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      placeholder={t('participants.searchPlaceholder')}
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={handleSearchSubmit}
+                      onFocus={() => sessionStorage.setItem('searchInputFocused', 'true')}
+                      onBlur={() => sessionStorage.removeItem('searchInputFocused')}
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm w-64"
+                    />
+                  </div>
+
+                  {/* Sort */}
+                  <div className="flex items-center space-x-2">
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    >
+                      <option value="name">{t('participants.sort.byName')}</option>
+                      <option value="progression">{t('participants.sort.byProgress')}</option>
+                      <option value="courses">{t('participants.sort.byCourses')}</option>
+                      <option value="email">{t('participants.sort.byEmail')}</option>
+                      <option value="inactivity">{t('participants.sort.byInactivity')}</option>
+                    </select>
+                    <button
+                      onClick={toggleSortDirection}
+                      className="p-2 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                      title={sortDirection === 'asc' ? t('participants.sort.ascending') : t('participants.sort.descending')}
+                    >
+                      {sortDirection === 'asc' ? (
+                        <ArrowUp size={16} className="text-gray-600" />
+                      ) : (
+                        <ArrowDown size={16} className="text-gray-600" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-                
-                {/* Filter */}
-                <div className="flex items-center space-x-2">
-                  <Filter size={16} className="text-gray-500" />
-                  <select
-                    value={filterBy}
-                    onChange={(e) => setFilterBy(e.target.value)}
-                    className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-                  >
-                    <option value="all">{t('participants.filters.allStatus')}</option>
-                    <option value="active">{t('participants.filters.active')}</option>
-                    <option value="completed">{t('participants.filters.completed')}</option>
-                    <option value="inactive">{t('participants.filters.inactive')}</option>
-                  </select>
+
+                {/* Second row: Status Filter Checkboxes */}
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Filter size={16} className="text-gray-500" />
+                  </div>
+
+                  {/* All Status checkbox */}
+                  <label className="flex items-center space-x-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={allStatusesSelected && !inactivityFilterEnabled}
+                      onChange={() => {
+                        toggleAllStatuses();
+                        if (inactivityFilterEnabled) setInactivityFilterEnabled(false);
+                      }}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700">{t('participants.filters.allStatus')}</span>
+                  </label>
+
+                  {/* Active checkbox */}
+                  <label className="flex items-center space-x-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={statusFilters.active}
+                      onChange={() => toggleStatusFilter('active')}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700">{t('participants.filters.active')}</span>
+                  </label>
+
+                  {/* Completed checkbox */}
+                  <label className="flex items-center space-x-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={statusFilters.completed}
+                      onChange={() => toggleStatusFilter('completed')}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700">{t('participants.filters.completed')}</span>
+                  </label>
+
+                  {/* Inactivity days filter */}
+                  <label className="flex items-center space-x-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={inactivityFilterEnabled}
+                      onChange={() => setInactivityFilterEnabled(!inactivityFilterEnabled)}
+                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700">{t('participants.filters.inactiveForDays')}</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={inactivityDays}
+                      onChange={(e) => setInactivityDays(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded-md text-sm text-center"
+                    />
+                    <span className="text-sm text-gray-700">{t('participants.filters.days')}</span>
+                  </label>
                 </div>
-                
-                {/* Sort */}
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
-                >
-                  <option value="name">{t('participants.sort.byName')}</option>
-                  <option value="progression">{t('participants.sort.byProgress')}</option>
-                  <option value="courses">{t('participants.sort.byCourses')}</option>
-                  <option value="email">{t('participants.sort.byEmail')}</option>
-                </select>
               </div>
             </div>
           </div>
@@ -329,7 +472,7 @@ const Participants = () => {
                 <div className="px-6 py-12 text-center">
                   <Users size={48} className="mx-auto text-gray-400 mb-4" />
                   <p className="text-gray-500">
-                    {searchTerm || filterBy !== 'all' 
+                    {searchTerm || !allStatusesSelected || inactivityFilterEnabled
                       ? t('errors.noParticipantsMatchingCriteria')
                       : t('common.noParticipantsFound')
                     }

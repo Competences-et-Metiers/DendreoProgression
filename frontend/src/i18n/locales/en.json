@@ -151,7 +151,8 @@
     "moduleProgressInfo": "Module Progress Information",
     "moduleProgressDetails": "Module Progress Details",
     "timeSpent": "Time Spent",
-    "plannedDuration": "Planned Duration"
+    "plannedDuration": "Planned Duration",
+    "comingSoon": "Coming Soon"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -242,13 +243,18 @@
       "allStatus": "All Status",
       "active": "Active",
       "completed": "Completed",
-      "inactive": "Inactive"
+      "inactive": "Inactive",
+      "inactiveForDays": "Inactive for",
+      "days": "days"
     },
     "sort": {
       "byName": "Sort by Name",
       "byProgress": "Sort by Progress",
       "byCourses": "Sort by Courses",
-      "byEmail": "Sort by Email"
+      "byEmail": "Sort by Email",
+      "byInactivity": "Sort by Inactivity",
+      "ascending": "Ascending",
+      "descending": "Descending"
     },
     "status": {
       "allCompleted": "All Completed",
@@ -309,5 +315,42 @@
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "lastPage": "Last page"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "participants": "Participants",
+    "inactiveManagement": "Inactive Management",
+    "account": "My Account",
+    "settings": "Settings",
+    "logout": "Logout",
+    "expand": "Expand menu",
+    "collapse": "Collapse menu",
+    "comingSoon": "Soon"
+  },
+  "account": {
+    "title": "My Account",
+    "subtitle": "Manage your profile and preferences",
+    "placeholder": "Account management will be available soon. You will be able to edit your personal information and preferences."
+  },
+  "inactiveManagement": {
+    "title": "Inactive Management",
+    "subtitle": "Track and manage inactive participants",
+    "placeholder": "Inactive participant management will be available soon. You will be able to identify and re-engage participants who have been inactive."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Configure application options",
+    "placeholder": "Application settings will be available soon. You will be able to customize the interface and notifications."
+  },
+  "login": {
+    "title": "Login",
+    "subtitle": "Sign in to access the dashboard",
+    "username": "Username",
+    "usernamePlaceholder": "Enter your username",
+    "password": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "submit": "Sign in",
+    "loggingIn": "Signing in...",
+    "error": "Invalid credentials"
   }
 } 
