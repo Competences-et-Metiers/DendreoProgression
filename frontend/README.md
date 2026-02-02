@@ -10,6 +10,7 @@ A modern React frontend application for tracking course progression and particip
 - **Progress Visualization**: Interactive progress bars and completion indicators
 - **Search & Filter**: Advanced filtering and sorting capabilities
 - **Responsive Design**: Mobile-friendly interface built with Tailwind CSS
+- **Internationalization**: Multi-language support with French as default language
 
 ## Screenshots
 
@@ -39,7 +40,7 @@ cd frontend
 
 2. Install dependencies:
 ```bash
-npm install
+npm install --legacy-peer-deps
 ```
 
 3. (Optional) Create a `.env` file to configure the API URL:
@@ -100,6 +101,7 @@ src/
 - **Tailwind CSS** - Utility-first CSS framework
 - **Lucide React** - Icon library
 - **clsx** - Utility for conditional CSS classes
+- **react-i18next** - Internationalization framework
 
 ## Available Scripts
 
@@ -118,6 +120,21 @@ The application uses Tailwind CSS for styling. You can customize the design by:
 
 ### API Configuration  
 Update the API base URL in `src/services/api.js` or set the `REACT_APP_API_URL` environment variable.
+
+### Language Support
+The application supports multiple languages with French as the default:
+
+- **French (fr)** - Default language
+- **English (en)** - Secondary language
+
+Users can switch languages using the language selector in the top-right corner of the dashboard. The language preference is saved in localStorage and persists across sessions.
+
+#### Adding New Languages
+To add a new language:
+
+1. Create a new translation file in `src/i18n/locales/[language-code].json`
+2. Add the language to the `languages` array in `src/components/LanguageSelector.js`
+3. Update the i18n configuration in `src/i18n/index.js`
 
 ## Browser Support
 

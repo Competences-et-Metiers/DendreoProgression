@@ -73,6 +73,19 @@ class DendreoClient:
             logger.warning(f"No LAPS data found for ADF {id_action_formation}")
             return []
 
+    async def get_lmps_for_lap(self, id_lap: str) -> List[Dict[str, Any]]:
+        """Get LMPs data for a specific LAP (participant enrollment)"""
+        params = {
+            "id_lap": id_lap,
+            "include": "participant,module"
+        }
+        try:
+            response = await self._make_request("lmps.php", params)
+            return response if response and isinstance(response, list) else []
+        except DendreoAPIError:
+            logger.warning(f"No LMPs data found for LAP {id_lap}")
+            return []
+
     async def get_lmps_data(self) -> List[Dict[str, Any]]:
         """Legacy method - use get_lmps() instead"""
         return await self.get_lmps()

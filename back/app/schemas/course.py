@@ -6,6 +6,7 @@ class ModuleResponse(BaseModel):
     id: int
     id_lmp: str
     id_lam: str
+    intitule: Optional[str] = None
     progression: float
     last_access_at: Optional[datetime] = None
     

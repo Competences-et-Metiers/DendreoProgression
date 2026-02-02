@@ -1,0 +1,213 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiService } from '../services/api';
+import { queryKeys } from '../queryClient';
+
+// Dashboard hooks
+export const useDashboardStats = () => {
+  return useQuery({
+    queryKey: queryKeys.dashboardStats,
+    queryFn: apiService.getDashboardStats,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnMount: false, // Don't refetch if data is still fresh
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Course hooks
+export const useCourses = () => {
+  return useQuery({
+    queryKey: queryKeys.courses,
+    queryFn: apiService.getAllCourses,
+    staleTime: 10 * 60 * 1000, // 10 minutes - courses don't change often
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useCourseParticipants = (courseId) => {
+  return useQuery({
+    queryKey: queryKeys.courseParticipants(courseId),
+    queryFn: () => apiService.getCourseParticipants(courseId),
+    enabled: !!courseId, // Only run if courseId is provided
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Participant hooks
+export const useParticipants = (page = 1, pageSize = 25, searchTerm = '') => {
+  return useQuery({
+    queryKey: [...queryKeys.participants, page, pageSize, searchTerm],
+    queryFn: () => apiService.getAllParticipants(page, pageSize, searchTerm),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useParticipantsCount = (searchTerm = '') => {
+  return useQuery({
+    queryKey: [...queryKeys.participants, 'count', searchTerm],
+    queryFn: () => apiService.getParticipantsCount(searchTerm),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useParticipantDetails = (participantId) => {
+  return useQuery({
+    queryKey: queryKeys.participantDetails(participantId),
+    queryFn: () => apiService.getParticipantDetails(participantId),
+    enabled: !!participantId, // Only run if participantId is provided
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Sync hooks
+export const useSyncStats = () => {
+  return useQuery({
+    queryKey: queryKeys.syncStats,
+    queryFn: apiService.getElearningSyncStats,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnMount: true, // Always refresh sync stats
+    refetchOnWindowFocus: true,
+  });
+};
+
+export const useLastSync = () => {
+  return useQuery({
+    queryKey: ['lastSync'],
+    queryFn: apiService.getLastSync,
+    staleTime: 1 * 60 * 1000, // 1 minute - shorter since this changes frequently
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    retry: 2,
+    refetchOnWindowFocus: true, // Refetch when window gets focus
+    refetchOnMount: true, // Always refresh sync info
+  });
+};
+
+// Mutation hooks for cache invalidation
+export const useSyncMutation = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: apiService.syncAll,
+    onSuccess: () => {
+      // Invalidate all queries after sync
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats });
+      queryClient.invalidateQueries({ queryKey: queryKeys.courses });
+      queryClient.invalidateQueries({ queryKey: queryKeys.participants });
+      queryClient.invalidateQueries({ queryKey: ['lastSync'] });
+    },
+  });
+};
+
+// Helper hook for prefetching
+export const usePrefetchQueries = () => {
+  const queryClient = useQueryClient();
+  
+  const prefetchDashboard = () => {
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.dashboardStats,
+      queryFn: apiService.getDashboardStats,
+      staleTime: 5 * 60 * 1000,
+    });
+  };
+  
+  const prefetchCourses = () => {
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.courses,
+      queryFn: apiService.getAllCourses,
+      staleTime: 10 * 60 * 1000,
+    });
+  };
+  
+  const prefetchParticipants = () => {
+    queryClient.prefetchQuery({
+      queryKey: queryKeys.participants,
+      queryFn: apiService.getAllParticipants,
+      staleTime: 5 * 60 * 1000,
+    });
+  };
+  
+  const prefetchParticipantDetails = (participantId) => {
+    if (participantId) {
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.participantDetails(participantId),
+        queryFn: () => apiService.getParticipantDetails(participantId),
+        staleTime: 5 * 60 * 1000,
+      });
+    }
+  };
+  
+  const prefetchCourseParticipants = (courseId) => {
+    if (courseId) {
+      queryClient.prefetchQuery({
+        queryKey: queryKeys.courseParticipants(courseId),
+        queryFn: () => apiService.getCourseParticipants(courseId),
+        staleTime: 5 * 60 * 1000,
+      });
+    }
+  };
+  
+  return {
+    prefetchDashboard,
+    prefetchCourses,
+    prefetchParticipants,
+    prefetchParticipantDetails,
+    prefetchCourseParticipants,
+  };
+};
+
+// Cache management hooks
+export const useCacheManager = () => {
+  const queryClient = useQueryClient();
+  
+  const invalidateAll = () => {
+    queryClient.invalidateQueries();
+  };
+  
+  const invalidateDashboard = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats });
+  };
+  
+  const invalidateCourses = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.courses });
+  };
+  
+  const invalidateParticipants = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.participants });
+  };
+  
+  const invalidateParticipantDetails = (participantId) => {
+    if (participantId) {
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.participantDetails(participantId) 
+      });
+    }
+  };
+  
+  const clearCache = () => {
+    queryClient.clear();
+  };
+  
+  return {
+    invalidateAll,
+    invalidateDashboard,
+    invalidateCourses,
+    invalidateParticipants,
+    invalidateParticipantDetails,
+    clearCache,
+  };
+}; 

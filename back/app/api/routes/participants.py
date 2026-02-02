@@ -1,15 +1,100 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from typing import List, Optional
 from app.models.database import get_db
 from app.models.models import Participant, ParticipantCourse, Course
 from app.models.schemas import ParticipantWithProgress, ParticipantCourse as ParticipantCourseSchema
+from app.services.cache_service import cache_service
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+def normalize_search_term(search: str) -> list:
+    """Normalize search term to handle accented characters and create multiple search patterns"""
+    # Define accent mappings for all common characters
+    accent_map = {
+        'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+        'à': 'a', 'â': 'a', 'ä': 'a',
+        'î': 'i', 'ï': 'i',
+        'ô': 'o', 'ö': 'o',
+        'ù': 'u', 'û': 'u', 'ü': 'u',
+        'ÿ': 'y',
+        'ç': 'c'
+    }
+    
+    # Create reverse mapping for generating accented variations
+    reverse_accent_map = {}
+    for accented, non_accented in accent_map.items():
+        if non_accented not in reverse_accent_map:
+            reverse_accent_map[non_accented] = []
+        reverse_accent_map[non_accented].append(accented)
+    
+    # Remove accents from search term
+    search_no_accent = search
+    for accented, non_accented in accent_map.items():
+        search_no_accent = search_no_accent.replace(accented, non_accented)
+    
+    # Create bidirectional patterns - both with and without accents
+    patterns = []
+    
+    # Original search term patterns
+    patterns.extend([
+        f"%{search}%",  # Original search term
+        f"%{search.lower()}%",  # Lowercase
+        f"%{search_no_accent}%",  # Without accents
+        f"%{search_no_accent.lower()}%"  # Lowercase without accents
+    ])
+    
+    # If the search term has no accents, generate all possible accented variations
+    if search == search_no_accent:
+        # Generate all possible combinations of accented characters
+        # This creates patterns like "Frédéric", "Frèdéric", "Frêdéric", etc.
+        def generate_accented_variations(text, index=0):
+            if index >= len(text):
+                return [text]
+            
+            char = text[index].lower()
+            variations = []
+            
+            if char in reverse_accent_map:
+                # For each accent variation of this character
+                for accent in reverse_accent_map[char]:
+                    # Create variation with this accent
+                    accented_text = text[:index] + accent + text[index+1:]
+                    # Recursively generate variations for remaining characters
+                    sub_variations = generate_accented_variations(accented_text, index + 1)
+                    variations.extend(sub_variations)
+            
+            # Also include the original character (no accent)
+            sub_variations = generate_accented_variations(text, index + 1)
+            variations.extend(sub_variations)
+            
+            return variations
+        
+        # Generate all accented variations
+        accented_variations = generate_accented_variations(search)
+        
+        # Add patterns for each variation
+        for variation in accented_variations:
+            if variation != search:  # Avoid duplicates
+                patterns.extend([
+                    f"%{variation}%",
+                    f"%{variation.lower()}%"
+                ])
+    
+    # Remove duplicates while preserving order
+    unique_patterns = []
+    for pattern in patterns:
+        if pattern not in unique_patterns:
+            unique_patterns.append(pattern)
+    
+    return unique_patterns
 
 def calculate_activity_status(participant_course: ParticipantCourse, db: Session = None) -> str:
     """Calculate activity status for a participant course"""
-    from datetime import datetime
+    from datetime import datetime, timezone
     from app.models.models import Module, Course
 
     # Check if completed
@@ -45,7 +130,14 @@ def calculate_activity_status(participant_course: ParticipantCourse, db: Session
     if not last_activity:
         return "not_started"
 
-    days_since_access = (datetime.now() - last_activity).days
+    # Use timezone-aware datetime to compare with database timestamps
+    now = datetime.now(timezone.utc)
+    
+    # Ensure last_activity is timezone-aware
+    if last_activity.tzinfo is None:
+        last_activity = last_activity.replace(tzinfo=timezone.utc)
+    
+    days_since_access = (now - last_activity).days
 
     if days_since_access <= 30:  # 30 days threshold
         return "active"
@@ -55,22 +147,49 @@ def calculate_activity_status(participant_course: ParticipantCourse, db: Session
 @router.get("/", response_model=List[ParticipantWithProgress])
 async def get_participants(
         skip: int = Query(0, ge=0),
-        limit: int = Query(100, ge=1, le=1000),
+        limit: int = Query(25, ge=1, le=1000),
         email: Optional[str] = Query(None),
         company: Optional[str] = Query(None),
+        search: Optional[str] = Query(None),
         db: Session = Depends(get_db)
 ):
     """Get all participants with their course progress"""
     try:
+        # For basic requests without filters, try cache first
+        if skip == 0 and limit == 100 and not email and not company and not search:
+            cached_participants = cache_service.get_participants_list()
+            if cached_participants:
+                logger.info("🚀 Participants list served from cache")
+                return cached_participants
+            logger.info("👥 Computing participants list from database")
+        
         query = db.query(Participant).options(
-            joinedload(Participant.participant_courses).joinedload(ParticipantCourse.course)
+            joinedload(Participant.courses).joinedload(ParticipantCourse.course)
         )
 
         # Apply filters
-        if email:
+        if search:
+            # Search across email, first name, and last name with accent-insensitive search
+            search_patterns = normalize_search_term(search)
+            logger.info(f"🔍 Search patterns for '{search}': {search_patterns}")
+            
+            # Build OR conditions for each pattern
+            search_conditions = []
+            
+            for pattern in search_patterns:
+                search_conditions.extend([
+                    Participant.email.ilike(pattern),
+                    Participant.prenom.ilike(pattern),
+                    Participant.nom.ilike(pattern),
+                    (Participant.prenom + ' ' + Participant.nom).ilike(pattern)
+                ])
+            
+            query = query.filter(or_(*search_conditions))
+        elif email:
             query = query.filter(Participant.email.ilike(f"%{email}%"))
-        if company:
-            query = query.filter(Participant.company.ilike(f"%{company}%"))
+        # Note: company field doesn't exist in our model, so removing this filter
+        # if company:
+        #     query = query.filter(Participant.company.ilike(f"%{company}%"))
 
         # Apply pagination
         participants = query.offset(skip).limit(limit).all()
@@ -81,16 +200,16 @@ async def get_participants(
             participant_data = ParticipantWithProgress.model_validate(participant)
 
             # Calculate overall progression and counts
-            if participant.participant_courses:
-                progressions = [pc.overall_progression for pc in participant.participant_courses if pc.overall_progression is not None]
+            if participant.courses:
+                progressions = [pc.overall_progression for pc in participant.courses if pc.overall_progression is not None]
                 participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
-                participant_data.total_courses = len(participant.participant_courses)
+                participant_data.total_courses = len(participant.courses)
 
                 # Update activity statuses and count them
                 completed_courses = 0
                 active_courses = 0
 
-                for pc in participant.participant_courses:
+                for pc in participant.courses:
                     status = calculate_activity_status(pc, db)
                     pc.activity_status = status  # Update the status
                     if status == 'completed':
@@ -100,21 +219,65 @@ async def get_participants(
 
                 participant_data.completed_courses = completed_courses
                 participant_data.active_courses = active_courses
-                participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.participant_courses]
+                participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.courses]
 
             result.append(participant_data)
+
+        # Cache the result if it's the default query
+        if skip == 0 and limit == 25 and not email and not company and not search:
+            cache_service.set_participants_list(result, ttl=300)
 
         return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching participants: {str(e)}")
 
+@router.get("/count")
+async def get_participants_count(
+        email: Optional[str] = Query(None),
+        company: Optional[str] = Query(None),
+        search: Optional[str] = Query(None),
+        db: Session = Depends(get_db)
+):
+    """Get total count of participants"""
+    try:
+        query = db.query(Participant)
+
+        # Apply filters
+        if search:
+            # Search across email, first name, and last name with accent-insensitive search
+            search_patterns = normalize_search_term(search)
+            
+            # Build OR conditions for each pattern
+            search_conditions = []
+            
+            for pattern in search_patterns:
+                search_conditions.extend([
+                    Participant.email.ilike(pattern),
+                    Participant.prenom.ilike(pattern),
+                    Participant.nom.ilike(pattern),
+                    (Participant.prenom + ' ' + Participant.nom).ilike(pattern)
+                ])
+            
+            query = query.filter(or_(*search_conditions))
+        elif email:
+            query = query.filter(Participant.email.ilike(f"%{email}%"))
+        # Note: company field doesn't exist in our model, so removing this filter
+        # if company:
+        #     query = query.filter(Participant.company.ilike(f"%{company}%"))
+
+        count = query.count()
+        return {"total": count}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error counting participants: {str(e)}")
+
 @router.get("/{participant_id}", response_model=ParticipantWithProgress)
 async def get_participant(participant_id: int, db: Session = Depends(get_db)):
     """Get a specific participant with their course progress"""
     try:
         participant = db.query(Participant).options(
-            joinedload(Participant.participant_courses).joinedload(ParticipantCourse.course)
+            joinedload(Participant.courses).joinedload(ParticipantCourse.course)
         ).filter(Participant.id == participant_id).first()
 
         if not participant:
@@ -123,16 +286,16 @@ async def get_participant(participant_id: int, db: Session = Depends(get_db)):
         # Convert to response model with calculated fields
         participant_data = ParticipantWithProgress.model_validate(participant)
 
-        if participant.participant_courses:
-            progressions = [pc.overall_progression for pc in participant.participant_courses if pc.overall_progression is not None]
+        if participant.courses:
+            progressions = [pc.overall_progression for pc in participant.courses if pc.overall_progression is not None]
             participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
-            participant_data.total_courses = len(participant.participant_courses)
+            participant_data.total_courses = len(participant.courses)
 
             # Update activity statuses and count them
             completed_courses = 0
             active_courses = 0
 
-            for pc in participant.participant_courses:
+            for pc in participant.courses:
                 status = calculate_activity_status(pc, db)
                 pc.activity_status = status  # Update the status
                 if status == 'completed':
@@ -142,7 +305,7 @@ async def get_participant(participant_id: int, db: Session = Depends(get_db)):
 
             participant_data.completed_courses = completed_courses
             participant_data.active_courses = active_courses
-            participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.participant_courses]
+            participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.courses]
 
         return participant_data
 
@@ -156,7 +319,7 @@ async def get_participant_by_email(email: str, db: Session = Depends(get_db)):
     """Get a participant by email"""
     try:
         participant = db.query(Participant).options(
-            joinedload(Participant.participant_courses).joinedload(ParticipantCourse.course)
+            joinedload(Participant.courses).joinedload(ParticipantCourse.course)
         ).filter(Participant.email == email).first()
 
         if not participant:
@@ -165,16 +328,16 @@ async def get_participant_by_email(email: str, db: Session = Depends(get_db)):
         # Convert to response model with calculated fields
         participant_data = ParticipantWithProgress.model_validate(participant)
 
-        if participant.participant_courses:
-            progressions = [pc.overall_progression for pc in participant.participant_courses if pc.overall_progression is not None]
+        if participant.courses:
+            progressions = [pc.overall_progression for pc in participant.courses if pc.overall_progression is not None]
             participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
-            participant_data.total_courses = len(participant.participant_courses)
+            participant_data.total_courses = len(participant.courses)
 
             # Update activity statuses and count them
             completed_courses = 0
             active_courses = 0
 
-            for pc in participant.participant_courses:
+            for pc in participant.courses:
                 status = calculate_activity_status(pc, db)
                 pc.activity_status = status  # Update the status
                 if status == 'completed':
@@ -184,7 +347,7 @@ async def get_participant_by_email(email: str, db: Session = Depends(get_db)):
 
             participant_data.completed_courses = completed_courses
             participant_data.active_courses = active_courses
-            participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.participant_courses]
+            participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.courses]
 
         return participant_data
 

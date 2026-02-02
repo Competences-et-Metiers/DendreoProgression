@@ -3,12 +3,15 @@
 Database Reset Script
 Drops all tables and recreates them with fresh schema.
 USE WITH CAUTION - This will delete ALL data!
+
+NOTE: Run this script after schema changes (e.g., adding id_lap to ParticipantCourse) to apply the latest schema to your database.
 """
 
 import sys
 import logging
 from sqlalchemy import create_engine, text, inspect
-from app.models.database import DATABASE_URL, Base
+from app.models.database import Base
+from app.config.settings import settings
 from pathlib import Path
 
 # Add the app directory to the path
@@ -32,10 +35,10 @@ def reset_database():
         # Import all models to ensure they're registered with Base metadata
         from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData
         
-        logger.info(f"Connecting to database: {DATABASE_URL}")
+        logger.info(f"Connecting to database: {settings.database_url}")
         
         # Create engine
-        engine = create_engine(DATABASE_URL)
+        engine = create_engine(settings.database_url)
         
         # Test connection
         with engine.connect() as connection:

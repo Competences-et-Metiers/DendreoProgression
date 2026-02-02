@@ -1,0 +1,251 @@
+services:
+  # Production Nginx (Load Balancer & Reverse Proxy)
+  nginx:
+    image: nginx:alpine
+    container_name: dendreo_nginx_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      - ./logs/nginx:/var/log/nginx
+      - frontend_build:/usr/share/nginx/html
+      # SSL certificates
+      - ./ssl:/etc/nginx/ssl:ro
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    networks:
+      - dendreo_network
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    env_file:
+      - .env.prod
+
+  # Production Backend
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile.backend.prod
+    env_file:
+      - .env.prod
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+      # API Configuration
+      DENDREO_API_KEY: ${DENDREO_API_KEY}
+      DENDREO_BASE_URL: ${DENDREO_BASE_URL}
+      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY}
+      # Redis configuration (optional)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Timezone configuration
+      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
+      TZ: ${TZ:-Europe/Paris}
+    # Backend only exposed internally - nginx handles external traffic
+    expose:
+      - "${BACKEND_PORT:-8000}"
+    volumes:
+      - ./logs:/app/logs
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${BACKEND_PORT:-8000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Production Sync Service
+  sync:
+    build:
+      context: ./back
+      dockerfile: Dockerfile.sync.prod
+    container_name: dendreo_sync_prod
+    env_file:
+      - .env.prod
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL}
+      LOG_LEVEL: ${SYNC_LOG_LEVEL:-INFO}
+      PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+      # API Configuration
+      DENDREO_API_KEY: ${DENDREO_API_KEY}
+      DENDREO_BASE_URL: ${DENDREO_BASE_URL}
+      HUBSPOT_API_KEY: ${HUBSPOT_API_KEY}
+      # Redis configuration (optional)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Timezone configuration
+      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
+      TZ: ${TZ:-Europe/Paris}
+      # Sync Configuration - Production schedule (8 AM daily)
+      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 8 * * *}
+      DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-}
+    # Auto-migrate DB schema before starting cron/entrypoint
+    command: ["bash", "-lc", "echo '⏳ Waiting for database...'; until pg_isready -h postgres -p 5432 -U '$POSTGRES_USER' -d '$POSTGRES_DB' -t 3 >/dev/null 2>&1; do echo '...still waiting'; sleep 2; done; echo '✅ Database is ready'; python3 scripts/migrate_database.py || echo '⚠️  Migration failed or skipped'; exec /app/entrypoint.sh"]
+    volumes:
+      - ./logs:/app/logs:rw
+      - sync_logs:/app/logs/sync
+      # Override sync wrapper script with production version
+      - ./back/scripts/sync_wrapper_prod.sh:/app/sync_wrapper_cron.sh:ro
+      # Add diagnostic and management scripts
+      - ./back/scripts/check_sync_status.py:/app/scripts/check_sync_status.py:ro
+      - ./back/scripts/setup_sync_table.py:/app/scripts/setup_sync_table.py:ro
+      - ./back/scripts/diagnose_cron.py:/app/scripts/diagnose_cron.py:ro
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "scripts/sync_health_check.py", "--nagios", "--exit-code"]
+      interval: 1h
+      timeout: 30s
+      retries: 3
+      start_period: 5m
+    labels:
+      - "dendreo.service=sync-prod"
+      - "dendreo.description=Production sync service for automated data synchronization"
+
+  # Production Frontend (Build Only)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend.prod
+      args:
+        BRANCH: ${PROD_BRANCH:-main}
+        REACT_APP_API_URL: /api
+        BUILD_DATE: ${BUILD_DATE:-$(date)}
+        BUILD_VERSION: ${BUILD_VERSION:-$(git rev-parse HEAD 2>/dev/null || echo 'no-git')}
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      GENERATE_SOURCEMAP: ${GENERATE_SOURCEMAP:-false}
+      SKIP_PREFLIGHT_CHECK: ${SKIP_PREFLIGHT_CHECK:-true}
+    volumes:
+      - frontend_build:/app/build
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    networks:
+      - dendreo_network
+    depends_on:
+      - backend
+    restart: "no"
+    command: ["sh", "-c", "cp -r /usr/share/nginx/html/* /app/build/ && sleep infinity"]
+
+  # Portainer - Container Management UI
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: dendreo_portainer_prod
+    ports:
+      - "${PORTAINER_HTTP_PORT:-9000}:9000"
+      - "${PORTAINER_HTTPS_PORT:-9443}:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_prod_data:/data
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+
+  # Production Database
+  postgres:
+    image: postgres:15
+    container_name: dendreo_postgres_prod
+    env_file:
+      - .env.prod
+    environment:
+      # Set PostgreSQL timezone to match container timezone
+      POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
+      TZ: ${TZ:-Europe/Paris}
+    # Remove external port exposure for security
+    expose:
+      - "5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d/
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-dendreo_prod_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: dendreo_redis_prod
+    expose:
+      - "6379"
+    volumes:
+      - redis_prod_data:/data
+      # Timezone mapping
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    env_file:
+      - .env.prod
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  frontend_build:
+    driver: local
+  portainer_prod_data:
+    driver: local
+  sync_logs:
+    driver: local
+  redis_prod_data:
+    driver: local
+
+networks:
+  dendreo_network:
+    driver: bridge 
