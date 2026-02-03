@@ -641,6 +641,25 @@ Potential additions (not yet implemented):
    app.include_router(new_router, prefix="/api/new", tags=["new"])
    ```
 
+### Important: Route Ordering in FastAPI
+
+**CRITICAL:** In FastAPI, route order matters. Specific routes must be defined BEFORE parameterized routes.
+
+**Example from participants.py:**
+```python
+# Correct order ✅
+@router.get("/count")          # Specific route
+@router.get("/inactive")       # Specific route
+@router.get("/{participant_id}") # Parameterized route - MUST come last
+@router.get("/email/{email}")  # Different parameter name - OK after
+
+# Wrong order ❌
+@router.get("/{participant_id}") # This will match EVERYTHING
+@router.get("/inactive")         # Never reached - "inactive" matches as participant_id
+```
+
+**Why:** FastAPI matches routes in order. A parameterized route like `/{participant_id}` will match ANY string, including "inactive" or "count". Always define specific string routes before parameterized ones.
+
 ## Timestamps & Timezone
 
 - All timestamps stored in UTC: `DateTime(timezone=True)`
@@ -679,3 +698,49 @@ python reset_database.py --force
 - ✅ Course grouping for inactive participants
 - ✅ Configurable thresholds for intervention levels
 - ✅ API endpoint `/api/participants/inactive` with comprehensive filters
+- ✅ API rate limiting to comply with Dendreo's 100 req/10s limit
+- ✅ FastAPI route ordering fix for `/inactive` endpoint (must be before `/{participant_id}`)
+- ✅ Added `backups/` to .gitignore (prevents committing sensitive credentials)
+
+## Deployment Backups
+
+### Automatic Backups
+
+The `deploy-prod.sh` script automatically creates timestamped backups before each deployment in the `backups/` directory.
+
+**Backup Structure:**
+```
+backups/
+└── YYYYMMDD_HHMMSS/
+    ├── env_backup              # Copy of .env.prod (credentials, API keys)
+    ├── database_backup.sql     # PostgreSQL dump (if DB is running)
+    └── logs_backup/            # Application logs
+        ├── sync_YYYYMMDD.log
+        ├── sync_status.json
+        └── nginx/
+            ├── access.log
+            └── error.log
+```
+
+**Important Notes:**
+- Backups are **NOT committed to git** (in `.gitignore`)
+- Contains sensitive data (passwords, API keys, tokens)
+- Useful for disaster recovery and deployment rollback
+- Created automatically on every `./deploy-prod.sh` run
+- Physical files remain on disk even after git ignores them
+
+**Restoration:**
+```bash
+# Restore environment configuration
+cp backups/20260203_121237/env_backup .env.prod
+
+# Restore database (if needed)
+docker compose -f docker-compose.prod.yml exec -T postgres \
+  psql -U postgres dendreo_prod_db < backups/20260203_121237/database_backup.sql
+```
+
+**Cleanup old backups:**
+```bash
+# Remove backups older than 7 days
+find backups/ -type d -mtime +7 -exec rm -rf {} +
+```
