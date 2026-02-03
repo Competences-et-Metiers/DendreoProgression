@@ -1,0 +1,56 @@
+[Unit]
+Description=Dendreo Progression Production Service
+Documentation=https://github.com/your-org/dendreo-progression
+After=network.target network-online.target docker.service
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=forking
+RemainAfterExit=yes
+User=root
+Group=root
+WorkingDirectory=/home/cm/DendreoProgression
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=DOCKER_BUILDKIT=1
+Environment=COMPOSE_DOCKER_CLI_BUILD=1
+
+# Main service commands
+ExecStartPre=-/usr/bin/docker system prune -f
+ExecStart=/home/cm/DendreoProgression/dendreo-service-manager.sh start
+ExecStop=/home/cm/DendreoProgression/dendreo-service-manager.sh stop
+ExecReload=/home/cm/DendreoProgression/dendreo-service-manager.sh restart
+
+# Health check
+ExecStartPost=/bin/sleep 30
+ExecStartPost=/home/cm/DendreoProgression/dendreo-service-manager.sh health
+
+# Timeouts
+TimeoutStartSec=600
+TimeoutStopSec=120
+TimeoutReloadSec=300
+
+# Restart policy
+Restart=on-failure
+RestartSec=30
+StartLimitInterval=300
+StartLimitBurst=3
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dendreo-service
+
+# Security settings
+NoNewPrivileges=false
+PrivateTmp=false
+PrivateDevices=false
+ProtectSystem=false
+ProtectHome=false
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+[Install]
+WantedBy=multi-user.target 

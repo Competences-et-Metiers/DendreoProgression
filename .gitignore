@@ -106,3 +106,5 @@ coverage.xml
 
 # Redis dump file
 dump.rdb
+
+.backups/

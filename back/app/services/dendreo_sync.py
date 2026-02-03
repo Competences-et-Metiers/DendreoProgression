@@ -52,91 +52,189 @@ class DendreoSync:
         }
 
     async def sync_all(self) -> Dict[str, Any]:
-        """Synchronize all data from Dendreo"""
+        """Synchronize all data from Dendreo using chunked LAP-based approach"""
         try:
-            logger.info("Starting full sync from Dendreo API")
+            logger.info("🚀 Starting CHUNKED sync from Dendreo API (LAP-based approach)")
             start_time = datetime.now()
 
-            # Get all data from Dendreo
-            lmps_data = await self.client.get_lmps()
-            if not isinstance(lmps_data, list):
-                logger.error(f"Invalid LMPs data type received: {type(lmps_data)}")
-                return {
-                    "status": "error",
-                    "message": "Invalid LMPs data received from API"
-                }
-                
+            # Fetch ADFs (lightweight - no 70MB monster!)
             adf_data = await self.client.get_actions_de_formation()
-            logger.info(f"Fetched {len(adf_data) if adf_data else 0} ADF records from API")
+            logger.info(f"✅ Fetched {len(adf_data) if adf_data else 0} ADF records from API")
             if not isinstance(adf_data, list):
                 logger.error(f"Invalid ADFs data type received: {type(adf_data)}")
                 return {
                     "status": "error",
                     "message": "Invalid ADFs data received from API"
                 }
-            
+
             # Apply ADF limit if set
             if self.adf_limit:
-                logger.info(f"Limiting total ADFs to {self.adf_limit} (DENDREO_ADF_LIMIT)")
+                logger.info(f"⚠️  Limiting total ADFs to {self.adf_limit} (DENDREO_ADF_LIMIT)")
                 adf_data = adf_data[:self.adf_limit]
                 logger.info(f"After limit: {len(adf_data)} ADF records")
-            
-            # Filter for modules (e-learning for progression, all modes for time tracking)
-            logger.info("Filtering modules for processing...")
-            elearning_records = self._filter_elearning_records(lmps_data)
-            logger.info(f"Found {len(elearning_records)} records for processing")
 
-            # Process ADFs in batches
-            logger.info("Processing ADFs...")
+            # Process ADFs in batches to create courses
+            logger.info("📚 Processing ADFs to create courses...")
             active_courses = {}
             adf_batches = [adf_data[i:i + self.batch_size] for i in range(0, len(adf_data), self.batch_size)]
-            
+
             for batch_num, adf_batch in enumerate(adf_batches, 1):
                 logger.info(f"Processing ADF batch {batch_num}/{len(adf_batches)}")
                 batch_courses = await self._process_adfs(adf_batch)
                 active_courses.update(batch_courses)
                 self.db.commit()
 
-            # Process LMPs in batches FIRST (to create ParticipantCourse records)
-            logger.info("Processing LMPs...")
-            lmp_batches = [elearning_records[i:i + self.batch_size] for i in range(0, len(elearning_records), self.batch_size)]
-            
             # Track all current participant-course combinations
             all_current_participant_courses = set()
-            
-            for batch_num, lmp_batch in enumerate(lmp_batches, 1):
-                logger.info(f"Processing LMP batch {batch_num}/{len(lmp_batches)}")
-                batch_participant_courses = await self._process_lmps(lmp_batch, active_courses)
-                all_current_participant_courses.update(batch_participant_courses)
-                # Note: _process_lmps now handles its own commit
 
-            # Process HubSpot data from LAPS AFTER LMPs (to update ParticipantCourse records with id_lap)
-            logger.info("Processing HubSpot data from LAPS...")
-            logger.info(f"ADF data count before _process_hubspot_data: {len(adf_data) if adf_data else 0}")
-            await self._process_hubspot_data(adf_data)
-            logger.info(f"ADF data count after _process_hubspot_data: {len(adf_data) if adf_data else 0}")
-            self.db.commit()
+            # NEW CHUNKED APPROACH: Process LAPs per ADF, then LMPs per LAP
+            logger.info("🔄 Processing LAPs and LMPs using chunked approach...")
 
-            # Process all LAPs for time spent data
-            logger.info(f"Processing LAPs for time spent data... (ADF data count: {len(adf_data) if adf_data else 0})")
-            if adf_data:
-                logger.info(f"First ADF: {adf_data[0].get('id_action_formation', 'unknown') if adf_data else 'none'}")
-            await self._process_all_laps_for_time_spent(adf_data)
-            self.db.commit()
+            # DEBUG: Log sample ADFs to see their id_etape_process values
+            logger.info(f"📋 Sample of first 5 ADFs:")
+            for i, sample_adf in enumerate(adf_data[:5], 1):
+                logger.info(f"   ADF {i}: id={sample_adf.get('id_action_de_formation')}, id_etape_process={sample_adf.get('id_etape_process')} (type: {type(sample_adf.get('id_etape_process'))})")
+
+            for adf_idx, adf in enumerate(adf_data, 1):
+                id_adf = adf.get('id_action_de_formation')
+                if not id_adf:
+                    continue
+
+                # Only process active ADFs (status 5 or 6)
+                id_etape_process = adf.get('id_etape_process')
+                # Convert to string to handle both string and integer types
+                if not id_etape_process or str(id_etape_process) not in ['5', '6']:
+                    if adf_idx <= 10:  # Log first 10 skips to avoid spam
+                        logger.info(f"⏭️  Skipping inactive ADF {id_adf} with status {id_etape_process} (type: {type(id_etape_process)})")
+                    continue
+
+                logger.info(f"📦 [{adf_idx}/{len(adf_data)}] Processing ADF {id_adf}...")
+
+                try:
+                    # Fetch LAPs for this ADF (small request)
+                    laps_data = await self.client.get_laps(id_adf)
+                    if not laps_data:
+                        logger.debug(f"No LAPs found for ADF {id_adf}")
+                        continue
+
+                    logger.info(f"   Found {len(laps_data)} LAPs for ADF {id_adf}")
+
+                    # Process each LAP (fetches LMPs per LAP - small requests!)
+                    for lap_idx, lap_record in enumerate(laps_data, 1):
+                        id_lap = lap_record.get('id_lap')
+                        if not id_lap:
+                            continue
+
+                        logger.debug(f"   Processing LAP {lap_idx}/{len(laps_data)}: {id_lap}")
+
+                        # Get participant
+                        participant_data = lap_record.get('participant')
+                        if not participant_data:
+                            logger.warning(f"LAP {id_lap} missing participant data")
+                            continue
+
+                        # Extract id_entreprise from LAP record
+                        id_entreprise = lap_record.get('id_entreprise')
+                        if id_entreprise:
+                            participant_data['id_entreprise'] = id_entreprise
+
+                        participant = await self._get_or_create_participant(participant_data)
+                        if not participant:
+                            continue
+
+                        # Fetch LMPs for this specific LAP (small request!)
+                        try:
+                            lmps_data = await self.client.get_lmps_for_lap(id_lap)
+                            if not lmps_data:
+                                logger.debug(f"No LMPs found for LAP {id_lap}")
+                                continue
+
+                            logger.debug(f"      Found {len(lmps_data)} LMPs for LAP {id_lap}")
+
+                            # Process LMPs for this LAP
+                            lap_participant_courses = await self._process_lmps(lmps_data, active_courses)
+                            all_current_participant_courses.update(lap_participant_courses)
+
+                            # Update id_lap on ParticipantCourse records
+                            course_ids = [c.id for c in self.db.query(Course).filter(Course.id_action_formation == id_adf).all()]
+                            if course_ids:
+                                participant_courses = self.db.query(ParticipantCourse).filter(
+                                    ParticipantCourse.participant_id == participant.id,
+                                    ParticipantCourse.course_id.in_(course_ids)
+                                ).all()
+
+                                for pc in participant_courses:
+                                    pc.id_lap = id_lap
+                                    pc.updated_at = datetime.utcnow()
+
+                            # Process HubSpot data from this LAP
+                            c_url_transaction_hubspot = lap_record.get('c_url_transaction_hubspot')
+                            c_id_transaction_hubspot = lap_record.get('c_id_transaction_hubspot')
+
+                            if c_url_transaction_hubspot or c_id_transaction_hubspot:
+                                hubspot_data = self.db.query(ParticipantHubspotData).filter(
+                                    ParticipantHubspotData.participant_id == participant.id,
+                                    ParticipantHubspotData.id_action_formation == id_adf
+                                ).first()
+
+                                if hubspot_data:
+                                    hubspot_data.id_lap = id_lap
+                                    hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
+                                    hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
+                                    hubspot_data.updated_at = datetime.utcnow()
+                                    self.stats["hubspot_data_updated"] += 1
+                                else:
+                                    try:
+                                        hubspot_data = ParticipantHubspotData(
+                                            participant_id=participant.id,
+                                            id_action_formation=id_adf,
+                                            id_lap=id_lap,
+                                            c_url_transaction_hubspot=c_url_transaction_hubspot,
+                                            c_id_transaction_hubspot=c_id_transaction_hubspot
+                                        )
+                                        self.db.add(hubspot_data)
+                                        self.db.flush()
+                                        self.stats["hubspot_data_created"] += 1
+                                    except Exception as e:
+                                        if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
+                                            self.db.rollback()
+                                            hubspot_data = self.db.query(ParticipantHubspotData).filter(
+                                                ParticipantHubspotData.participant_id == participant.id,
+                                                ParticipantHubspotData.id_action_formation == id_adf
+                                            ).first()
+                                            if hubspot_data:
+                                                hubspot_data.id_lap = id_lap
+                                                hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
+                                                hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
+                                                hubspot_data.updated_at = datetime.utcnow()
+                                                self.stats["hubspot_data_updated"] += 1
+
+                        except Exception as e:
+                            logger.warning(f"Error processing LAP {id_lap}: {e}")
+                            continue
+
+                    # Commit after each ADF to avoid large transactions
+                    self.db.commit()
+                    logger.info(f"✅ Completed ADF {id_adf} ({adf_idx}/{len(adf_data)})")
+
+                except Exception as e:
+                    logger.error(f"Error processing ADF {id_adf}: {e}")
+                    self.db.rollback()
+                    continue
 
             # Cleanup removed participants (only if enabled)
             if self.enable_cleanup:
-                logger.info("Cleaning up removed participants...")
+                logger.info("🧹 Cleaning up removed participants...")
                 await self._cleanup_removed_participants(active_courses, all_current_participant_courses)
                 self.db.commit()
 
                 # Cleanup orphaned participants
-                logger.info("Cleaning up orphaned participants...")
+                logger.info("🧹 Cleaning up orphaned participants...")
                 await self._cleanup_orphaned_participants()
                 self.db.commit()
 
                 # Cleanup orphaned courses
-                logger.info("Cleaning up orphaned courses...")
+                logger.info("🧹 Cleaning up orphaned courses...")
                 await self._cleanup_orphaned_courses(active_courses)
                 self.db.commit()
             else:
@@ -172,10 +270,11 @@ class DendreoSync:
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
-            logger.info(f"Sync completed successfully. Final stats: {self.stats}")
+            logger.info(f"✅ CHUNKED sync completed successfully in {duration:.2f}s. Final stats: {self.stats}")
+            logger.info(f"📊 Processed {len(adf_data)} ADFs using chunked LAP-based approach (no 70MB timeouts!)")
             return {
                 "status": "success",
-                "message": f"Sync completed successfully in {duration:.2f} seconds",
+                "message": f"Chunked sync completed successfully in {duration:.2f} seconds",
                 "stats": self.stats
             }
 
@@ -255,7 +354,7 @@ class DendreoSync:
         for adf in adf_batch:
             # Only process active ADFs (status 5 or 6)
             id_etape_process = adf.get('id_etape_process')
-            if not id_etape_process or id_etape_process not in ['5', '6']:
+            if not id_etape_process or str(id_etape_process) not in ['5', '6']:
                 logger.debug(f"Skipping inactive ADF with status {id_etape_process}")
                 continue
                 
@@ -321,7 +420,7 @@ class DendreoSync:
                 
             # Only process active ADFs (status 5 or 6)
             id_etape_process = adf.get('id_etape_process')
-            if not id_etape_process or id_etape_process not in ['5', '6']:
+            if not id_etape_process or str(id_etape_process) not in ['5', '6']:
                 continue
             
             try:

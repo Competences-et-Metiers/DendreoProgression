@@ -33,7 +33,7 @@ class DendreoClient:
 
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(url, params=params, timeout=30.0)
+                response = await client.get(url, params=params, timeout=120.0)
                 
                 if response.status_code == 401:
                     raise DendreoAPIError("Invalid API key or unauthorized access")

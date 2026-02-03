@@ -1,0 +1,104 @@
+{
+  "timestamp": "2026-02-03T11:25:33.686980",
+  "cron": {
+    "cron_running": false,
+    "cron_jobs": [],
+    "issues": [
+      "Cron service not running or not detectable",
+      "No cron jobs found"
+    ]
+  },
+  "logs": {
+    "log_files": {
+      "/app/logs/cron.log": {
+        "exists": false
+      },
+      "/app/logs/sync_dendreo.log": {
+        "exists": false
+      },
+      "/app/logs/test_sync_20250710.log": {
+        "exists": false
+      },
+      "/app/logs/sync.log": {
+        "exists": false
+      }
+    },
+    "recent_activity": [],
+    "issues": []
+  },
+  "database": {
+    "db_connected": true,
+    "tables_exist": {
+      "sync_metadata": {
+        "exists": true,
+        "row_count": 22
+      },
+      "participants": {
+        "exists": true,
+        "row_count": 0
+      },
+      "courses": {
+        "exists": true,
+        "row_count": 0
+      },
+      "modules": {
+        "exists": true,
+        "row_count": 0
+      }
+    },
+    "issues": []
+  },
+  "environment": {
+    "env_vars": {
+      "DATABASE_URL": {
+        "set": true,
+        "value": "postgresql://postgres:admin@postgres:5432/dendreo_prod_db?client_encoding=utf8"
+      },
+      "DENDREO_API_KEY": {
+        "set": true,
+        "value": "BaBVostS..."
+      },
+      "DENDREO_BASE_URL": {
+        "set": true,
+        "value": "https://pro.dendreo.com/competences_et_metiers/api"
+      },
+      "APP_ENV": {
+        "set": true,
+        "value": "production"
+      },
+      "LOG_LEVEL": {
+        "set": true,
+        "value": "INFO"
+      },
+      "SYNC_SCHEDULE": {
+        "set": true,
+        "value": "0 8 * * 1-5"
+      }
+    },
+    "issues": []
+  },
+  "processes": {
+    "processes": [
+      "root           7  0.0  0.0   3020  1056 ?        S    12:25   0:00 timeout 60 bash -c until python -c 'from app.models.database import engine; from sqlalchemy import text; engine.connect().execute(text(\"SELECT 1\"))' 2>/dev/null; do echo 'Waiting for database...'; sleep 2; done",
+      "root           8  0.0  0.0   4496  3144 ?        S    12:25   0:00 bash -c until python -c 'from app.models.database import engine; from sqlalchemy import text; engine.connect().execute(text(\"SELECT 1\"))' 2>/dev/null; do echo 'Waiting for database...'; sleep 2; done",
+      "root           9 93.0  0.7  90088 61396 ?        R    12:25   0:00 python -c from app.models.database import engine; from sqlalchemy import text; engine.connect().execute(text(\"SELECT 1\"))",
+      "root          10 88.0  0.7  90752 61916 ?        Ss   12:25   0:00 python3 scripts/check_sync_status.py"
+    ],
+    "issues": []
+  },
+  "overall": {
+    "sync_likely_working": false,
+    "cron_configured": false,
+    "database_accessible": true,
+    "recent_activity": 0,
+    "active_processes": 4,
+    "total_issues": 2,
+    "issues": [
+      "Cron service not running or not detectable",
+      "No cron jobs found"
+    ],
+    "recommendations": [
+      "Run manual sync test"
+    ]
+  }
+}

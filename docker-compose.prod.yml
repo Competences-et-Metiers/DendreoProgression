@@ -43,6 +43,9 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+      # Security Configuration
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY}
       # API Configuration
       DENDREO_API_KEY: ${DENDREO_API_KEY}
       DENDREO_BASE_URL: ${DENDREO_BASE_URL}

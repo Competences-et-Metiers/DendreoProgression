@@ -1,0 +1,108 @@
+{
+  "timestamp": "2026-02-03T14:40:26.334903",
+  "cron": {
+    "cron_running": true,
+    "cron_jobs": [
+      "0 8 * * 1-5 /app/sync_wrapper_cron.sh >> /app/logs/cron.log 2>&1"
+    ],
+    "issues": []
+  },
+  "logs": {
+    "log_files": {
+      "/app/logs/cron.log": {
+        "exists": false
+      },
+      "/app/logs/sync_dendreo.log": {
+        "exists": false
+      },
+      "/app/logs/test_sync_20250710.log": {
+        "exists": false
+      },
+      "/app/logs/sync.log": {
+        "exists": true,
+        "size": 435691,
+        "modified": "2026-02-03T15:40:25.672169",
+        "recent": true,
+        "last_lines": [
+          "2026-02-03 15:40:25,674 - __main__ - INFO -   hubspot_updates_total: 0",
+          "2026-02-03 15:40:25,674 - __main__ - INFO -   hubspot_updates_successful: 0",
+          "2026-02-03 15:40:25,674 - __main__ - INFO -   hubspot_updates_failed: 0",
+          "2026-02-03 15:40:25,674 - __main__ - INFO -   hubspot_status: error",
+          "2026-02-03 15:40:25,674 - __main__ - INFO -   hubspot_error: No module named 'update_hubspot_progression'"
+        ]
+      }
+    },
+    "recent_activity": [
+      "ERROR in /app/logs/sync.log"
+    ],
+    "issues": []
+  },
+  "database": {
+    "db_connected": true,
+    "tables_exist": {
+      "sync_metadata": {
+        "exists": true,
+        "row_count": 215
+      },
+      "participants": {
+        "exists": true,
+        "row_count": 0
+      },
+      "courses": {
+        "exists": true,
+        "row_count": 1409
+      },
+      "modules": {
+        "exists": true,
+        "row_count": 0
+      }
+    },
+    "issues": []
+  },
+  "environment": {
+    "env_vars": {
+      "DATABASE_URL": {
+        "set": true,
+        "value": "postgresql://postgres:admin@postgres:5432/dendreo_prod_db?client_encoding=utf8"
+      },
+      "DENDREO_API_KEY": {
+        "set": true,
+        "value": "BaBVostS..."
+      },
+      "DENDREO_BASE_URL": {
+        "set": true,
+        "value": "https://pro.dendreo.com/competences_et_metiers/api"
+      },
+      "APP_ENV": {
+        "set": true,
+        "value": "production"
+      },
+      "LOG_LEVEL": {
+        "set": true,
+        "value": "INFO"
+      },
+      "SYNC_SCHEDULE": {
+        "set": true,
+        "value": "0 8 * * 1-5"
+      }
+    },
+    "issues": []
+  },
+  "processes": {
+    "processes": [
+      "root          33  0.0  0.0   4272   172 ?        Ss   15:40   0:00 /usr/sbin/cron",
+      "root          95 85.3  0.7  90900 62184 ?        Ss   15:40   0:00 python3 scripts/check_sync_status.py"
+    ],
+    "issues": []
+  },
+  "overall": {
+    "sync_likely_working": true,
+    "cron_configured": true,
+    "database_accessible": true,
+    "recent_activity": 1,
+    "active_processes": 2,
+    "total_issues": 0,
+    "issues": [],
+    "recommendations": []
+  }
+}

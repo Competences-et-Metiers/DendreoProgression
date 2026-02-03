@@ -88,6 +88,78 @@ class CourseWithParticipants(CourseResponse):
     completion_rate: float = 0.0
     id_lap: Optional[str] = None
 
+# Inactivity tracking schemas
+class InactiveParticipantDetail(BaseModel):
+    """Detailed information about an inactive participant"""
+    id: int
+    id_participant: Optional[str] = None
+    nom: Optional[str] = None
+    prenom: Optional[str] = None
+    email: Optional[str] = None
+
+    # Course-specific inactivity details
+    course_id: int
+    course_title: Optional[str] = None
+    id_action_formation: Optional[str] = None
+
+    # Progression tracking
+    current_progression: float = 0.0
+    last_activity: Optional[datetime] = None
+    days_inactive: int = 0
+    enrollment_date: Optional[datetime] = None
+    days_since_enrollment: int = 0
+
+    # Inactivity classification
+    inactivity_status: str  # 'newly_enrolled', 'stalled', 'long_inactive', 'at_risk'
+    inactivity_reason: str  # Human-readable explanation
+
+    class Config:
+        from_attributes = True
+
+class InactiveParticipantsByCourse(BaseModel):
+    """Grouped inactive participants by course"""
+    course_id: int
+    course_title: Optional[str] = None
+    id_action_formation: Optional[str] = None
+
+    # Aggregated stats
+    total_inactive: int = 0
+    stalled_count: int = 0  # No progress for 30-60 days
+    long_inactive_count: int = 0  # No progress for 60+ days
+    at_risk_count: int = 0  # Some progress but slowing down
+
+    # Inactive participants in this course
+    participants: List[InactiveParticipantDetail] = []
+
+    class Config:
+        from_attributes = True
+
+class InactivitySummary(BaseModel):
+    """Overall inactivity summary with optional course grouping"""
+    total_participants_checked: int = 0
+    total_inactive: int = 0
+
+    # Breakdown by inactivity type
+    stalled_count: int = 0
+    long_inactive_count: int = 0
+    at_risk_count: int = 0
+    newly_enrolled_excluded: int = 0
+    completed_excluded: int = 0
+
+    # Grouped data (optional)
+    by_course: Optional[List[InactiveParticipantsByCourse]] = None
+
+    # Flat list (when not grouped)
+    participants: Optional[List[InactiveParticipantDetail]] = None
+
+    # Configuration used
+    inactivity_threshold_days: int = 30
+    long_inactivity_threshold_days: int = 60
+    exclude_recent_enrollments_days: int = 7
+
+    class Config:
+        from_attributes = True
+
 # Sync schemas
 class SyncResponse(BaseModel):
     status: str
