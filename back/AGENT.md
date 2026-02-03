@@ -138,8 +138,11 @@ Course (1) <--> (M) Module
 | GET | `/count` | No | Total participant count |
 | GET | `/{id}` | No | Single participant with courses |
 | GET | `/email/{email}` | No | Lookup by email |
+| GET | `/inactive` | No | Inactive participants tracking |
 
-**Query params:** `skip`, `limit` (max 1000), `search`, `email`
+**Query params:**
+- List: `skip`, `limit` (max 1000), `search`, `email`
+- Inactive: `group_by_course`, `course_id`, `min_progression`, `max_progression`, `inactivity_threshold_days`, `long_inactivity_threshold_days`, `exclude_recent_enrollments_days`, `at_risk_threshold_days`
 
 ### Courses (`/api/courses`)
 | Method | Path | Auth | Description |
@@ -364,6 +367,45 @@ id_adf = adf.get('id_action_de_formation')  # Correct field name
 **Files changed:**
 - `dendreo_sync.py:99` - Fixed field name in LAP/LMP processing loop
 
+#### 4. Implemented API Rate Limiting
+**Problem:** Dendreo API enforces a rate limit of 100 requests per 10 seconds. The chunked sync approach makes hundreds of requests (1 for ADFs + N for LAPs + M for LMPs), which can easily exceed this limit and trigger warnings or throttling.
+
+**Solution:** Implemented automatic rate limiting in `DendreoClient`:
+- Tracks all request timestamps in a sliding 10-second window
+- Automatically waits when approaching the 100 requests/10s limit
+- Defaults to 95 requests per 10 seconds (configurable) to stay safely under the limit
+- Logs progress every 50 requests and warnings when rate limiting activates
+
+**Configuration (environment variables):**
+```bash
+DENDREO_RATE_LIMIT_REQUESTS=95    # Max requests per window (default: 95)
+DENDREO_RATE_LIMIT_WINDOW=10      # Time window in seconds (default: 10)
+```
+
+**How it works:**
+1. Before each API request, the client checks timestamps of recent requests
+2. If 95+ requests were made in the last 10 seconds, it waits until the oldest request expires
+3. The sync logs show: `⏳ Rate limit reached (95/95 requests in 10s). Waiting 2.3s...`
+4. After sync completes, rate limiting statistics are logged
+
+**Files changed:**
+- `dendreo_client.py:14-38` - Added rate limiting configuration and tracking
+- `dendreo_client.py:40-65` - Added `_wait_for_rate_limit()` method
+- `dendreo_client.py:67-103` - Updated `_make_request()` to use rate limiting
+- `dendreo_client.py:119-137` - Added `get_rate_limit_stats()` and `reset_rate_limit_stats()` methods
+- `dendreo_sync.py:57-59` - Reset rate limit stats at start of sync
+- `dendreo_sync.py:273-276` - Log rate limit stats at end of sync
+
+**Example logs:**
+```
+🔄 Rate limiting statistics reset
+📊 API requests: 50 total, 50 in last 10s
+📊 API requests: 100 total, 95 in last 10s
+⏳ Rate limit reached (95/95 requests in 10s). Waiting 2.1s...
+📊 API requests: 150 total, 94 in last 10s
+🚦 Rate Limiting Stats: {'total_requests': 523, 'requests_in_current_window': 47, 'rate_limit': '95 requests per 10s', 'percentage_of_limit': '49.5%'}
+```
+
 ### Sync Status Filtering
 
 Only ADFs with `id_etape_process` of `'5'` or `'6'` are processed (active courses). Other statuses are skipped during sync.
@@ -394,6 +436,200 @@ docker exec dendreo_postgres_prod psql -U postgres -d dendreo_prod_db -c "
   LIMIT 5;
 "
 ```
+
+## Inactivity Tracking System
+
+### Overview
+
+The inactivity tracking system identifies participants who have stopped making progression in their courses. It's designed for the "Gestion des inactifs" (Inactive Management) frontend page.
+
+**Key Principle:** Inactivity is based on **progression changes**, not login/connection events.
+
+### Architecture
+
+**Components:**
+- `inactivity_service.py` - Core business logic for inactivity calculation
+- `routes/participants.py` - `/inactive` endpoint
+- `schemas.py` - Response models (`InactivitySummary`, `InactiveParticipantDetail`, etc.)
+
+### Inactivity Classification
+
+Participants are classified into distinct categories based on days without progression updates:
+
+| Status | Days Inactive | Default Threshold | Description |
+|--------|---------------|-------------------|-------------|
+| `active` | < 21 days | `at_risk_threshold_days` | Recent progression activity |
+| `at_risk` | 21-29 days | `at_risk_threshold_days` | Warning stage - may need intervention |
+| `stalled` | 30-59 days | `inactivity_threshold_days` | Stalled progression - needs attention |
+| `long_inactive` | 60+ days | `long_inactivity_threshold_days` | Long-term inactive - high priority |
+
+### Exclusion Logic
+
+The system automatically excludes:
+
+1. **Newly enrolled participants** - < 7 days since enrollment (configurable)
+2. **Completed courses** - progression >= 100%
+3. **Participants without activity data** - no `last_activity` timestamp
+
+**Rationale:** Recent enrollments need time to start, and completed participants aren't inactive.
+
+### API Endpoint
+
+**GET** `/api/participants/inactive`
+
+#### Query Parameters
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| `group_by_course` | boolean | `false` | - | Group results by course |
+| `course_id` | int | `null` | - | Filter to specific course |
+| `min_progression` | float | `null` | 0-100 | Minimum progression % |
+| `max_progression` | float | `null` | 0-100 | Maximum progression % |
+| `inactivity_threshold_days` | int | `30` | 1-365 | Days for "stalled" status |
+| `long_inactivity_threshold_days` | int | `60` | 1-365 | Days for "long inactive" status |
+| `exclude_recent_enrollments_days` | int | `7` | 0-90 | Exclude enrollments newer than X days |
+| `at_risk_threshold_days` | int | `21` | 1-365 | Days for "at-risk" status |
+
+#### Response Format
+
+**Flat list** (when `group_by_course=false`):
+```json
+{
+  "total_participants_checked": 1450,
+  "total_inactive": 87,
+  "stalled_count": 45,
+  "long_inactive_count": 32,
+  "at_risk_count": 10,
+  "newly_enrolled_excluded": 23,
+  "completed_excluded": 340,
+  "participants": [
+    {
+      "id": 123,
+      "id_participant": "P456",
+      "nom": "Dupont",
+      "prenom": "Marie",
+      "email": "marie.dupont@example.com",
+      "course_id": 42,
+      "course_title": "Formation Python Avancé",
+      "id_action_formation": "ADF789",
+      "current_progression": 45.5,
+      "last_activity": "2025-12-15T10:30:00Z",
+      "days_inactive": 65,
+      "enrollment_date": "2025-10-01T08:00:00Z",
+      "days_since_enrollment": 125,
+      "inactivity_status": "long_inactive",
+      "inactivity_reason": "No progression update for 65 days (long-term inactive)"
+    }
+  ],
+  "inactivity_threshold_days": 30,
+  "long_inactivity_threshold_days": 60,
+  "exclude_recent_enrollments_days": 7
+}
+```
+
+**Grouped by course** (when `group_by_course=true`):
+```json
+{
+  "total_participants_checked": 1450,
+  "total_inactive": 87,
+  "stalled_count": 45,
+  "long_inactive_count": 32,
+  "at_risk_count": 10,
+  "by_course": [
+    {
+      "course_id": 42,
+      "course_title": "Formation Python Avancé",
+      "id_action_formation": "ADF789",
+      "total_inactive": 15,
+      "stalled_count": 8,
+      "long_inactive_count": 5,
+      "at_risk_count": 2,
+      "participants": [/* array of InactiveParticipantDetail */]
+    }
+  ]
+}
+```
+
+### Usage Examples
+
+#### Get all inactive participants (flat list)
+```bash
+curl http://localhost:8000/api/participants/inactive
+```
+
+#### Get inactive participants grouped by course
+```bash
+curl "http://localhost:8000/api/participants/inactive?group_by_course=true"
+```
+
+#### Get stalled participants in specific course
+```bash
+curl "http://localhost:8000/api/participants/inactive?course_id=42&inactivity_threshold_days=30&long_inactivity_threshold_days=999"
+```
+
+#### Get at-risk participants (early intervention)
+```bash
+curl "http://localhost:8000/api/participants/inactive?at_risk_threshold_days=14&inactivity_threshold_days=21&long_inactivity_threshold_days=30"
+```
+
+#### Filter by progression range
+```bash
+# Find participants stuck at 20-50% progression
+curl "http://localhost:8000/api/participants/inactive?min_progression=20&max_progression=50"
+```
+
+### Frontend Integration
+
+For the "Gestion des inactifs" page:
+
+```typescript
+// Fetch inactive participants grouped by course
+const response = await fetch('/api/participants/inactive?group_by_course=true');
+const data = await response.json();
+
+// Display courses sorted by most inactive first
+data.by_course.forEach(course => {
+  console.log(`${course.course_title}: ${course.total_inactive} inactive`);
+
+  // Show participants sorted by days_inactive (already sorted)
+  course.participants.forEach(p => {
+    console.log(`  ${p.nom} ${p.prenom}: ${p.days_inactive} days, ${p.current_progression}%`);
+  });
+});
+```
+
+### Implementation Notes
+
+1. **Progression-based tracking** - Uses `ParticipantCourse.last_activity` timestamp (updated when progression changes)
+2. **No login tracking** - Deliberately avoids connection/session data
+3. **Rolling time windows** - Configurable thresholds for different intervention levels
+4. **Sorted output** - Participants sorted by `days_inactive` DESC (most inactive first)
+5. **Course-grouped option** - Useful for course-specific interventions
+6. **Explainable** - Each participant includes `inactivity_reason` explaining why they're flagged
+7. **Rate-limit friendly** - Frontend can cache results and avoid excessive API calls
+
+### Configuration
+
+Thresholds can be customized per request or set as defaults in the service:
+
+```python
+# Default configuration in InactivityService
+service = InactivityService(
+    db=db,
+    inactivity_threshold_days=30,      # Stalled threshold
+    long_inactivity_threshold_days=60, # Long-term inactive threshold
+    exclude_recent_enrollments_days=7, # Exclude new enrollments
+    at_risk_threshold_days=21          # At-risk threshold
+)
+```
+
+### Future Enhancements
+
+Potential additions (not yet implemented):
+- Historical progression tracking for trend analysis
+- Automated intervention triggers (email notifications, reminders)
+- Progression velocity calculation (rate of change)
+- Comparative analysis (peer progression benchmarks)
 
 ## Adding a New API Endpoint
 
@@ -435,3 +671,11 @@ python reset_database.py --force
 
 - Password change endpoint (`PUT /api/auth/change-password`) - schemas ready, endpoint not yet implemented
 - Account page integration with frontend
+- Test sync with fixed field name (`id_action_de_formation`) to populate participants/modules
+
+## Recently Completed (2026-02-03)
+
+- ✅ Inactivity tracking system with progression-based classification
+- ✅ Course grouping for inactive participants
+- ✅ Configurable thresholds for intervention levels
+- ✅ API endpoint `/api/participants/inactive` with comprehensive filters

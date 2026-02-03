@@ -55,6 +55,10 @@ class DendreoSync:
         """Synchronize all data from Dendreo using chunked LAP-based approach"""
         try:
             logger.info("🚀 Starting CHUNKED sync from Dendreo API (LAP-based approach)")
+
+            # Reset rate limiting statistics
+            self.client.reset_rate_limit_stats()
+
             start_time = datetime.now()
 
             # Fetch ADFs (lightweight - no 70MB monster!)
@@ -270,12 +274,19 @@ class DendreoSync:
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 
+            # Get and log rate limiting statistics
+            rate_limit_stats = self.client.get_rate_limit_stats()
+            logger.info(f"🚦 Rate Limiting Stats: {rate_limit_stats}")
+
             logger.info(f"✅ CHUNKED sync completed successfully in {duration:.2f}s. Final stats: {self.stats}")
             logger.info(f"📊 Processed {len(adf_data)} ADFs using chunked LAP-based approach (no 70MB timeouts!)")
+
+            # Add rate limiting info to return stats
             return {
                 "status": "success",
                 "message": f"Chunked sync completed successfully in {duration:.2f} seconds",
-                "stats": self.stats
+                "stats": self.stats,
+                "rate_limiting": rate_limit_stats
             }
 
         except Exception as e:

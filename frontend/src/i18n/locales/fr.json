@@ -152,7 +152,12 @@
     "moduleProgressDetails": "Détails de progression du module",
     "timeSpent": "Temps passé",
     "plannedDuration": "Durée prévue",
-    "comingSoon": "Bientôt disponible"
+    "comingSoon": "Bientôt disponible",
+    "filters": "Filtres",
+    "apply": "Appliquer",
+    "daysInactive": "jours d'inactivité",
+    "enrolled": "Inscrit il y a",
+    "daysAgo": "jours"
   },
   "navigation": {
     "dashboard": "Tableau de bord",
@@ -335,7 +340,32 @@
   "inactiveManagement": {
     "title": "Gestion des inactifs",
     "subtitle": "Suivre et gérer les participants inactifs",
-    "placeholder": "La gestion des participants inactifs sera bientôt disponible. Vous pourrez identifier et relancer les participants qui n'ont pas été actifs."
+    "viewFlat": "Vue liste",
+    "viewGrouped": "Grouper par cours",
+    "totalInactive": "Total inactifs",
+    "atRisk": "À risque",
+    "stalled": "Bloqués",
+    "longInactive": "Inactifs longue durée",
+    "noInactive": "Aucun participant inactif",
+    "noInactiveDescription": "Tous les participants sont actifs dans leurs formations. Aucune intervention nécessaire pour le moment.",
+    "stats": {
+      "totalInactive": "Total inactifs",
+      "atRisk": "À risque",
+      "stalled": "Bloqués",
+      "longInactive": "Inactifs longue durée"
+    },
+    "status": {
+      "atRisk": "À risque",
+      "stalled": "Bloqué",
+      "longInactive": "Inactif longue durée"
+    },
+    "filters": {
+      "title": "Filtres et seuils",
+      "atRiskThreshold": "Seuil à risque (jours)",
+      "stalledThreshold": "Seuil bloqué (jours)",
+      "longInactiveThreshold": "Seuil inactif longue durée (jours)",
+      "excludeRecentDays": "Exclure les nouveaux inscrits (jours)"
+    }
   },
   "settings": {
     "title": "Paramètres",

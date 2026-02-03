@@ -39,7 +39,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
       label: t('sidebar.inactiveManagement'),
       icon: UserX,
       path: '/inactive-management',
-      active: false
+      active: true
     },
     {
       id: 'account',
