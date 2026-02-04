@@ -201,9 +201,24 @@ const CourseDetail = () => {
                 <ArrowLeft size={20} />
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {courseData?.course?.intitule}
-                </h1>
+                <div className="flex items-center">
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    {courseData?.course?.intitule}
+                  </h1>
+                  {courseData?.course?.id_action_formation && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(`https://pro.dendreo.com/competences_et_metiers/formations/${courseData.course.id_action_formation}/participants`, '_blank', 'noopener,noreferrer');
+                      }}
+                      className="ml-3 inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+                      title={t('common.openDendreoADF')}
+                    >
+                      <ExternalLink size={14} className="mr-1.5" />
+                      Dendreo ADF
+                    </button>
+                  )}
+                </div>
                 <p className="text-gray-600 mt-1">{t('courseDetail.subtitle')}</p>
               </div>
             </div>

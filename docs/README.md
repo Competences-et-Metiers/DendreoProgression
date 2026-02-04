@@ -5,6 +5,7 @@
 All deployment-related documentation is in the `deployment/` folder:
 
 - [DEPLOYMENT_GUIDE.md](deployment/DEPLOYMENT_GUIDE.md) - Main deployment guide
+- [DATABASE_MIGRATION.md](deployment/DATABASE_MIGRATION.md) - **Database migration between machines** ⭐
 - [DEPLOYMENT_MULTI_ENV.md](deployment/DEPLOYMENT_MULTI_ENV.md) - Multi-environment setup
 - [DOCKER_DEPLOYMENT.md](deployment/DOCKER_DEPLOYMENT.md) - Docker deployment
 - [PRODUCTION_DEPLOYMENT.md](deployment/PRODUCTION_DEPLOYMENT.md) - Production deployment
