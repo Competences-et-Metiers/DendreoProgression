@@ -4,9 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   UserX,
+  User,
   AlertTriangle,
   Clock,
-  Calendar,
   Mail,
   BookOpen,
   ChevronDown,
@@ -88,6 +88,15 @@ const InactiveManagement = () => {
   const [adfSearchTerm, setAdfSearchTerm] = useState('');
   const [showAdfDropdown, setShowAdfDropdown] = useState(false);
 
+  // Formateur filter state
+  const [selectedFormateurs, setSelectedFormateurs] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.selectedFormateurs');
+    return cached ? JSON.parse(cached) : [];
+  });
+
+  const [formateurSearchTerm, setFormateurSearchTerm] = useState('');
+  const [showFormateurDropdown, setShowFormateurDropdown] = useState(false);
+
   // Persist state to localStorage
   useEffect(() => {
     localStorage.setItem('inactiveManagement.groupByCourse', JSON.stringify(groupByCourse));
@@ -120,6 +129,10 @@ const InactiveManagement = () => {
   useEffect(() => {
     localStorage.setItem('inactiveManagement.selectedADFs', JSON.stringify(selectedADFs));
   }, [selectedADFs]);
+
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.selectedFormateurs', JSON.stringify(selectedFormateurs));
+  }, [selectedFormateurs]);
 
   // Fetch participants (inactive or all based on active toggle)
   const { data, isLoading, error, refetch } = useQuery({
@@ -321,6 +334,17 @@ const InactiveManagement = () => {
     // Apply ADF filter if any ADFs are selected
     if (selectedADFs.length > 0) {
       filtered = filtered.filter(p => selectedADFs.includes(p.id_action_formation));
+    }
+
+    // Apply Formateur filter if any formateurs are selected
+    if (selectedFormateurs.length > 0) {
+      filtered = filtered.filter(p => {
+        if (!p.formateurs || p.formateurs.length === 0) return false;
+        // Check if any of the participant's course formateurs match selected formateurs
+        return p.formateurs.some(formateur =>
+          selectedFormateurs.includes(formateur.id_formateur)
+        );
+      });
     }
 
     // Active users toggle overrides status filters (but not ADF filter)
@@ -776,6 +800,145 @@ const InactiveManagement = () => {
                 );
               })()}
             </div>
+
+            {/* Formateur Filter */}
+            <div>
+              <button
+                onClick={() => setShowFormateurDropdown(!showFormateurDropdown)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors mb-2"
+              >
+                <div className="flex items-center gap-2">
+                  <User size={16} className="text-gray-600" />
+                  <span className="text-sm font-semibold text-gray-900">Filtrer par formateur</span>
+                  {selectedFormateurs.length > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
+                      {selectedFormateurs.length}
+                    </span>
+                  )}
+                </div>
+                {showFormateurDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+
+              {/* Collapsible dropdown content */}
+              {showFormateurDropdown && data && (() => {
+                const uniqueFormateurs = new Map();
+
+                // Extract formateurs from flat list or grouped data
+                const participants = data.participants || [];
+                const courses = data.by_course || [];
+
+                // Collect all formateurs from participants
+                participants.forEach(p => {
+                  if (p.formateurs && Array.isArray(p.formateurs)) {
+                    p.formateurs.forEach(formateur => {
+                      if (formateur.id_formateur && !uniqueFormateurs.has(formateur.id_formateur)) {
+                        uniqueFormateurs.set(formateur.id_formateur, {
+                          id: formateur.id_formateur,
+                          nom: formateur.nom || '',
+                          prenom: formateur.prenom || '',
+                          fullName: `${formateur.prenom || ''} ${formateur.nom || ''}`.trim()
+                        });
+                      }
+                    });
+                  }
+                });
+
+                // Collect from grouped courses
+                courses.forEach(c => {
+                  if (c.participants && Array.isArray(c.participants)) {
+                    c.participants.forEach(p => {
+                      if (p.formateurs && Array.isArray(p.formateurs)) {
+                        p.formateurs.forEach(formateur => {
+                          if (formateur.id_formateur && !uniqueFormateurs.has(formateur.id_formateur)) {
+                            uniqueFormateurs.set(formateur.id_formateur, {
+                              id: formateur.id_formateur,
+                              nom: formateur.nom || '',
+                              prenom: formateur.prenom || '',
+                              fullName: `${formateur.prenom || ''} ${formateur.nom || ''}`.trim()
+                            });
+                          }
+                        });
+                      }
+                    });
+                  }
+                });
+
+                const formateurList = Array.from(uniqueFormateurs.values());
+
+                // Filter by search term
+                const filteredFormateurs = formateurList.filter(formateur =>
+                  formateur.fullName.toLowerCase().includes(formateurSearchTerm.toLowerCase())
+                );
+
+                return (
+                  <div className="pl-6 pr-2 space-y-2">
+                    {/* Search box */}
+                    <input
+                      type="text"
+                      value={formateurSearchTerm}
+                      onChange={(e) => setFormateurSearchTerm(e.target.value)}
+                      placeholder="Rechercher un formateur..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+
+                    {/* Formateur list with checkboxes */}
+                    <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-2">
+                      {filteredFormateurs.length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-2">Aucun formateur trouvé</p>
+                      ) : (
+                        <>
+                          {/* Select/Deselect all */}
+                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
+                            <input
+                              type="checkbox"
+                              checked={selectedFormateurs.length === formateurList.length}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedFormateurs(formateurList.map(f => f.id));
+                                } else {
+                                  setSelectedFormateurs([]);
+                                }
+                              }}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
+                            />
+                            <span className="text-xs font-semibold text-gray-700">
+                              {selectedFormateurs.length === formateurList.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                            </span>
+                          </label>
+
+                          {filteredFormateurs.map((formateur) => (
+                            <label
+                              key={formateur.id}
+                              className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedFormateurs.includes(formateur.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedFormateurs([...selectedFormateurs, formateur.id]);
+                                  } else {
+                                    setSelectedFormateurs(selectedFormateurs.filter(id => id !== formateur.id));
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                              />
+                              <span className="text-xs text-gray-700 leading-tight">{formateur.fullName || 'Formateur sans nom'}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+
+                    {selectedFormateurs.length > 0 && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        {selectedFormateurs.length} formateur{selectedFormateurs.length > 1 ? 's' : ''} sélectionné{selectedFormateurs.length > 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
 
@@ -930,22 +1093,16 @@ const InactiveManagement = () => {
                                         <Clock size={14} />
                                         {calculateDaysInactive(participant)} {t('common.daysInactive')}
                                       </span>
-                                      {participant.days_since_enrollment && (
-                                        <span className="flex items-center gap-1">
-                                          <Calendar size={14} />
-                                          {t('common.enrolled')} {participant.days_since_enrollment} {t('common.daysAgo')}
-                                        </span>
-                                      )}
-                                      {participant.total_modules > 0 && (
-                                        <span className="flex items-center gap-1">
-                                          <BookOpen size={14} />
-                                          {participant.total_modules} module{participant.total_modules > 1 ? 's' : ''}
-                                        </span>
-                                      )}
                                       {participant.total_planned_duration_hours > 0 && (
                                         <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
                                           <Clock size={12} />
                                           {participant.total_time_spent_hours?.toFixed(0) || 0}h / {participant.total_planned_duration_hours.toFixed(0)}h
+                                        </span>
+                                      )}
+                                      {participant.formateurs && participant.formateurs.length > 0 && (
+                                        <span className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
+                                          <User size={12} />
+                                          {participant.formateurs.map(f => `${f.prenom || ''} ${f.nom || ''}`.trim()).join(', ')}
                                         </span>
                                       )}
                                     </div>
@@ -1007,22 +1164,16 @@ const InactiveManagement = () => {
                                 <Clock size={14} />
                                 {calculateDaysInactive(participant)} {t('common.daysInactive')}
                               </span>
-                              {participant.days_since_enrollment && (
-                                <span className="flex items-center gap-1">
-                                  <Calendar size={14} />
-                                  {t('common.enrolled')} {participant.days_since_enrollment} {t('common.daysAgo')}
-                                </span>
-                              )}
-                              {participant.total_modules > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <BookOpen size={14} />
-                                  {participant.total_modules} module{participant.total_modules > 1 ? 's' : ''}
-                                </span>
-                              )}
                               {participant.total_planned_duration_hours > 0 && (
                                 <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
                                   <Clock size={12} />
                                   {participant.total_time_spent_hours?.toFixed(0) || 0}h / {participant.total_planned_duration_hours.toFixed(0)}h
+                                </span>
+                              )}
+                              {participant.formateurs && participant.formateurs.length > 0 && (
+                                <span className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
+                                  <User size={12} />
+                                  {participant.formateurs.map(f => `${f.prenom || ''} ${f.nom || ''}`.trim()).join(', ')}
                                 </span>
                               )}
                             </div>

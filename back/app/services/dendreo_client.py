@@ -108,8 +108,8 @@ class DendreoClient:
         return await self._make_request("lmps.php", params)
 
     async def get_actions_de_formation(self) -> List[Dict[str, Any]]:
-        """Get all Actions de Formation (ADFs) with modules and participant data"""
-        params = {"include": "modules,participant,etapeProcess,mode_organisation"}
+        """Get all Actions de Formation (ADFs) with modules, participant, and formateur data"""
+        params = {"include": "modules,participant,etapeProcess,mode_organisation,formateurs"}
         return await self._make_request("actions_de_formation.php", params)
 
     async def get_laps(self, id_action_formation: str) -> List[Dict[str, Any]]:

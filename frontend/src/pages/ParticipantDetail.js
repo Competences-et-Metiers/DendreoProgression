@@ -183,7 +183,7 @@ const ParticipantDetail = () => {
             </div>
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center">
                   <div className="p-2 rounded-full bg-blue-100 text-blue-600">
@@ -195,7 +195,7 @@ const ParticipantDetail = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center">
                   <div className="p-2 rounded-full bg-green-100 text-green-600">
@@ -207,7 +207,7 @@ const ParticipantDetail = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center">
                   <div className="p-2 rounded-full bg-purple-100 text-purple-600">
@@ -217,20 +217,6 @@ const ParticipantDetail = () => {
                     <p className="text-sm font-medium text-gray-600">{t('participantDetail.stats.averageProgress')}</p>
                     <p className="text-xl font-bold text-gray-900">
                       {(participantData?.summary?.average_progression || 0).toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-4">
-                <div className="flex items-center">
-                  <div className="p-2 rounded-full bg-orange-100 text-orange-600">
-                    <Calendar size={20} />
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm font-medium text-gray-600">{t('participantDetail.stats.memberSince')}</p>
-                    <p className="text-xl font-bold text-gray-900">
-                      {formatDate(participantData?.participant?.created_at)}
                     </p>
                   </div>
                 </div>
@@ -291,7 +277,7 @@ const ParticipantDetail = () => {
                         </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-3">
                         <div className="flex items-center text-sm text-gray-600">
                           <Target size={14} className="mr-1" />
                           {(course.progression || 0).toFixed(1)}% {t('common.progress')}
@@ -307,6 +293,10 @@ const ParticipantDetail = () => {
                         <div className="flex items-center text-sm text-gray-600">
                           <Calendar size={14} className="mr-1" />
                           {t('common.lastActivity')}: {formatDate(course.last_activity)}
+                        </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Calendar size={14} className="mr-1" />
+                          Ajouté: {formatDate(course.date_add || course.created_at)}
                         </div>
                       </div>
                       

@@ -142,6 +142,15 @@ class DendreoSync:
                         if id_entreprise:
                             participant_data['id_entreprise'] = id_entreprise
 
+                        # Extract date_add from participant data (when participant was added to ADF)
+                        date_add_str = participant_data.get('date_add')
+                        date_add = None
+                        if date_add_str:
+                            try:
+                                date_add = datetime.strptime(date_add_str, '%Y-%m-%d %H:%M:%S')
+                            except ValueError as e:
+                                logger.warning(f"Invalid date_add format for LAP {id_lap}: {e}")
+
                         participant = await self._get_or_create_participant(participant_data)
                         if not participant:
                             continue
@@ -159,7 +168,7 @@ class DendreoSync:
                             lap_participant_courses = await self._process_lmps(lmps_data, active_courses)
                             all_current_participant_courses.update(lap_participant_courses)
 
-                            # Update id_lap on ParticipantCourse records
+                            # Update id_lap and date_add on ParticipantCourse records
                             course_ids = [c.id for c in self.db.query(Course).filter(Course.id_action_formation == id_adf).all()]
                             if course_ids:
                                 participant_courses = self.db.query(ParticipantCourse).filter(
@@ -169,6 +178,8 @@ class DendreoSync:
 
                                 for pc in participant_courses:
                                     pc.id_lap = id_lap
+                                    if date_add:
+                                        pc.date_add = date_add
                                     pc.updated_at = datetime.utcnow()
 
                             # Process HubSpot data from this LAP
@@ -361,32 +372,35 @@ class DendreoSync:
     async def _process_adfs(self, adf_batch: List[Dict]) -> Dict[str, Course]:
         """Process ADF data to create or update courses"""
         active_courses = {}
-        
+
         for adf in adf_batch:
             # Only process active ADFs (status 5 or 6)
             id_etape_process = adf.get('id_etape_process')
             if not id_etape_process or str(id_etape_process) not in ['5', '6']:
                 logger.debug(f"Skipping inactive ADF with status {id_etape_process}")
                 continue
-                
+
             id_adf = adf.get('id_action_de_formation')
             if not id_adf:
                 logger.warning("Skipping ADF - missing id_action_de_formation")
                 continue
-            
+
             # Get modules from the ADF
             modules = adf.get('modules', [])
             if not modules:
                 logger.debug(f"ADF {id_adf} has no modules, skipping")
                 continue
-            
+
+            # Extract formateurs data from ADF
+            formateurs = adf.get('formateurs', [])
+
             # Process each module in the ADF
             for module in modules:
                 id_lam = module.get('id_lam')
                 if not id_lam:
                     logger.debug(f"Module in ADF {id_adf} missing id_lam, skipping")
                     continue
-                
+
                 # Create or update course for this module
                 course = self.db.query(Course).filter(Course.id_action_formation == id_adf, Course.id_lam == id_lam).first()
                 if not course:
@@ -398,28 +412,30 @@ class DendreoSync:
                             planned_duration_hours = float(duree_heures_str)
                         except (ValueError, TypeError):
                             planned_duration_hours = 0.0
-                    
+
                     course = Course(
                         id_action_formation=id_adf,
                         id_lam=id_lam,
                         intitule=adf.get('intitule', ''),
                         status=id_etape_process,
                         total_modules=0,  # Will be updated when processing LMPs
-                        planned_duration_hours=planned_duration_hours
+                        planned_duration_hours=planned_duration_hours,
+                        formateurs=formateurs if formateurs else None
                     )
                     self.db.add(course)
                     self.stats["courses_created"] += 1
-                    logger.debug(f"Created new course: {id_adf} - {id_lam} with {planned_duration_hours}h planned")
+                    logger.debug(f"Created new course: {id_adf} - {id_lam} with {planned_duration_hours}h planned and {len(formateurs)} formateurs")
                 else:
-                    # Only update basic course info, don't change planned duration
+                    # Update basic course info including formateurs
                     course.intitule = adf.get('intitule', '')
                     course.status = id_etape_process
+                    course.formateurs = formateurs if formateurs else None
                     self.stats["courses_updated"] += 1
-                    logger.debug(f"Updated course: {id_adf} - {id_lam} (kept existing planned duration: {course.planned_duration_hours}h)")
-                
+                    logger.debug(f"Updated course: {id_adf} - {id_lam} (kept existing planned duration: {course.planned_duration_hours}h, updated {len(formateurs)} formateurs)")
+
                 # Store course by id_lam
                 active_courses[id_lam] = course
-            
+
         return active_courses
 
     async def _process_hubspot_data(self, adf_data: List[Dict]):
@@ -468,26 +484,35 @@ class DendreoSync:
             if not participant_data:
                 logger.warning(f"LAP record {id_lap} missing participant data")
                 return
-            
+
             # Extract id_entreprise from the LAP record (available at top level)
             id_entreprise = lap_record.get('id_entreprise')
             if id_entreprise:
                 participant_data['id_entreprise'] = id_entreprise
-            
+
+            # Extract date_add from participant data (when participant was added to ADF)
+            date_add_str = participant_data.get('date_add')
+            date_add = None
+            if date_add_str:
+                try:
+                    date_add = datetime.strptime(date_add_str, '%Y-%m-%d %H:%M:%S')
+                except ValueError as e:
+                    logger.warning(f"Invalid date_add format for LAP {id_lap}: {e}")
+
             # Debug: Log participant data from LAP record
             lap_participant_id = participant_data.get('id_participant')
             logger.debug(f"Processing LAP {id_lap} for ADF {id_adf} with participant ID {lap_participant_id}")
-            
+
             # Get or create the participant
             participant = await self._get_or_create_participant(participant_data)
             if not participant:
                 logger.warning(f"Could not process participant for LAP {id_lap}")
                 return
-            
+
             # Debug: Log the matched participant
             logger.debug(f"LAP {id_lap}: Matched participant DB ID {participant.id} (Dendreo ID {participant.id_participant})")
-            
-            # Update id_lap on all ParticipantCourse rows for this participant and this ADF
+
+            # Update id_lap and date_add on all ParticipantCourse rows for this participant and this ADF
             # Find all course_ids for this ADF
             course_ids = [c.id for c in self.db.query(Course).filter(Course.id_action_formation == id_adf).all()]
             if course_ids:
@@ -495,10 +520,12 @@ class DendreoSync:
                     ParticipantCourse.participant_id == participant.id,
                     ParticipantCourse.course_id.in_(course_ids)
                 ).all()
-                
+
                 updated_count = 0
                 for pc in participant_courses:
                     pc.id_lap = id_lap
+                    if date_add:
+                        pc.date_add = date_add
                     pc.updated_at = datetime.utcnow()
                     updated_count += 1
                 

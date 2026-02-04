@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, Float, Text, ForeignKey, Boolean, UniqueConstraint, JSON
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
@@ -32,6 +32,7 @@ class Course(Base):
     status = Column(String)  # Based on id_etape_process
     total_modules = Column(Integer, default=0)  # Total number of e-learning modules
     planned_duration_hours = Column(Float, default=0.0)  # Planned duration in hours from duree_heures
+    formateurs = Column(JSON, nullable=True)  # Array of formateur data from ADF
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -74,6 +75,7 @@ class ParticipantCourse(Base):
     participant_id = Column(Integer, ForeignKey("participants.id"))
     course_id = Column(Integer, ForeignKey("courses.id"))
     id_lap = Column(String, nullable=True)  # Dendreo enrollment ID (LAP)
+    date_add = Column(DateTime(timezone=True), nullable=True)  # Date participant was added to ADF from Dendreo
 
     # Calculated fields
     overall_progression = Column(Float, default=0.0)

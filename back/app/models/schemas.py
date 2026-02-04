@@ -18,6 +18,7 @@ class CourseResponse(CourseBase):
     intitule: Optional[str] = None
     status: Optional[str] = None
     total_modules: Optional[int] = 0
+    formateurs: Optional[List[dict]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -59,6 +60,7 @@ class ParticipantCourse(ParticipantCourseBase):
     participant_id: int
     course_id: int
     id_lap: Optional[str] = None
+    date_add: Optional[datetime] = None
     overall_progression: Optional[float] = 0.0
     activity_status: Optional[str] = None
     last_activity: Optional[datetime] = None
@@ -117,6 +119,9 @@ class InactiveParticipantDetail(BaseModel):
     # Inactivity classification
     inactivity_status: str  # 'newly_enrolled', 'stalled', 'long_inactive', 'at_risk'
     inactivity_reason: str  # Human-readable explanation
+
+    # Formateurs (from course)
+    formateurs: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True

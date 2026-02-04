@@ -478,8 +478,12 @@ const CourseDetail = () => {
                               <Calendar size={14} className="mr-1" />
                               {t('common.lastActivity')}: {formatDate(participant.last_activity)}
                             </div>
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Calendar size={14} className="mr-1" />
+                              Ajouté: {formatDate(participant.date_add || participant.created_at)}
+                            </div>
                           </div>
-                          
+
                           {/* Progress Bar */}
                           <ProgressBar 
                             percentage={participant.overall_progression} 

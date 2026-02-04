@@ -146,9 +146,14 @@ class InactivityService:
             if not last_activity:
                 continue
 
-            # Get earliest enrollment date
-            enrollment_dates = [e['participant_course'].created_at for e in enrollments
-                              if e['participant_course'].created_at]
+            # Get earliest enrollment date (prefer date_add from Dendreo, fallback to created_at)
+            enrollment_dates = []
+            for e in enrollments:
+                pc = e['participant_course']
+                # Prefer date_add (from Dendreo) over created_at (DB timestamp)
+                date = pc.date_add if pc.date_add else pc.created_at
+                if date:
+                    enrollment_dates.append(date)
             enrollment_date = min(enrollment_dates) if enrollment_dates else None
 
             # Sum total planned duration across all LAMs
@@ -193,6 +198,9 @@ class InactivityService:
             elif inactivity_status == 'at_risk':
                 stats['at_risk'] += 1
 
+            # Get formateurs from first course in the ADF
+            formateurs = enrollments[0]['course'].formateurs if enrollments[0]['course'].formateurs else None
+
             # Create aggregated detail record
             detail = InactiveParticipantDetail(
                 id=participant.id,
@@ -212,7 +220,8 @@ class InactivityService:
                 enrollment_date=enrollment_date,
                 days_since_enrollment=days_since_enrollment,
                 inactivity_status=inactivity_status,
-                inactivity_reason=inactivity_reason
+                inactivity_reason=inactivity_reason,
+                formateurs=formateurs
             )
 
             inactive_details.append(detail)
