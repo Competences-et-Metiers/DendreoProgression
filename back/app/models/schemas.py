@@ -97,16 +97,21 @@ class InactiveParticipantDetail(BaseModel):
     prenom: Optional[str] = None
     email: Optional[str] = None
 
-    # Course-specific inactivity details
-    course_id: int
+    # ADF-level inactivity details (aggregated across all LAMs)
+    course_id: Optional[int] = None  # Optional: first course_id in the group for reference
     course_title: Optional[str] = None
     id_action_formation: Optional[str] = None
 
-    # Progression tracking
-    current_progression: float = 0.0
-    last_activity: Optional[datetime] = None
+    # Aggregated fields (across all LAMs in the ADF)
+    total_modules: int = 0  # Number of LAMs in this ADF
+    total_planned_duration_hours: float = 0.0  # Sum of all LAM durations
+    total_time_spent_hours: float = 0.0  # Sum of actual time spent across all modules
+
+    # Progression tracking (aggregated)
+    current_progression: float = 0.0  # Average progression across all LAMs
+    last_activity: Optional[datetime] = None  # Most recent activity across all LAMs
     days_inactive: int = 0
-    enrollment_date: Optional[datetime] = None
+    enrollment_date: Optional[datetime] = None  # Earliest enrollment date
     days_since_enrollment: int = 0
 
     # Inactivity classification

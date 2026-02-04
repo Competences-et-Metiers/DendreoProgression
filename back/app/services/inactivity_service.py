@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional
-from app.models.models import Participant, ParticipantCourse, Course
+from app.models.models import Participant, ParticipantCourse, Course, Module
 from app.models.schemas import (
     InactiveParticipantDetail,
     InactiveParticipantsByCourse,
@@ -55,11 +55,14 @@ class InactivityService:
         max_progression: Optional[float] = None
     ) -> InactivitySummary:
         """
-        Get inactive participants with optional course grouping
+        Get inactive participants grouped by ADF (not by individual LAM)
+
+        This method aggregates data across all LAMs within an ADF to show
+        one row per participant per ADF, avoiding duplicate entries.
 
         Args:
-            group_by_course: Whether to group results by course
-            course_id: Filter by specific course ID
+            group_by_course: Whether to group results by ADF
+            course_id: Filter by specific course ID (will include all LAMs in that ADF)
             min_progression: Only include participants with progression >= this value
             max_progression: Only include participants with progression <= this value
 
@@ -68,32 +71,46 @@ class InactivityService:
         """
         now = datetime.now(timezone.utc)
 
-        # Build query for participant courses
+        # Build query for participant courses with course details
         query = (
-            self.db.query(ParticipantCourse)
+            self.db.query(ParticipantCourse, Participant, Course)
             .join(Participant, ParticipantCourse.participant_id == Participant.id)
             .join(Course, ParticipantCourse.course_id == Course.id)
             .filter(ParticipantCourse.last_activity.isnot(None))
         )
 
-        # Apply filters
+        # Apply course filter (will include all LAMs in the ADF)
         if course_id:
-            query = query.filter(ParticipantCourse.course_id == course_id)
-
-        if min_progression is not None:
-            query = query.filter(ParticipantCourse.overall_progression >= min_progression)
-
-        if max_progression is not None:
-            query = query.filter(ParticipantCourse.overall_progression <= max_progression)
+            # Get the ADF for this course_id
+            course = self.db.query(Course).filter(Course.id == course_id).first()
+            if course:
+                query = query.filter(Course.id_action_formation == course.id_action_formation)
 
         # Exclude completed courses (progression >= 100)
         query = query.filter(ParticipantCourse.overall_progression < 100.0)
 
         enrollments = query.all()
 
+        # Group by (participant_id, id_action_formation) to aggregate LAMs
+        adf_groups = {}  # {(participant_id, id_action_formation): [enrollment_data]}
+
+        for pc, participant, course in enrollments:
+            key = (participant.id, course.id_action_formation)
+            if key not in adf_groups:
+                adf_groups[key] = {
+                    'participant': participant,
+                    'adf_id': course.id_action_formation,
+                    'adf_title': course.intitule,
+                    'enrollments': []
+                }
+            adf_groups[key]['enrollments'].append({
+                'participant_course': pc,
+                'course': course
+            })
+
         # Statistics counters
         stats = {
-            'total_checked': len(enrollments),
+            'total_checked': len(adf_groups),
             'total_inactive': 0,
             'stalled': 0,
             'long_inactive': 0,
@@ -102,24 +119,64 @@ class InactivityService:
             'completed_excluded': 0
         }
 
-        # Collect inactive participants
+        # Collect inactive participants (one per participant per ADF)
         inactive_details: List[InactiveParticipantDetail] = []
-        by_course_map: Dict[int, List[InactiveParticipantDetail]] = {}
+        by_course_map: Dict[str, List[InactiveParticipantDetail]] = {}
 
-        for enrollment in enrollments:
+        for (participant_id, adf_id), group_data in adf_groups.items():
+            participant = group_data['participant']
+            enrollments = group_data['enrollments']
+
+            # Aggregate across all LAMs in this ADF
+            progressions = [e['participant_course'].overall_progression for e in enrollments
+                           if e['participant_course'].overall_progression is not None]
+            avg_progression = sum(progressions) / len(progressions) if progressions else 0.0
+
+            # Apply progression filters on aggregated value
+            if min_progression is not None and avg_progression < min_progression:
+                continue
+            if max_progression is not None and avg_progression > max_progression:
+                continue
+
+            # Get most recent activity across all LAMs
+            last_activities = [e['participant_course'].last_activity for e in enrollments
+                             if e['participant_course'].last_activity]
+            last_activity = max(last_activities) if last_activities else None
+
+            if not last_activity:
+                continue
+
+            # Get earliest enrollment date
+            enrollment_dates = [e['participant_course'].created_at for e in enrollments
+                              if e['participant_course'].created_at]
+            enrollment_date = min(enrollment_dates) if enrollment_dates else None
+
+            # Sum total planned duration across all LAMs
+            total_duration = sum(e['course'].planned_duration_hours or 0.0 for e in enrollments)
+
+            # Calculate total time spent across all modules in this ADF
+            course_ids = [e['course'].id for e in enrollments]
+            modules = self.db.query(Module).filter(
+                Module.participant_id == participant.id,
+                Module.course_id.in_(course_ids),
+                Module.mode_organisation == 'elearning_async'
+            ).all()
+            total_time_spent_seconds = sum(m.lms_time_spent or 0 for m in modules)
+            total_time_spent_hours = total_time_spent_seconds / 3600.0  # Convert seconds to hours
+
             # Calculate time metrics
-            days_since_activity = (now - enrollment.last_activity).days if enrollment.last_activity else 999
-            days_since_enrollment = (now - enrollment.created_at).days if enrollment.created_at else 0
+            days_since_activity = (now - last_activity).days if last_activity else 999
+            days_since_enrollment = (now - enrollment_date).days if enrollment_date else 0
 
-            # Exclude recently enrolled participants (< 7 days by default)
+            # Exclude recently enrolled participants
             if days_since_enrollment < self.exclude_recent_threshold:
                 stats['newly_enrolled_excluded'] += 1
                 continue
 
-            # Classify inactivity
+            # Classify inactivity based on aggregated data
             inactivity_status, inactivity_reason = self._classify_inactivity(
                 days_since_activity=days_since_activity,
-                progression=enrollment.overall_progression,
+                progression=avg_progression,
                 days_since_enrollment=days_since_enrollment
             )
 
@@ -136,20 +193,23 @@ class InactivityService:
             elif inactivity_status == 'at_risk':
                 stats['at_risk'] += 1
 
-            # Create detail record
+            # Create aggregated detail record
             detail = InactiveParticipantDetail(
-                id=enrollment.participant.id,
-                id_participant=enrollment.participant.id_participant,
-                nom=enrollment.participant.nom,
-                prenom=enrollment.participant.prenom,
-                email=enrollment.participant.email,
-                course_id=enrollment.course.id,
-                course_title=enrollment.course.intitule,
-                id_action_formation=enrollment.course.id_action_formation,
-                current_progression=enrollment.overall_progression or 0.0,
-                last_activity=enrollment.last_activity,
+                id=participant.id,
+                id_participant=participant.id_participant,
+                nom=participant.nom,
+                prenom=participant.prenom,
+                email=participant.email,
+                course_id=enrollments[0]['course'].id,  # Reference first course for navigation
+                course_title=group_data['adf_title'],
+                id_action_formation=adf_id,
+                total_modules=len(enrollments),  # Number of LAMs
+                total_planned_duration_hours=total_duration,
+                total_time_spent_hours=total_time_spent_hours,
+                current_progression=avg_progression,
+                last_activity=last_activity,
                 days_inactive=days_since_activity,
-                enrollment_date=enrollment.created_at,
+                enrollment_date=enrollment_date,
                 days_since_enrollment=days_since_enrollment,
                 inactivity_status=inactivity_status,
                 inactivity_reason=inactivity_reason
@@ -157,16 +217,15 @@ class InactivityService:
 
             inactive_details.append(detail)
 
-            # Group by course if requested
+            # Group by ADF if requested
             if group_by_course:
-                course_id_key = enrollment.course.id
-                if course_id_key not in by_course_map:
-                    by_course_map[course_id_key] = []
-                by_course_map[course_id_key].append(detail)
+                if adf_id not in by_course_map:
+                    by_course_map[adf_id] = []
+                by_course_map[adf_id].append(detail)
 
         # Build response
         if group_by_course:
-            grouped = self._build_course_groups(by_course_map)
+            grouped = self._build_adf_groups(by_course_map)
             return InactivitySummary(
                 total_participants_checked=stats['total_checked'],
                 total_inactive=stats['total_inactive'],
@@ -248,7 +307,7 @@ class InactivityService:
         self,
         by_course_map: Dict[int, List[InactiveParticipantDetail]]
     ) -> List[InactiveParticipantsByCourse]:
-        """Build course-grouped response from map"""
+        """Build course-grouped response from map (legacy method for backwards compatibility)"""
         grouped = []
 
         for course_id, participants in by_course_map.items():
@@ -278,6 +337,45 @@ class InactivityService:
             ))
 
         # Sort courses by total inactive count (most inactive first)
+        grouped.sort(key=lambda x: x.total_inactive, reverse=True)
+
+        return grouped
+
+    def _build_adf_groups(
+        self,
+        by_adf_map: Dict[str, List[InactiveParticipantDetail]]
+    ) -> List[InactiveParticipantsByCourse]:
+        """Build ADF-grouped response from map (grouped by id_action_formation)"""
+        grouped = []
+
+        for adf_id, participants in by_adf_map.items():
+            # Get ADF info from first participant
+            if not participants:
+                continue
+
+            first = participants[0]
+
+            # Count by type
+            stalled = sum(1 for p in participants if p.inactivity_status == 'stalled')
+            long_inactive = sum(1 for p in participants if p.inactivity_status == 'long_inactive')
+            at_risk = sum(1 for p in participants if p.inactivity_status == 'at_risk')
+
+            # Sort participants by days inactive
+            participants.sort(key=lambda x: x.days_inactive, reverse=True)
+
+            # Use first course_id as reference for the group
+            grouped.append(InactiveParticipantsByCourse(
+                course_id=first.course_id or 0,
+                course_title=first.course_title,
+                id_action_formation=adf_id,
+                total_inactive=len(participants),
+                stalled_count=stalled,
+                long_inactive_count=long_inactive,
+                at_risk_count=at_risk,
+                participants=participants
+            ))
+
+        # Sort ADFs by total inactive count (most inactive first)
         grouped.sort(key=lambda x: x.total_inactive, reverse=True)
 
         return grouped

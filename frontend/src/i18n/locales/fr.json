@@ -359,6 +359,7 @@
     "atRisk": "À risque",
     "stalled": "Bloqués",
     "longInactive": "Inactifs longue durée",
+    "showing": "Affichage",
     "noInactive": "Aucun participant inactif",
     "noInactiveDescription": "Tous les participants sont actifs dans leurs formations. Aucune intervention nécessaire pour le moment.",
     "stats": {
@@ -378,6 +379,23 @@
       "stalledThreshold": "Seuil bloqué (jours)",
       "longInactiveThreshold": "Seuil inactif longue durée (jours)",
       "excludeRecentDays": "Exclure les nouveaux inscrits (jours)"
+    },
+    "sorting": {
+      "title": "Tri",
+      "byInactivity": "Trier par inactivité",
+      "byName": "Trier par nom",
+      "byProgression": "Trier par progression",
+      "byStatus": "Trier par statut"
+    },
+    "statusFilter": {
+      "title": "Filtrer par statut",
+      "disabledWhenActive": "Désactivé lorsque le filtre actif est activé"
+    },
+    "activeFilter": {
+      "title": "Utilisateurs actifs",
+      "showActiveOnly": "Afficher seulement les actifs",
+      "daysThreshold": "Connecté dans les derniers (jours)",
+      "daysThresholdHint": "Afficher uniquement les participants connectés dans ce délai"
     }
   },
   "settings": {
