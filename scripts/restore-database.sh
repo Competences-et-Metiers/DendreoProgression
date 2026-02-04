@@ -16,9 +16,9 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-CONTAINER_NAME="dendreo-postgres"
-SYNC_CONTAINER="dendreo-sync"
-DB_NAME="dendreo_progression"
+CONTAINER_NAME="dendreo_postgres_prod"
+SYNC_CONTAINER="dendreo_sync_prod"
+DB_NAME="dendreo_prod_db"
 DB_USER="postgres"
 BACKUP_FILE="${1}"
 
@@ -156,4 +156,4 @@ echo "  3. Restart sync container if needed:"
 echo "     docker start ${SYNC_CONTAINER}"
 echo ""
 echo "  4. Monitor logs for any issues:"
-echo "     docker logs dendreo-backend -f"
+echo "     docker logs dendreoprogression-backend-1 -f"
