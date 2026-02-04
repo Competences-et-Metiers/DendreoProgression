@@ -59,3 +59,40 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     Get current authenticated user information.
     """
     return current_user
+
+
+@router.put("/change-password", response_model=MessageResponse)
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Change password for the currently authenticated user.
+
+    Requires:
+    - current_password: User's current password for verification
+    - new_password: New password to set
+    """
+    # Verify current password
+    if not verify_password(request.current_password, current_user.hashed_password):
+        logger.warning(f"Password change failed: incorrect current password for user '{current_user.username}'")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+
+    # Validate new password is different
+    if request.current_password == request.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from current password"
+        )
+
+    # Hash and update password
+    current_user.hashed_password = hash_password(request.new_password)
+    db.commit()
+
+    logger.info(f"Password changed successfully for user '{current_user.username}'")
+
+    return MessageResponse(message="Password changed successfully")

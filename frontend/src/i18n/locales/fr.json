@@ -335,7 +335,20 @@
   "account": {
     "title": "Mon compte",
     "subtitle": "Gérer votre profil et vos préférences",
-    "placeholder": "La gestion de votre compte sera bientôt disponible. Vous pourrez modifier vos informations personnelles et vos préférences."
+    "userInformation": "Informations utilisateur",
+    "username": "Nom d'utilisateur",
+    "email": "Email",
+    "changePassword": "Changer le mot de passe",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "changePasswordButton": "Changer le mot de passe",
+    "changing": "Modification en cours...",
+    "passwordRequirements": "Minimum 6 caractères requis",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordChangeSuccess": "Mot de passe modifié avec succès",
+    "passwordChangeError": "Erreur lors du changement de mot de passe"
   },
   "inactiveManagement": {
     "title": "Gestion des inactifs",

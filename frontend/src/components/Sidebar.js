@@ -46,7 +46,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
       label: t('sidebar.account'),
       icon: UserCircle,
       path: '/account',
-      active: false
+      active: true
     },
     {
       id: 'settings',
