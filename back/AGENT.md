@@ -130,6 +130,7 @@ Course (1) <--> (M) Module
 |--------|------|------|-------------|
 | POST | `/login` | No | Authenticate, returns JWT |
 | GET | `/me` | Yes | Get current user info |
+| PUT | `/change-password` | Yes | Change user password |
 
 ### Participants (`/api/participants`)
 | Method | Path | Auth | Description |
@@ -688,9 +689,14 @@ python reset_database.py --force
 
 ## Pending Work
 
-- Password change endpoint (`PUT /api/auth/change-password`) - schemas ready, endpoint not yet implemented
-- Account page integration with frontend
 - Test sync with fixed field name (`id_action_de_formation`) to populate participants/modules
+
+## Recently Completed (2026-02-04)
+
+- ✅ Account page with password change functionality
+- ✅ Backend API endpoint `PUT /api/auth/change-password` with validation
+- ✅ Password visibility toggles and client-side validation
+- ✅ French translations for account management
 
 ## Recently Completed (2026-02-03)
 
