@@ -32,13 +32,28 @@ This document tracks proposed features and enhancements for the Dendreo Progress
 ### Inactive Management Page Enhancements
 **Status:** ✅ Completed (2026-02-04)
 
-**Features:**
+**Phase 1 - Basic Features:**
 - Sorting by inactivity, name, progression, status
 - Status filtering (at risk, stalled, long inactive)
 - Active users toggle with configurable days threshold
 - localStorage persistence for all filters
 - Clickable participant and course names
 - All UI text in French
+
+**Phase 2 - Data Aggregation & Filtering (2026-02-04):**
+- **Fixed duplicate entries:** Participants now grouped by ADF (Action de Formation) instead of individual LAM modules
+- **Aggregated metrics per ADF:**
+  - Average progression across all modules
+  - Total modules count
+  - Total planned duration (sum of all LAM durations)
+  - Total time spent (actual hours worked)
+  - Most recent activity across all modules
+- **Duration display:** Changed from "Xh prévues" to "Xh / Yh" format (actual/planned)
+- **ADF filter:** Collapsible multi-select dropdown with search to filter by specific training programs
+  - Searchable list of all ADFs
+  - Select/deselect all option
+  - Badge counter showing selected formations
+  - Persistent selections in localStorage
 
 ---
 
@@ -48,4 +63,4 @@ This document tracks proposed features and enhancements for the Dendreo Progress
 
 ---
 
-**Last Updated:** 2026-02-04
+**Last Updated:** 2026-02-04 (Phase 2 enhancements added)

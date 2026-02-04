@@ -444,14 +444,28 @@ docker exec dendreo_postgres_prod psql -U postgres -d dendreo_prod_db -c "
 
 The inactivity tracking system identifies participants who have stopped making progression in their courses. It's designed for the "Gestion des inactifs" (Inactive Management) frontend page.
 
-**Key Principle:** Inactivity is based on **progression changes**, not login/connection events.
+**Key Principles:**
+- Inactivity is based on **progression changes**, not login/connection events
+- Results are **grouped by ADF** (Action de Formation) to avoid duplicate entries
+- Each participant appears **once per ADF**, with aggregated metrics across all LAMs (modules)
 
 ### Architecture
 
 **Components:**
-- `inactivity_service.py` - Core business logic for inactivity calculation
+- `inactivity_service.py` - Core business logic for inactivity calculation and ADF grouping
 - `routes/participants.py` - `/inactive` endpoint
 - `schemas.py` - Response models (`InactivitySummary`, `InactiveParticipantDetail`, etc.)
+
+**Data Aggregation:**
+When a participant is enrolled in an ADF with multiple LAMs, the system:
+1. Groups all LAM enrollments by `(participant_id, id_action_formation)`
+2. Calculates aggregated metrics:
+   - **Average progression** across all LAMs
+   - **Total modules** count (number of LAMs)
+   - **Total planned duration** (sum of all LAM durations in hours)
+   - **Total time spent** (sum of actual time across all modules in hours)
+   - **Most recent activity** (latest `last_activity` across all LAMs)
+   - **Earliest enrollment date** (oldest `created_at` across all LAMs)
 
 ### Inactivity Classification
 
@@ -513,6 +527,9 @@ The system automatically excludes:
       "course_id": 42,
       "course_title": "Formation Python Avancé",
       "id_action_formation": "ADF789",
+      "total_modules": 5,
+      "total_planned_duration_hours": 150.0,
+      "total_time_spent_hours": 45.5,
       "current_progression": 45.5,
       "last_activity": "2025-12-15T10:30:00Z",
       "days_inactive": 65,
@@ -601,13 +618,16 @@ data.by_course.forEach(course => {
 
 ### Implementation Notes
 
-1. **Progression-based tracking** - Uses `ParticipantCourse.last_activity` timestamp (updated when progression changes)
-2. **No login tracking** - Deliberately avoids connection/session data
-3. **Rolling time windows** - Configurable thresholds for different intervention levels
-4. **Sorted output** - Participants sorted by `days_inactive` DESC (most inactive first)
-5. **Course-grouped option** - Useful for course-specific interventions
-6. **Explainable** - Each participant includes `inactivity_reason` explaining why they're flagged
-7. **Rate-limit friendly** - Frontend can cache results and avoid excessive API calls
+1. **ADF-level grouping** - Participants appear once per ADF (not per LAM) to avoid duplicate entries
+2. **Aggregated metrics** - Progression, duration, and time spent are computed across all LAMs within an ADF
+3. **Progression-based tracking** - Uses `ParticipantCourse.last_activity` timestamp (updated when progression changes)
+4. **No login tracking** - Deliberately avoids connection/session data
+5. **Rolling time windows** - Configurable thresholds for different intervention levels
+6. **Sorted output** - Participants sorted by `days_inactive` DESC (most inactive first)
+7. **Course-grouped option** - Useful for ADF-specific interventions
+8. **Explainable** - Each participant includes `inactivity_reason` explaining why they're flagged
+9. **Rate-limit friendly** - Frontend can cache results and avoid excessive API calls
+10. **Module-level time tracking** - Queries `Module` table to sum actual time spent across all e-learning modules
 
 ### Configuration
 

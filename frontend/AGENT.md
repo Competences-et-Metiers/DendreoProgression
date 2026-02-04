@@ -35,8 +35,8 @@ frontend/src/
 │   ├── Participants.js
 │   ├── ParticipantDetail.js
 │   ├── CourseDetail.js
-│   ├── Account.js      # Placeholder
-│   ├── InactiveManagement.js  # Placeholder
+│   ├── Account.js      # Account management with password change
+│   ├── InactiveManagement.js  # Inactive participants tracking & management
 │   └── Settings.js     # Placeholder
 ├── services/
 │   └── api.js        # Axios API service layer
@@ -96,6 +96,12 @@ Common persisted states:
 - `participantSortDirection` - Sort direction (asc/desc)
 - `participantStatusFilters` - Status filter checkboxes
 - `participantInactivityDays` - Inactivity filter days
+- `inactiveManagement.*` - InactiveManagement page filters and settings:
+  - `groupByCourse` - Group by ADF toggle
+  - `sortBy` / `sortDirection` - Sort preferences
+  - `statusFilter` - Status filter checkboxes (at_risk, stalled, long_inactive)
+  - `showActiveOnly` / `activeDaysThreshold` - Active users filter
+  - `selectedADFs` - Selected formation (ADF) filter
 - `i18nextLng` - Selected language
 
 ### Internationalization (i18n)
