@@ -396,6 +396,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "id_entreprise": participant.id_entreprise,
                 "overall_progression": round(calculated_progression, 2),  # Use calculated progression
                 "activity_status": pc.activity_status,
+                "date_add": pc.date_add.isoformat() if pc.date_add else None,
                 "last_activity": last_activity,
                 "completed_modules": completed_modules,
                 "total_modules": total_modules,
@@ -538,6 +539,7 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                 "course_title": course.intitule,
                 "progression": calculated_progression,
                 "activity_status": pc.activity_status,
+                "date_add": pc.date_add.isoformat() if pc.date_add else None,
                 "last_activity": last_activity,
                 "completed_modules": completed_modules,
                 "total_modules": len(modules),

@@ -7,8 +7,8 @@ import {
   User,
   AlertTriangle,
   Clock,
-  Mail,
   BookOpen,
+  Calendar,
   ChevronDown,
   ChevronRight,
   Settings,
@@ -255,6 +255,11 @@ const InactiveManagement = () => {
       newExpanded.add(courseId);
     }
     setExpandedCourses(newExpanded);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return t('common.never');
+    return new Date(dateString).toLocaleDateString();
   };
 
   const getStatusColor = (status) => {
@@ -1086,8 +1091,8 @@ const InactiveManagement = () => {
                                     </div>
                                     <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                                       <span className="flex items-center gap-1">
-                                        <Mail size={14} />
-                                        {participant.email}
+                                        <Calendar size={14} />
+                                        Ajouté: {formatDate(participant.enrollment_date)}
                                       </span>
                                       <span className="flex items-center gap-1">
                                         <Clock size={14} />
@@ -1100,9 +1105,12 @@ const InactiveManagement = () => {
                                         </span>
                                       )}
                                       {participant.formateurs && participant.formateurs.length > 0 && (
-                                        <span className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
+                                        <span
+                                          className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full cursor-default"
+                                          title={participant.formateurs.map(f => `${f.prenom || ''} ${f.nom || ''}`.trim()).join(', ')}
+                                        >
                                           <User size={12} />
-                                          {participant.formateurs.map(f => `${f.prenom || ''} ${f.nom || ''}`.trim()).join(', ')}
+                                          {participant.formateurs.length} formateur{participant.formateurs.length > 1 ? 's' : ''}
                                         </span>
                                       )}
                                     </div>
@@ -1157,8 +1165,8 @@ const InactiveManagement = () => {
                             </div>
                             <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                               <span className="flex items-center gap-1">
-                                <Mail size={14} />
-                                {participant.email}
+                                <Calendar size={14} />
+                                Ajouté: {formatDate(participant.enrollment_date)}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock size={14} />
@@ -1171,9 +1179,12 @@ const InactiveManagement = () => {
                                 </span>
                               )}
                               {participant.formateurs && participant.formateurs.length > 0 && (
-                                <span className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
+                                <span
+                                  className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full cursor-default"
+                                  title={participant.formateurs.map(f => `${f.prenom || ''} ${f.nom || ''}`.trim()).join(', ')}
+                                >
                                   <User size={12} />
-                                  {participant.formateurs.map(f => `${f.prenom || ''} ${f.nom || ''}`.trim()).join(', ')}
+                                  {participant.formateurs.length} formateur{participant.formateurs.length > 1 ? 's' : ''}
                                 </span>
                               )}
                             </div>
