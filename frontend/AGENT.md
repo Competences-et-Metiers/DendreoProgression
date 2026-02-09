@@ -71,6 +71,15 @@ export const queryKeys = {
 };
 ```
 
+**Conditional polling pattern** (used for sync status):
+```javascript
+// Poll every 5 seconds while a condition is met, stop when it changes
+refetchInterval: (query) => {
+  const status = query.state.data?.sync_status;
+  return status === 'in_progress' ? 5000 : false;
+},
+```
+
 **Adding a new API endpoint:**
 1. Add the API call in `services/api.js`
 2. Create a hook in `hooks/useQuery.js`

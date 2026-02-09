@@ -209,6 +209,34 @@ async def handler(db: Session = Depends(get_db)):
     result = db.query(Model).filter(...).first()
 ```
 
+**CRITICAL: Detached instance pitfall with `get_db_session()`**
+
+`get_db_session()` is a context manager that closes the session on exit. Objects created in one session become **detached** — modifying them in a new session is silently a no-op.
+
+```python
+# WRONG - status update is silently lost
+with get_db_session() as db:
+    record = SyncMetadata(status='in_progress')
+    db.add(record)
+    db.commit()
+
+with get_db_session() as db:
+    record.status = 'success'  # Modifies detached Python object only
+    db.commit()                # New session doesn't know about `record`
+
+# CORRECT - re-fetch by ID in the new session
+with get_db_session() as db:
+    record = SyncMetadata(status='in_progress')
+    db.add(record)
+    db.commit()
+    record_id = record.id
+
+with get_db_session() as db:
+    record = db.query(SyncMetadata).get(record_id)
+    record.status = 'success'  # Now tracked by this session
+    db.commit()                # Persisted correctly
+```
+
 ### Error Handling
 ```python
 raise HTTPException(
@@ -278,6 +306,13 @@ Two production Dockerfiles:
 
 - **Dockerfile.backend.prod** - API server (multi-stage, non-root user, health check)
 - **Dockerfile.sync.prod** - Cron-based sync worker (daily at 8 AM by default)
+
+**Sync container environment:** Cron jobs don't inherit Docker env vars. The entrypoint generates `/app/cron_env.sh` at startup with all required vars. When adding a new required env var to `settings.py`, it must also be added to:
+1. `Dockerfile.sync.prod` — the `cron_env.sh` heredoc in the entrypoint
+2. `Dockerfile.sync.prod` — the embedded `sync_wrapper.sh`
+3. `docker-compose.prod.yml` — the sync service `environment` section
+
+**Sync wrapper exit codes:** `sync_wrapper_prod.sh` uses distinct exit codes for the pre-sync check: `0` = should run, `2` = skip (recent sync), any other = check failed (falls back to running sync). This prevents config errors from being silently misinterpreted as "recent sync found".
 
 Development uses `docker-compose.dev.yml` with hot-reload:
 ```bash
@@ -374,19 +409,21 @@ id_adf = adf.get('id_action_de_formation')  # Correct field name
 **Solution:** Implemented automatic rate limiting in `DendreoClient`:
 - Tracks all request timestamps in a sliding 10-second window
 - Automatically waits when approaching the 100 requests/10s limit
-- Defaults to 95 requests per 10 seconds (configurable) to stay safely under the limit
+- Defaults to 90 requests per 10 seconds (configurable) to leave headroom for third-party services sharing the API quota
 - Logs progress every 50 requests and warnings when rate limiting activates
 
 **Configuration (environment variables):**
 ```bash
-DENDREO_RATE_LIMIT_REQUESTS=95    # Max requests per window (default: 95)
+DENDREO_RATE_LIMIT_REQUESTS=90    # Max requests per window (default: 90, Dendreo limit is 100)
 DENDREO_RATE_LIMIT_WINDOW=10      # Time window in seconds (default: 10)
 ```
 
+**Why 90 instead of 100:** Other third-party services (CRM integrations, etc.) may also consume the same Dendreo API quota concurrently. The 10-request buffer prevents rate limit violations.
+
 **How it works:**
 1. Before each API request, the client checks timestamps of recent requests
-2. If 95+ requests were made in the last 10 seconds, it waits until the oldest request expires
-3. The sync logs show: `⏳ Rate limit reached (95/95 requests in 10s). Waiting 2.3s...`
+2. If 90+ requests were made in the last 10 seconds, it waits until the oldest request expires
+3. The sync logs show: `⏳ Rate limit reached (90/90 requests in 10s). Waiting 2.3s...`
 4. After sync completes, rate limiting statistics are logged
 
 **Files changed:**
@@ -401,10 +438,10 @@ DENDREO_RATE_LIMIT_WINDOW=10      # Time window in seconds (default: 10)
 ```
 🔄 Rate limiting statistics reset
 📊 API requests: 50 total, 50 in last 10s
-📊 API requests: 100 total, 95 in last 10s
-⏳ Rate limit reached (95/95 requests in 10s). Waiting 2.1s...
-📊 API requests: 150 total, 94 in last 10s
-🚦 Rate Limiting Stats: {'total_requests': 523, 'requests_in_current_window': 47, 'rate_limit': '95 requests per 10s', 'percentage_of_limit': '49.5%'}
+📊 API requests: 100 total, 90 in last 10s
+⏳ Rate limit reached (90/90 requests in 10s). Waiting 2.1s...
+📊 API requests: 150 total, 89 in last 10s
+🚦 Rate Limiting Stats: {'total_requests': 523, 'requests_in_current_window': 47, 'rate_limit': '90 requests per 10s', 'percentage_of_limit': '52.2%'}
 ```
 
 ### Sync Status Filtering
@@ -710,6 +747,13 @@ python reset_database.py --force
 ## Pending Work
 
 - Test sync with fixed field name (`id_action_de_formation`) to populate participants/modules
+
+## Recently Completed (2026-02-09)
+
+- Fixed sync status permanently stuck on "in_progress" (SQLAlchemy detached instance bug in `sync_dendreo.py`)
+- Added `JWT_SECRET_KEY` to sync container's `cron_env.sh` and embedded `sync_wrapper.sh` in `Dockerfile.sync.prod`
+- Fixed `sync_wrapper_prod.sh` to use distinct exit codes (0=run, 2=skip, other=error+fallback)
+- Lowered default API rate limit from 95 to 90 req/10s to leave headroom for third-party services
 
 ## Recently Completed (2026-02-04)
 
