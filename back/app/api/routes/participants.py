@@ -277,68 +277,48 @@ async def get_participants_count(
 async def get_inactive_participants(
     group_by_course: bool = Query(False),
     course_id: Optional[int] = Query(None),
+    at_risk_threshold_days: int = Query(14, ge=1, le=365),
     inactivity_threshold_days: int = Query(30, ge=1, le=365),
-    long_inactivity_threshold_days: int = Query(60, ge=1, le=365),
-    at_risk_threshold_days: int = Query(21, ge=1, le=365),
-    exclude_recent_enrollments_days: int = Query(7, ge=0, le=90),
+    exclude_recent_enrollments_days: int = Query(0, ge=0, le=90),
     min_progression: Optional[float] = Query(None, ge=0, le=100),
     max_progression: Optional[float] = Query(None, ge=0, le=100),
     db: Session = Depends(get_db)
 ):
-    """Get inactive participants with optional course grouping
+    """Get participants classified by activity status.
 
-    This endpoint identifies participants who haven't shown progression activity
-    within specified time thresholds. It uses the last_activity timestamp from
-    ParticipantCourse records to determine inactivity.
-
-    Inactivity levels:
+    Statuses:
+    - active: Last activity within at_risk_threshold_days
     - at_risk: Between at_risk_threshold_days and inactivity_threshold_days
-    - stalled: Between inactivity_threshold_days and long_inactivity_threshold_days
-    - long_inactive: Beyond long_inactivity_threshold_days
+    - inactive: Beyond inactivity_threshold_days
 
     Exclusions:
     - Participants enrolled less than exclude_recent_enrollments_days ago
     - Participants with 100% completion
     - Participants with no activity data
-
-    Args:
-        group_by_course: If True, groups results by course
-        course_id: Filter by specific course ID
-        inactivity_threshold_days: Days threshold for stalled status (default: 30)
-        long_inactivity_threshold_days: Days threshold for long inactive (default: 60)
-        at_risk_threshold_days: Days threshold for at-risk status (default: 21)
-        exclude_recent_enrollments_days: Exclude enrollments newer than N days (default: 7)
-        min_progression: Filter by minimum progression percentage
-        max_progression: Filter by maximum progression percentage
-        db: Database session
-
-    Returns:
-        InactivitySummary with total counts and either grouped or flat list of participants
     """
     try:
-        logger.info(f"📊 Fetching inactive participants (group_by_course={group_by_course}, course_id={course_id})")
+        logger.info(f"Fetching participants (group_by_course={group_by_course}, course_id={course_id})")
 
         service = InactivityService(
             db=db,
+            at_risk_threshold_days=at_risk_threshold_days,
             inactivity_threshold_days=inactivity_threshold_days,
-            long_inactivity_threshold_days=long_inactivity_threshold_days,
-            exclude_recent_enrollments_days=exclude_recent_enrollments_days,
-            at_risk_threshold_days=at_risk_threshold_days
+            exclude_recent_enrollments_days=exclude_recent_enrollments_days
         )
 
-        result = service.get_inactive_participants(
+        result = service.get_participants(
             group_by_course=group_by_course,
             course_id=course_id,
             min_progression=min_progression,
             max_progression=max_progression
         )
 
-        logger.info(f"✅ Found {result.total_inactive} inactive participants")
+        logger.info(f"Found {result.total_participants} participants ({result.active_count} active, {result.at_risk_count} at risk, {result.inactive_count} inactive)")
         return result
 
     except Exception as e:
-        logger.error(f"❌ Error fetching inactive participants: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error fetching inactive participants: {str(e)}")
+        logger.error(f"Error fetching participants: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching participants: {str(e)}")
 
 @router.get("/{participant_id}", response_model=ParticipantWithProgress)
 async def get_participant(participant_id: int, db: Session = Depends(get_db)):

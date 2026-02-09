@@ -33,10 +33,21 @@ const InactiveManagement = () => {
 
   const [filters, setFilters] = useState(() => {
     const cached = localStorage.getItem('inactiveManagement.filters');
-    return cached ? JSON.parse(cached) : {
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      // Migrate old filter format
+      return {
+        atRiskThreshold: parsed.atRiskThreshold || 14,
+        inactivityThreshold: parsed.inactivityThreshold || 30,
+        excludeRecentDays: parsed.excludeRecentDays || 7,
+        minProgression: parsed.minProgression ?? null,
+        maxProgression: parsed.maxProgression ?? null,
+        courseId: parsed.courseId ?? null
+      };
+    }
+    return {
+      atRiskThreshold: 14,
       inactivityThreshold: 30,
-      longInactivityThreshold: 60,
-      atRiskThreshold: 21,
       excludeRecentDays: 7,
       minProgression: null,
       maxProgression: null,
@@ -47,7 +58,6 @@ const InactiveManagement = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [expandedCourses, setExpandedCourses] = useState(new Set());
 
-  // Sorting state
   const [sortBy, setSortBy] = useState(() => {
     const cached = localStorage.getItem('inactiveManagement.sortBy');
     return cached || 'inactivity';
@@ -58,25 +68,17 @@ const InactiveManagement = () => {
     return cached || 'desc';
   });
 
-  // Status filter state
   const [statusFilter, setStatusFilter] = useState(() => {
     const cached = localStorage.getItem('inactiveManagement.statusFilter');
-    return cached ? JSON.parse(cached) : {
-      at_risk: true,
-      stalled: true,
-      long_inactive: true
-    };
-  });
-
-  // Active users toggle
-  const [showActiveOnly, setShowActiveOnly] = useState(() => {
-    const cached = localStorage.getItem('inactiveManagement.showActiveOnly');
-    return cached ? JSON.parse(cached) : false;
-  });
-
-  const [activeDaysThreshold, setActiveDaysThreshold] = useState(() => {
-    const cached = localStorage.getItem('inactiveManagement.activeDaysThreshold');
-    return cached ? parseInt(cached) : 7;
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      // Migrate old format if needed
+      if ('stalled' in parsed || 'long_inactive' in parsed) {
+        return { active: true, at_risk: true, inactive: true };
+      }
+      return parsed;
+    }
+    return { active: true, at_risk: true, inactive: true };
   });
 
   // ADF filter state
@@ -119,14 +121,6 @@ const InactiveManagement = () => {
   }, [statusFilter]);
 
   useEffect(() => {
-    localStorage.setItem('inactiveManagement.showActiveOnly', JSON.stringify(showActiveOnly));
-  }, [showActiveOnly]);
-
-  useEffect(() => {
-    localStorage.setItem('inactiveManagement.activeDaysThreshold', activeDaysThreshold.toString());
-  }, [activeDaysThreshold]);
-
-  useEffect(() => {
     localStorage.setItem('inactiveManagement.selectedADFs', JSON.stringify(selectedADFs));
   }, [selectedADFs]);
 
@@ -134,100 +128,20 @@ const InactiveManagement = () => {
     localStorage.setItem('inactiveManagement.selectedFormateurs', JSON.stringify(selectedFormateurs));
   }, [selectedFormateurs]);
 
-  // Fetch participants (inactive or all based on active toggle)
+  // Clean up old localStorage keys from removed active user toggle
+  useEffect(() => {
+    localStorage.removeItem('inactiveManagement.showActiveOnly');
+    localStorage.removeItem('inactiveManagement.activeDaysThreshold');
+  }, []);
+
+  // Fetch participants
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['participants-view', groupByCourse, filters, showActiveOnly, activeDaysThreshold],
+    queryKey: ['participants-view', groupByCourse, filters],
     queryFn: async () => {
-      // When showing active users, fetch all participants
-      if (showActiveOnly) {
-        // Fetch all participants with a reasonable limit
-        const response = await api.get('/participants/', {
-          params: {
-            skip: 0,
-            limit: 1000 // Reasonable limit to get participants
-          }
-        });
-
-        const allParticipants = response.data.participants || [];
-
-        // For flat view, expand each participant into their courses
-        let flatParticipants = [];
-        if (!groupByCourse) {
-          allParticipants.forEach(participant => {
-            if (participant.courses && participant.courses.length > 0) {
-              // Create one entry per course
-              participant.courses.forEach(course => {
-                flatParticipants.push({
-                  ...participant,
-                  course_id: course.course_id,
-                  course_title: course.course_title,
-                  current_progression: course.progression || 0,
-                  inactivity_status: 'active' // Default status for active view
-                });
-              });
-            } else {
-              // Participant with no courses
-              flatParticipants.push({
-                ...participant,
-                inactivity_status: 'active'
-              });
-            }
-          });
-        }
-
-        // For grouped view, organize by course
-        let byCourse = null;
-        if (groupByCourse) {
-          const coursesMap = new Map();
-
-          allParticipants.forEach(participant => {
-            if (participant.courses && participant.courses.length > 0) {
-              participant.courses.forEach(course => {
-                if (!coursesMap.has(course.course_id)) {
-                  coursesMap.set(course.course_id, {
-                    course_id: course.course_id,
-                    course_title: course.course_title,
-                    participants: [],
-                    total_inactive: 0,
-                    at_risk_count: 0,
-                    stalled_count: 0,
-                    long_inactive_count: 0
-                  });
-                }
-
-                coursesMap.get(course.course_id).participants.push({
-                  ...participant,
-                  course_id: course.course_id,
-                  current_progression: course.progression || 0,
-                  inactivity_status: 'active'
-                });
-              });
-            }
-          });
-
-          byCourse = Array.from(coursesMap.values()).map(course => ({
-            ...course,
-            total_inactive: course.participants.length
-          }));
-        }
-
-        // Transform the response to match the expected format
-        return {
-          participants: flatParticipants,
-          total_inactive: allParticipants.length,
-          at_risk_count: 0,
-          stalled_count: 0,
-          long_inactive_count: 0,
-          by_course: byCourse
-        };
-      }
-
-      // Otherwise, fetch inactive participants as before
       const params = new URLSearchParams({
         group_by_course: groupByCourse,
-        inactivity_threshold_days: filters.inactivityThreshold,
-        long_inactivity_threshold_days: filters.longInactivityThreshold,
         at_risk_threshold_days: filters.atRiskThreshold,
+        inactivity_threshold_days: filters.inactivityThreshold,
         exclude_recent_enrollments_days: filters.excludeRecentDays
       });
 
@@ -244,7 +158,7 @@ const InactiveManagement = () => {
       const response = await api.get(`/participants/inactive?${params}`);
       return response.data;
     },
-    staleTime: 60000, // Cache for 1 minute
+    staleTime: 60000,
   });
 
   const toggleCourse = (courseId) => {
@@ -264,14 +178,12 @@ const InactiveManagement = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'at_risk':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'stalled':
-        return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'long_inactive':
-        return 'bg-red-100 text-red-800 border-red-200';
       case 'active':
         return 'bg-green-100 text-green-800 border-green-200';
+      case 'at_risk':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'inactive':
+        return 'bg-red-100 text-red-800 border-red-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -279,14 +191,12 @@ const InactiveManagement = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'at_risk':
-        return <AlertTriangle size={16} className="text-yellow-600" />;
-      case 'stalled':
-        return <Clock size={16} className="text-orange-600" />;
-      case 'long_inactive':
-        return <UserX size={16} className="text-red-600" />;
       case 'active':
         return <CheckCircle2 size={16} className="text-green-600" />;
+      case 'at_risk':
+        return <AlertTriangle size={16} className="text-yellow-600" />;
+      case 'inactive':
+        return <UserX size={16} className="text-red-600" />;
       default:
         return <Clock size={16} className="text-gray-600" />;
     }
@@ -294,40 +204,15 @@ const InactiveManagement = () => {
 
   const getStatusLabel = (status) => {
     switch (status) {
+      case 'active':
+        return t('inactiveManagement.status.active');
       case 'at_risk':
         return t('inactiveManagement.status.atRisk');
-      case 'stalled':
-        return t('inactiveManagement.status.stalled');
-      case 'long_inactive':
-        return t('inactiveManagement.status.longInactive');
-      case 'active':
-        return t('common.active');
+      case 'inactive':
+        return t('inactiveManagement.status.inactive');
       default:
         return status;
     }
-  };
-
-  // Helper to calculate days_inactive from participant's last_activity
-  const calculateDaysInactive = (participant) => {
-    // If days_inactive is already provided (from inactive endpoint), use it
-    if (participant.days_inactive !== undefined) {
-      return participant.days_inactive;
-    }
-
-    // Otherwise, calculate from courses' last_activity (for all participants endpoint)
-    if (!participant.courses || participant.courses.length === 0) return Infinity;
-
-    const lastActivities = participant.courses
-      .map(c => c.last_activity)
-      .filter(Boolean)
-      .map(date => new Date(date));
-
-    if (lastActivities.length === 0) return Infinity;
-
-    const lastActivity = new Date(Math.max(...lastActivities));
-    const now = new Date();
-    const diffTime = Math.abs(now - lastActivity);
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
   // Filter and sort participants
@@ -336,33 +221,23 @@ const InactiveManagement = () => {
 
     let filtered = participants;
 
-    // Apply ADF filter if any ADFs are selected
+    // Apply ADF filter
     if (selectedADFs.length > 0) {
       filtered = filtered.filter(p => selectedADFs.includes(p.id_action_formation));
     }
 
-    // Apply Formateur filter if any formateurs are selected
+    // Apply Formateur filter
     if (selectedFormateurs.length > 0) {
       filtered = filtered.filter(p => {
         if (!p.formateurs || p.formateurs.length === 0) return false;
-        // Check if any of the participant's course formateurs match selected formateurs
         return p.formateurs.some(formateur =>
           selectedFormateurs.includes(formateur.id_formateur)
         );
       });
     }
 
-    // Active users toggle overrides status filters (but not ADF filter)
-    if (showActiveOnly) {
-      // Only apply the active days threshold, ignore status filters
-      filtered = filtered.filter(p => {
-        const daysInactive = calculateDaysInactive(p);
-        return daysInactive <= activeDaysThreshold;
-      });
-    } else {
-      // Apply status filter only when active toggle is OFF
-      filtered = filtered.filter(p => statusFilter[p.inactivity_status]);
-    }
+    // Apply status filter
+    filtered = filtered.filter(p => statusFilter[p.inactivity_status]);
 
     // Sort participants
     const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
@@ -372,10 +247,7 @@ const InactiveManagement = () => {
 
       switch (sortBy) {
         case 'inactivity':
-          // Most recent (lower days_inactive) first when desc, oldest when asc
-          const daysInactiveA = calculateDaysInactive(a);
-          const daysInactiveB = calculateDaysInactive(b);
-          comparison = (daysInactiveA - daysInactiveB) * -1;
+          comparison = ((a.days_inactive || 0) - (b.days_inactive || 0)) * -1;
           break;
         case 'name':
           comparison = `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`);
@@ -386,7 +258,7 @@ const InactiveManagement = () => {
           comparison = progressionA - progressionB;
           break;
         case 'status':
-          const statusOrder = { 'long_inactive': 3, 'stalled': 2, 'at_risk': 1 };
+          const statusOrder = { 'inactive': 3, 'at_risk': 2, 'active': 1 };
           comparison = (statusOrder[a.inactivity_status] || 0) - (statusOrder[b.inactivity_status] || 0);
           break;
         default:
@@ -475,7 +347,7 @@ const InactiveManagement = () => {
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   {t('inactiveManagement.filters.atRiskThreshold')}
@@ -492,26 +364,12 @@ const InactiveManagement = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('inactiveManagement.filters.stalledThreshold')}
+                  {t('inactiveManagement.filters.inactiveThreshold')}
                 </label>
                 <input
                   type="number"
                   value={filters.inactivityThreshold}
                   onChange={(e) => setFilters({ ...filters, inactivityThreshold: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  min="1"
-                  max="365"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  {t('inactiveManagement.filters.longInactiveThreshold')}
-                </label>
-                <input
-                  type="number"
-                  value={filters.longInactivityThreshold}
-                  onChange={(e) => setFilters({ ...filters, longInactivityThreshold: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   min="1"
                   max="365"
@@ -544,7 +402,7 @@ const InactiveManagement = () => {
           </div>
         )}
 
-        {/* Sorting, Status Filter, and Active Users Controls */}
+        {/* Sorting, Status Filter, ADF/Formateur Filters */}
         <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Sorting */}
@@ -602,23 +460,27 @@ const InactiveManagement = () => {
             </div>
 
             {/* Status Filter */}
-            <div className={showActiveOnly ? 'opacity-50 pointer-events-none' : ''}>
+            <div>
               <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <Filter size={16} />
                 {t('inactiveManagement.statusFilter.title')}
               </h3>
-              {showActiveOnly && (
-                <p className="text-xs text-gray-500 mb-2 italic">
-                  {t('inactiveManagement.statusFilter.disabledWhenActive')}
-                </p>
-              )}
               <div className="space-y-2">
+                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={statusFilter.active}
+                    onChange={() => toggleStatusFilter('active')}
+                    className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
+                  />
+                  <CheckCircle2 size={14} className="text-green-600" />
+                  <span className="text-sm font-medium text-gray-700">{t('inactiveManagement.status.active')}</span>
+                </label>
                 <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
                   <input
                     type="checkbox"
                     checked={statusFilter.at_risk}
                     onChange={() => toggleStatusFilter('at_risk')}
-                    disabled={showActiveOnly}
                     className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                   />
                   <AlertTriangle size={14} className="text-yellow-600" />
@@ -627,61 +489,14 @@ const InactiveManagement = () => {
                 <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
                   <input
                     type="checkbox"
-                    checked={statusFilter.stalled}
-                    onChange={() => toggleStatusFilter('stalled')}
-                    disabled={showActiveOnly}
-                    className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
-                  />
-                  <Clock size={14} className="text-orange-600" />
-                  <span className="text-sm font-medium text-gray-700">{t('inactiveManagement.status.stalled')}</span>
-                </label>
-                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={statusFilter.long_inactive}
-                    onChange={() => toggleStatusFilter('long_inactive')}
-                    disabled={showActiveOnly}
+                    checked={statusFilter.inactive}
+                    onChange={() => toggleStatusFilter('inactive')}
                     className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                   />
                   <UserX size={14} className="text-red-600" />
-                  <span className="text-sm font-medium text-gray-700">{t('inactiveManagement.status.longInactive')}</span>
+                  <span className="text-sm font-medium text-gray-700">{t('inactiveManagement.status.inactive')}</span>
                 </label>
               </div>
-            </div>
-
-            {/* Active Users Toggle */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <CheckCircle2 size={16} />
-                {t('inactiveManagement.activeFilter.title')}
-              </h3>
-              <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors mb-3">
-                <input
-                  type="checkbox"
-                  checked={showActiveOnly}
-                  onChange={(e) => setShowActiveOnly(e.target.checked)}
-                  className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
-                />
-                <span className="text-sm font-medium text-gray-700">{t('inactiveManagement.activeFilter.showActiveOnly')}</span>
-              </label>
-              {showActiveOnly && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {t('inactiveManagement.activeFilter.daysThreshold')}
-                  </label>
-                  <input
-                    type="number"
-                    value={activeDaysThreshold}
-                    onChange={(e) => setActiveDaysThreshold(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    min="0"
-                    max="365"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {t('inactiveManagement.activeFilter.daysThresholdHint')}
-                  </p>
-                </div>
-              )}
             </div>
 
             {/* ADF Filter */}
@@ -702,43 +517,33 @@ const InactiveManagement = () => {
                 {showAdfDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
 
-              {/* Collapsible dropdown content */}
               {showAdfDropdown && data && (() => {
                 const uniqueADFs = new Set();
                 const adfList = [];
 
-                // Extract from flat list or grouped data
                 const participants = data.participants || [];
                 const courses = data.by_course || [];
 
                 participants.forEach(p => {
                   if (p.id_action_formation && !uniqueADFs.has(p.id_action_formation)) {
                     uniqueADFs.add(p.id_action_formation);
-                    adfList.push({
-                      id: p.id_action_formation,
-                      title: p.course_title
-                    });
+                    adfList.push({ id: p.id_action_formation, title: p.course_title });
                   }
                 });
 
                 courses.forEach(c => {
                   if (c.id_action_formation && !uniqueADFs.has(c.id_action_formation)) {
                     uniqueADFs.add(c.id_action_formation);
-                    adfList.push({
-                      id: c.id_action_formation,
-                      title: c.course_title
-                    });
+                    adfList.push({ id: c.id_action_formation, title: c.course_title });
                   }
                 });
 
-                // Filter by search term
                 const filteredADFs = adfList.filter(adf =>
                   adf.title.toLowerCase().includes(adfSearchTerm.toLowerCase())
                 );
 
                 return (
                   <div className="pl-6 pr-2 space-y-2">
-                    {/* Search box */}
                     <input
                       type="text"
                       value={adfSearchTerm}
@@ -746,14 +551,11 @@ const InactiveManagement = () => {
                       placeholder="Rechercher une formation..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                     />
-
-                    {/* ADF list with checkboxes */}
                     <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-2">
                       {filteredADFs.length === 0 ? (
                         <p className="text-sm text-gray-500 text-center py-2">Aucune formation trouvée</p>
                       ) : (
                         <>
-                          {/* Select/Deselect all */}
                           <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
                             <input
                               type="checkbox"
@@ -771,12 +573,8 @@ const InactiveManagement = () => {
                               {selectedADFs.length === adfList.length ? 'Tout désélectionner' : 'Tout sélectionner'}
                             </span>
                           </label>
-
                           {filteredADFs.map((adf) => (
-                            <label
-                              key={adf.id}
-                              className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors"
-                            >
+                            <label key={adf.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors">
                               <input
                                 type="checkbox"
                                 checked={selectedADFs.includes(adf.id)}
@@ -795,7 +593,6 @@ const InactiveManagement = () => {
                         </>
                       )}
                     </div>
-
                     {selectedADFs.length > 0 && (
                       <p className="text-xs text-gray-500 mt-2">
                         {selectedADFs.length} formation{selectedADFs.length > 1 ? 's' : ''} sélectionnée{selectedADFs.length > 1 ? 's' : ''}
@@ -824,15 +621,12 @@ const InactiveManagement = () => {
                 {showFormateurDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
 
-              {/* Collapsible dropdown content */}
               {showFormateurDropdown && data && (() => {
                 const uniqueFormateurs = new Map();
 
-                // Extract formateurs from flat list or grouped data
                 const participants = data.participants || [];
                 const courses = data.by_course || [];
 
-                // Collect all formateurs from participants
                 participants.forEach(p => {
                   if (p.formateurs && Array.isArray(p.formateurs)) {
                     p.formateurs.forEach(formateur => {
@@ -848,7 +642,6 @@ const InactiveManagement = () => {
                   }
                 });
 
-                // Collect from grouped courses
                 courses.forEach(c => {
                   if (c.participants && Array.isArray(c.participants)) {
                     c.participants.forEach(p => {
@@ -869,15 +662,12 @@ const InactiveManagement = () => {
                 });
 
                 const formateurList = Array.from(uniqueFormateurs.values());
-
-                // Filter by search term
                 const filteredFormateurs = formateurList.filter(formateur =>
                   formateur.fullName.toLowerCase().includes(formateurSearchTerm.toLowerCase())
                 );
 
                 return (
                   <div className="pl-6 pr-2 space-y-2">
-                    {/* Search box */}
                     <input
                       type="text"
                       value={formateurSearchTerm}
@@ -885,14 +675,11 @@ const InactiveManagement = () => {
                       placeholder="Rechercher un formateur..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                     />
-
-                    {/* Formateur list with checkboxes */}
                     <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-2">
                       {filteredFormateurs.length === 0 ? (
                         <p className="text-sm text-gray-500 text-center py-2">Aucun formateur trouvé</p>
                       ) : (
                         <>
-                          {/* Select/Deselect all */}
                           <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
                             <input
                               type="checkbox"
@@ -910,12 +697,8 @@ const InactiveManagement = () => {
                               {selectedFormateurs.length === formateurList.length ? 'Tout désélectionner' : 'Tout sélectionner'}
                             </span>
                           </label>
-
                           {filteredFormateurs.map((formateur) => (
-                            <label
-                              key={formateur.id}
-                              className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors"
-                            >
+                            <label key={formateur.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors">
                               <input
                                 type="checkbox"
                                 checked={selectedFormateurs.includes(formateur.id)}
@@ -934,7 +717,6 @@ const InactiveManagement = () => {
                         </>
                       )}
                     </div>
-
                     {selectedFormateurs.length > 0 && (
                       <p className="text-xs text-gray-500 mt-2">
                         {selectedFormateurs.length} formateur{selectedFormateurs.length > 1 ? 's' : ''} sélectionné{selectedFormateurs.length > 1 ? 's' : ''}
@@ -970,11 +752,23 @@ const InactiveManagement = () => {
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">{t('inactiveManagement.stats.totalInactive')}</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">{data.total_inactive}</p>
+                    <p className="text-sm text-gray-600">{t('inactiveManagement.stats.total')}</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-2">{data.total_participants}</p>
                   </div>
                   <div className="p-3 bg-gray-100 rounded-lg">
-                    <UserX size={24} className="text-gray-600" />
+                    <User size={24} className="text-gray-600" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg border border-green-200 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-green-700">{t('inactiveManagement.stats.active')}</p>
+                    <p className="text-3xl font-bold text-green-900 mt-2">{data.active_count}</p>
+                  </div>
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <CheckCircle2 size={24} className="text-green-600" />
                   </div>
                 </div>
               </div>
@@ -991,23 +785,11 @@ const InactiveManagement = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border border-orange-200 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-orange-700">{t('inactiveManagement.stats.stalled')}</p>
-                    <p className="text-3xl font-bold text-orange-900 mt-2">{data.stalled_count}</p>
-                  </div>
-                  <div className="p-3 bg-orange-100 rounded-lg">
-                    <Clock size={24} className="text-orange-600" />
-                  </div>
-                </div>
-              </div>
-
               <div className="bg-white rounded-lg border border-red-200 p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-red-700">{t('inactiveManagement.stats.longInactive')}</p>
-                    <p className="text-3xl font-bold text-red-900 mt-2">{data.long_inactive_count}</p>
+                    <p className="text-sm text-red-700">{t('inactiveManagement.stats.inactive')}</p>
+                    <p className="text-3xl font-bold text-red-900 mt-2">{data.inactive_count}</p>
                   </div>
                   <div className="p-3 bg-red-100 rounded-lg">
                     <UserX size={24} className="text-red-600" />
@@ -1039,18 +821,18 @@ const InactiveManagement = () => {
                               {course.course_title}
                             </Link>
                             <p className="text-sm text-gray-500 mt-1">
-                              {t('inactiveManagement.showing')}: {filteredParticipants.length} / {course.total_inactive}
+                              {t('inactiveManagement.showing')}: {filteredParticipants.length} / {course.total_participants}
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                              {course.at_risk_count} {t('inactiveManagement.atRisk')}
+                            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                              {course.active_count} {t('inactiveManagement.status.active')}
                             </span>
-                            <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium">
-                              {course.stalled_count} {t('inactiveManagement.stalled')}
+                            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                              {course.at_risk_count} {t('inactiveManagement.status.atRisk')}
                             </span>
                             <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
-                              {course.long_inactive_count} {t('inactiveManagement.longInactive')}
+                              {course.inactive_count} {t('inactiveManagement.status.inactive')}
                             </span>
                           </div>
                         </div>
@@ -1096,7 +878,7 @@ const InactiveManagement = () => {
                                       </span>
                                       <span className="flex items-center gap-1">
                                         <Clock size={14} />
-                                        {calculateDaysInactive(participant)} {t('common.daysInactive')}
+                                        {participant.days_inactive || 0} {t('common.daysInactive')}
                                       </span>
                                       {participant.total_planned_duration_hours > 0 && (
                                         <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
@@ -1170,7 +952,7 @@ const InactiveManagement = () => {
                               </span>
                               <span className="flex items-center gap-1">
                                 <Clock size={14} />
-                                {calculateDaysInactive(participant)} {t('common.daysInactive')}
+                                {participant.days_inactive || 0} {t('common.daysInactive')}
                               </span>
                               {participant.total_planned_duration_hours > 0 && (
                                 <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
@@ -1198,7 +980,7 @@ const InactiveManagement = () => {
             )}
 
             {/* Empty State */}
-            {data.total_inactive === 0 && (
+            {data.total_participants === 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                 <UserX size={64} className="mx-auto text-gray-400 mb-4" />
                 <h2 className="text-xl font-semibold text-gray-900 mb-2">

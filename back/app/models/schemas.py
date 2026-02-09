@@ -117,7 +117,7 @@ class InactiveParticipantDetail(BaseModel):
     days_since_enrollment: int = 0
 
     # Inactivity classification
-    inactivity_status: str  # 'newly_enrolled', 'stalled', 'long_inactive', 'at_risk'
+    inactivity_status: str  # 'active', 'at_risk', 'inactive'
     inactivity_reason: str  # Human-readable explanation
 
     # Formateurs (from course)
@@ -133,10 +133,10 @@ class InactiveParticipantsByCourse(BaseModel):
     id_action_formation: Optional[str] = None
 
     # Aggregated stats
-    total_inactive: int = 0
-    stalled_count: int = 0  # No progress for 30-60 days
-    long_inactive_count: int = 0  # No progress for 60+ days
-    at_risk_count: int = 0  # Some progress but slowing down
+    total_participants: int = 0
+    active_count: int = 0
+    at_risk_count: int = 0
+    inactive_count: int = 0
 
     # Inactive participants in this course
     participants: List[InactiveParticipantDetail] = []
@@ -147,14 +147,13 @@ class InactiveParticipantsByCourse(BaseModel):
 class InactivitySummary(BaseModel):
     """Overall inactivity summary with optional course grouping"""
     total_participants_checked: int = 0
-    total_inactive: int = 0
+    total_participants: int = 0
 
-    # Breakdown by inactivity type
-    stalled_count: int = 0
-    long_inactive_count: int = 0
+    # Breakdown by status
+    active_count: int = 0
     at_risk_count: int = 0
+    inactive_count: int = 0
     newly_enrolled_excluded: int = 0
-    completed_excluded: int = 0
 
     # Grouped data (optional)
     by_course: Optional[List[InactiveParticipantsByCourse]] = None
@@ -163,8 +162,8 @@ class InactivitySummary(BaseModel):
     participants: Optional[List[InactiveParticipantDetail]] = None
 
     # Configuration used
+    at_risk_threshold_days: int = 14
     inactivity_threshold_days: int = 30
-    long_inactivity_threshold_days: int = 60
     exclude_recent_enrollments_days: int = 7
 
     class Config:

@@ -352,33 +352,28 @@
     "passwordChangeError": "Erreur lors du changement de mot de passe"
   },
   "inactiveManagement": {
-    "title": "Gestion des inactifs",
-    "subtitle": "Suivre et gérer les participants inactifs",
+    "title": "Gestion des participants",
+    "subtitle": "Suivre et gérer l'activité des participants",
     "viewFlat": "Vue liste",
     "viewGrouped": "Grouper par cours",
-    "totalInactive": "Total inactifs",
-    "atRisk": "À risque",
-    "stalled": "Bloqués",
-    "longInactive": "Inactifs longue durée",
     "showing": "Affichage",
-    "noInactive": "Aucun participant inactif",
-    "noInactiveDescription": "Tous les participants sont actifs dans leurs formations. Aucune intervention nécessaire pour le moment.",
+    "noInactive": "Aucun participant trouvé",
+    "noInactiveDescription": "Aucun participant ne correspond aux critères actuels.",
     "stats": {
-      "totalInactive": "Total inactifs",
+      "total": "Total participants",
+      "active": "Actifs",
       "atRisk": "À risque",
-      "stalled": "Bloqués",
-      "longInactive": "Inactifs longue durée"
+      "inactive": "Inactifs"
     },
     "status": {
+      "active": "Actif",
       "atRisk": "À risque",
-      "stalled": "Bloqué",
-      "longInactive": "Inactif longue durée"
+      "inactive": "Inactif"
     },
     "filters": {
       "title": "Filtres et seuils",
       "atRiskThreshold": "Seuil à risque (jours)",
-      "stalledThreshold": "Seuil bloqué (jours)",
-      "longInactiveThreshold": "Seuil inactif longue durée (jours)",
+      "inactiveThreshold": "Seuil inactif (jours)",
       "excludeRecentDays": "Exclure les nouveaux inscrits (jours)"
     },
     "sorting": {
@@ -389,14 +384,7 @@
       "byStatus": "Trier par statut"
     },
     "statusFilter": {
-      "title": "Filtrer par statut",
-      "disabledWhenActive": "Désactivé lorsque le filtre actif est activé"
-    },
-    "activeFilter": {
-      "title": "Utilisateurs actifs",
-      "showActiveOnly": "Afficher seulement les actifs",
-      "daysThreshold": "Connecté dans les derniers (jours)",
-      "daysThresholdHint": "Afficher uniquement les participants connectés dans ce délai"
+      "title": "Filtrer par statut"
     }
   },
   "settings": {
