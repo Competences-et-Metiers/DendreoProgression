@@ -212,7 +212,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
         sync_start_time = datetime.now(timezone.utc)
         
         # Create sync metadata record (only for real syncs, not dry runs)
-        sync_metadata = None
+        sync_metadata_id = None
         if not dry_run:
             with get_db_session() as db:
                 # Create a new sync metadata record for each sync operation
@@ -223,7 +223,8 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
                 )
                 db.add(sync_metadata)
                 db.commit()
-                logger.info(f"📝 Created sync metadata record (ID: {sync_metadata.id})")
+                sync_metadata_id = sync_metadata.id
+                logger.info(f"📝 Created sync metadata record (ID: {sync_metadata_id})")
         
         # Run the sync
         if not dry_run:
@@ -251,13 +252,17 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
             }
         
         # Update sync metadata with success
-        if sync_metadata and not dry_run:
+        if sync_metadata_id and not dry_run:
             with get_db_session() as db:
-                sync_metadata.status = 'success'
-                sync_metadata.stats = str(result.get('stats', {}))
-                sync_metadata.updated_at = datetime.now(timezone.utc)
-                db.commit()
-                logger.info("✅ Sync metadata updated with success")
+                record = db.query(SyncMetadata).get(sync_metadata_id)
+                if record:
+                    record.status = 'success'
+                    record.stats = str(result.get('stats', {}))
+                    record.updated_at = datetime.now(timezone.utc)
+                    db.commit()
+                    logger.info("✅ Sync metadata updated with success")
+                else:
+                    logger.error(f"Could not find sync metadata record ID {sync_metadata_id} to update")
         
         logger.info("✅ Sync completed successfully")
         return {
@@ -271,14 +276,18 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
         logger.error(f"❌ Sync failed: {str(e)}")
         
         # Update sync metadata with error
-        if sync_metadata and not dry_run:
+        if sync_metadata_id and not dry_run:
             try:
                 with get_db_session() as db:
-                    sync_metadata.status = 'error'
-                    sync_metadata.error_message = str(e)
-                    sync_metadata.updated_at = datetime.now(timezone.utc)
-                    db.commit()
-                    logger.info("📝 Sync metadata updated with error")
+                    record = db.query(SyncMetadata).get(sync_metadata_id)
+                    if record:
+                        record.status = 'error'
+                        record.error_message = str(e)
+                        record.updated_at = datetime.now(timezone.utc)
+                        db.commit()
+                        logger.info("📝 Sync metadata updated with error")
+                    else:
+                        logger.error(f"Could not find sync metadata record ID {sync_metadata_id} to update")
             except Exception as metadata_error:
                 logger.error(f"Failed to update sync metadata: {metadata_error}")
         

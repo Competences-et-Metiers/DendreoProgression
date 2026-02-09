@@ -86,16 +86,19 @@ echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - ADF Limit: ${DENDREO_ADF_LIMIT:-unli
 
 # Check if sync should be run using the new logic
 echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Checking if sync should run..."
-if python3 -c "from scripts.sync_dendreo import should_run_sync_on_deployment; import sys; sys.exit(0 if should_run_sync_on_deployment() else 1)" 2>/dev/null; then
+SYNC_CHECK_OUTPUT=$(python3 -c "from scripts.sync_dendreo import should_run_sync_on_deployment; import sys; sys.exit(0 if should_run_sync_on_deployment() else 2)" 2>&1)
+SYNC_CHECK_EXIT=$?
+
+if [ $SYNC_CHECK_EXIT -eq 0 ]; then
     echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - ✅ Sync should run - proceeding with sync"
-    
+
     # Set sync timeout (30 minutes)
     SYNC_TIMEOUT=1800
-    
+
     # Run sync with timeout
     if timeout $SYNC_TIMEOUT python3 /app/scripts/sync_dendreo.py --force --log-level "${LOG_LEVEL:-INFO}" 2>&1; then
         echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Production sync process completed successfully (PID: $$)"
-        
+
         # Optional: Run HubSpot updates if configured
         if [ -n "${HUBSPOT_API_KEY}" ] && [ "${HUBSPOT_API_KEY}" != "your_hubspot_api_key_here" ]; then
             echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Running HubSpot progression updates..."
@@ -107,7 +110,7 @@ if python3 -c "from scripts.sync_dendreo import should_run_sync_on_deployment; i
         else
             echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Skipping HubSpot updates (no valid API key configured)"
         fi
-        
+
         exit 0
     else
         SYNC_EXIT_CODE=$?
@@ -123,8 +126,24 @@ if python3 -c "from scripts.sync_dendreo import should_run_sync_on_deployment; i
         fi
         exit 1
     fi
-else
+elif [ $SYNC_CHECK_EXIT -eq 2 ]; then
     echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - 📊 Recent sync found (within 24 hours) - skipping scheduled sync"
     echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Production sync process skipped (PID: $$)"
     exit 0
+else
+    echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - ERROR: Sync check failed (exit code $SYNC_CHECK_EXIT). Output:"
+    echo "$SYNC_CHECK_OUTPUT"
+    echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Proceeding with sync as a safety fallback..."
+
+    # Set sync timeout (30 minutes)
+    SYNC_TIMEOUT=1800
+
+    if timeout $SYNC_TIMEOUT python3 /app/scripts/sync_dendreo.py --force --log-level "${LOG_LEVEL:-INFO}" 2>&1; then
+        echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Production sync process completed successfully (PID: $$)"
+        exit 0
+    else
+        SYNC_EXIT_CODE=$?
+        echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Production sync process failed with exit code $SYNC_EXIT_CODE (PID: $$)"
+        exit 1
+    fi
 fi 

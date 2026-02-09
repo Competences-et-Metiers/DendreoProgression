@@ -3,7 +3,8 @@
     "allow": [
       "Bash(ls:*)",
       "Bash(./deploy-prod.sh:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(find:*)"
     ]
   }
 }

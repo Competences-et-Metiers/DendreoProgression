@@ -86,7 +86,7 @@ export const useSyncStats = () => {
 };
 
 export const useLastSync = () => {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['lastSync'],
     queryFn: apiService.getLastSync,
     staleTime: 1 * 60 * 1000, // 1 minute - shorter since this changes frequently
@@ -94,7 +94,13 @@ export const useLastSync = () => {
     retry: 2,
     refetchOnWindowFocus: true, // Refetch when window gets focus
     refetchOnMount: true, // Always refresh sync info
+    // Poll every 5 seconds while sync is in progress
+    refetchInterval: (query) => {
+      const syncStatus = query.state.data?.sync_status;
+      return syncStatus === 'in_progress' ? 5000 : false;
+    },
   });
+  return query;
 };
 
 // Mutation hooks for cache invalidation

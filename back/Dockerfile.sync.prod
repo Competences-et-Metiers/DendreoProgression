@@ -40,6 +40,7 @@ export REDIS_ENABLED="${REDIS_ENABLED}"\n\
 export DENDREO_ADF_LIMIT="${DENDREO_ADF_LIMIT}"\n\
 export LOG_LEVEL="${LOG_LEVEL:-INFO}"\n\
 export APP_ENV="${APP_ENV:-production}"\n\
+export JWT_SECRET_KEY="${JWT_SECRET_KEY}"\n\
 cd /app\n\
 echo "$(date) - Starting sync process"\n\
 python3 scripts/sync_dendreo.py --log-level ${LOG_LEVEL:-INFO}\n\
@@ -91,6 +92,7 @@ export REDIS_ENABLED="${REDIS_ENABLED}"\n\
 export DENDREO_ADF_LIMIT="${DENDREO_ADF_LIMIT}"\n\
 export LOG_LEVEL="${LOG_LEVEL:-INFO}"\n\
 export APP_ENV="${APP_ENV:-production}"\n\
+export JWT_SECRET_KEY="${JWT_SECRET_KEY}"\n\
 export PYTHONPATH="/app:$PYTHONPATH"\n\
 EOF\n\
 chmod +x /app/cron_env.sh\n\

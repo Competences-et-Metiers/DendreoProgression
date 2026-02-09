@@ -26,7 +26,8 @@ class DendreoClient:
         self.api_key = settings.dendreo_api_key
 
         # Rate limiting configuration (100 requests per 10 seconds as per Dendreo's limit)
-        self.rate_limit_requests = int(os.getenv('DENDREO_RATE_LIMIT_REQUESTS', '95'))  # Use 95 to stay safely under 100
+        # Default to 90 to leave headroom for other third-party services sharing the API quota
+        self.rate_limit_requests = int(os.getenv('DENDREO_RATE_LIMIT_REQUESTS', '90'))
         self.rate_limit_window = int(os.getenv('DENDREO_RATE_LIMIT_WINDOW', '10'))  # 10 seconds
         self.request_timestamps = deque()  # Track request timestamps for rate limiting
         self.total_requests = 0  # Track total requests made during sync
