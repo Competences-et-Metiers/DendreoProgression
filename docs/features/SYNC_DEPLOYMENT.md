@@ -26,7 +26,10 @@ chmod +x back/scripts/sync_health_check.py
 python3 back/scripts/sync_dendreo.py --dry-run
 
 # Test actual sync
-python3 back/scripts/sync_dendreo.py --force                                                                       
+python3 back/scripts/sync_dendreo.py --force
+
+# Sync a single ADF (by id_action_formation)
+python3 back/scripts/sync_dendreo.py --adf 124
 ```
 
 ### 3. Set Up Automated Scheduling
@@ -197,6 +200,9 @@ python3 back/scripts/sync_dendreo.py --log-level DEBUG
 
 # Force sync (ignore recent syncs)
 python3 back/scripts/sync_dendreo.py --force
+
+# Sync a single ADF without triggering full sync or metadata tracking
+python3 back/scripts/sync_dendreo.py --adf 124
 ```
 
 ### 3. Common Issues
@@ -254,6 +260,9 @@ Add to `.env.prod`:
 ```bash
 # Limit number of ADFs processed (for testing)
 DENDREO_ADF_LIMIT=50
+
+# Skip the automatic sync on container startup (useful for testing/debugging)
+SKIP_STARTUP_SYNC=true
 
 # Redis configuration
 REDIS_ENABLED=true

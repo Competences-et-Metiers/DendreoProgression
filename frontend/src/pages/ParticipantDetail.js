@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ProgressBar from '../components/ProgressBar';
 import { useParticipantDetails } from '../hooks/useQuery';
+import { apiService } from '../services/api';
 import * as timeUtils from '../utils/timeUtils';
 import { 
   ArrowLeft, 
@@ -17,7 +18,8 @@ import {
   ChevronRight,
   ChevronDown,
   PlayCircle,
-  ExternalLink
+  ExternalLink,
+  Loader
 } from 'lucide-react';
 
 const ParticipantDetail = () => {
@@ -25,11 +27,14 @@ const ParticipantDetail = () => {
   const { participantId } = useParams();
   const navigate = useNavigate();
   const [expandedCourses, setExpandedCourses] = useState(new Set());
-  
+  const [hubspotLoading, setHubspotLoading] = useState(false);
+  const [hubspotError, setHubspotError] = useState(null);
+  const hubspotUrlCache = useRef(null);
+
   // Use React Query hook for data fetching with caching
-  const { 
-    data: participantData, 
-    isLoading: loading, 
+  const {
+    data: participantData,
+    isLoading: loading,
     error,
     refetch
   } = useParticipantDetails(participantId);
@@ -46,6 +51,30 @@ const ParticipantDetail = () => {
       newExpanded.add(courseId);
     }
     setExpandedCourses(newExpanded);
+  };
+
+  const handleHubspotClick = async () => {
+    if (!participantData?.participant?.email) return;
+    // Use cached URL if available
+    if (hubspotUrlCache.current) {
+      window.open(hubspotUrlCache.current, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setHubspotLoading(true);
+    setHubspotError(null);
+    try {
+      const data = await apiService.getHubspotContact(participantData.participant.email);
+      if (data?.url) {
+        hubspotUrlCache.current = data.url;
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      const errorKey = err.response?.status === 404 ? 'hubspotNotFound' : 'hubspotError';
+      setHubspotError(errorKey);
+      setTimeout(() => setHubspotError(null), 3000);
+    } finally {
+      setHubspotLoading(false);
+    }
   };
 
   const getProgressBadge = (progression) => {
@@ -140,7 +169,21 @@ const ParticipantDetail = () => {
                       Dendreo
                     </button>
                   )}
+                  {participantData?.participant?.email && (
+                    <button
+                      onClick={handleHubspotClick}
+                      disabled={hubspotLoading}
+                      className="ml-2 inline-flex items-center px-3 py-1 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50"
+                      title={t('common.openHubspotProfile')}
+                    >
+                      {hubspotLoading ? <Loader size={14} className="mr-1 animate-spin" /> : <ExternalLink size={14} className="mr-1" />}
+                      HubSpot
+                    </button>
+                  )}
                 </h1>
+                {hubspotError && (
+                  <p className="text-xs text-red-500 mt-1">{t(`common.${hubspotError}`)}</p>
+                )}
                 <p className="text-gray-600 mt-1">{t('participantDetail.subtitle')}</p>
               </div>
             </div>
@@ -172,6 +215,17 @@ const ParticipantDetail = () => {
                     >
                       <ExternalLink size={12} className="mr-1" />
                       Dendreo
+                    </button>
+                  )}
+                  {participantData?.participant?.email && (
+                    <button
+                      onClick={handleHubspotClick}
+                      disabled={hubspotLoading}
+                      className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50"
+                      title={t('common.openHubspotProfile')}
+                    >
+                      {hubspotLoading ? <Loader size={12} className="mr-1 animate-spin" /> : <ExternalLink size={12} className="mr-1" />}
+                      HubSpot
                     </button>
                   )}
                 </h3>
@@ -290,9 +344,21 @@ const ParticipantDetail = () => {
                           <Clock size={14} className="mr-1" />
                           {timeUtils.formatTimeSpentInHours(course.total_time_spent || 0)}/{timeUtils.formatTimeSpentInHours((course.planned_duration_hours || 0) * 3600)}
                         </div>
-                        <div className="flex items-center text-sm text-gray-600">
+                        <div
+                          className="group/source flex items-center text-sm text-gray-600"
+                          title={course.last_activity_source ? `${t('inactiveManagement.lastActivitySource')}: ${t(`inactiveManagement.activitySource.${course.last_activity_source}`)}` : ''}
+                        >
                           <Calendar size={14} className="mr-1" />
                           {t('common.lastActivity')}: {formatDate(course.last_activity)}
+                          {course.last_activity_source && (
+                            <span className={`opacity-0 group-hover/source:opacity-100 transition-opacity ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                              course.last_activity_source === 'elearning'
+                                ? 'bg-blue-50 text-blue-600'
+                                : 'bg-violet-50 text-violet-600'
+                            }`}>
+                              {t(`inactiveManagement.activitySource.${course.last_activity_source}`)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center text-sm text-gray-600">
                           <Calendar size={14} className="mr-1" />

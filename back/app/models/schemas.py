@@ -112,6 +112,7 @@ class InactiveParticipantDetail(BaseModel):
     # Progression tracking (aggregated)
     current_progression: float = 0.0  # Average progression across all LAMs
     last_activity: Optional[datetime] = None  # Most recent activity across all LAMs
+    last_activity_source: Optional[str] = None  # "elearning" or "classe_virtuelle"
     days_inactive: int = 0
     enrollment_date: Optional[datetime] = None  # Earliest enrollment date
     days_since_enrollment: int = 0

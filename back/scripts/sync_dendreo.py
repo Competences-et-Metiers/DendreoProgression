@@ -139,6 +139,29 @@ def should_run_sync_on_deployment() -> bool:
         # In case of error, be conservative and run sync
         return True
 
+async def run_sync_single_adf(id_action_formation: str) -> dict:
+    """
+    Run sync for a single ADF by its id_action_formation.
+    Always forced (no recent-sync check), no sync metadata tracking.
+    """
+    logger = logging.getLogger(__name__)
+
+    try:
+        logger.info(f"🎯 Starting single-ADF sync for ADF {id_action_formation}...")
+
+        with get_db_session() as db:
+            client = DendreoClient()
+            sync_service = DendreoSync(db, client)
+            result = await sync_service.sync_single_adf(id_action_formation)
+
+        logger.info("✅ Single-ADF sync completed")
+        return result
+
+    except Exception as e:
+        logger.error(f"❌ Single-ADF sync failed: {str(e)}")
+        return {"status": "error", "message": f"Single-ADF sync failed: {str(e)}"}
+
+
 async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
     """
     Run the Dendreo sync process
@@ -310,6 +333,7 @@ Examples:
   python sync_dendreo.py --dry-run         # Test run without changes
   python sync_dendreo.py --log-level DEBUG # Debug mode
   python sync_dendreo.py --cleanup-stuck   # Clean up stuck sync records
+  python sync_dendreo.py --adf 124         # Sync a single ADF by id_action_formation
         """
     )
     
@@ -337,7 +361,14 @@ Examples:
         action='store_true',
         help='Clean up stuck sync metadata records and exit'
     )
-    
+
+    parser.add_argument(
+        '--adf',
+        type=str,
+        default=None,
+        help='Sync a single ADF by its id_action_formation (e.g. --adf 124)'
+    )
+
     args = parser.parse_args()
     
     # Setup logging
@@ -370,7 +401,11 @@ Examples:
     
     # Run the sync
     try:
-        result = asyncio.run(run_sync(force=args.force, dry_run=args.dry_run))
+        if args.adf:
+            logger.info(f"🎯 Single-ADF mode: syncing ADF {args.adf}")
+            result = asyncio.run(run_sync_single_adf(args.adf))
+        else:
+            result = asyncio.run(run_sync(force=args.force, dry_run=args.dry_run))
         
         # Print results
         logger.info("=" * 60)

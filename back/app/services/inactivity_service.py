@@ -9,7 +9,7 @@ active, at_risk, or inactive.
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import List, Dict, Optional
-from app.models.models import Participant, ParticipantCourse, Course, Module
+from app.models.models import Participant, ParticipantCourse, Course, Module, Creneau, CreneauParticipant
 from app.models.schemas import (
     InactiveParticipantDetail,
     InactiveParticipantsByCourse,
@@ -60,9 +60,6 @@ class InactivityService:
             if course:
                 query = query.filter(Course.id_action_formation == course.id_action_formation)
 
-        # Exclude completed courses
-        query = query.filter(ParticipantCourse.overall_progression < 100.0)
-
         enrollments = query.all()
 
         # Group by (participant_id, id_action_formation) to aggregate LAMs
@@ -96,19 +93,31 @@ class InactivityService:
             participant = group_data['participant']
             enrollments = group_data['enrollments']
 
-            # Aggregate across all LAMs in this ADF
-            progressions = [e['participant_course'].overall_progression for e in enrollments
-                           if e['participant_course'].overall_progression is not None]
-            avg_progression = sum(progressions) / len(progressions) if progressions else 0.0
-
-            if min_progression is not None and avg_progression < min_progression:
-                continue
-            if max_progression is not None and avg_progression > max_progression:
-                continue
-
-            last_activities = [e['participant_course'].last_activity for e in enrollments
+            # E-learning last activity
+            elearning_last_activities = [e['participant_course'].last_activity for e in enrollments
                              if e['participant_course'].last_activity]
-            last_activity = max(last_activities) if last_activities else None
+            last_elearning = max(elearning_last_activities) if elearning_last_activities else None
+
+            # Liveroom last attended (only sessions where participant was present)
+            last_liveroom = self._get_last_liveroom_date(participant_id, adf_id)
+
+            # Determine effective last activity and its source
+            last_activity = None
+            last_activity_source = None
+
+            if last_elearning and last_liveroom:
+                if last_elearning >= last_liveroom:
+                    last_activity = last_elearning
+                    last_activity_source = "elearning"
+                else:
+                    last_activity = last_liveroom
+                    last_activity_source = "classe_virtuelle"
+            elif last_elearning:
+                last_activity = last_elearning
+                last_activity_source = "elearning"
+            elif last_liveroom:
+                last_activity = last_liveroom
+                last_activity_source = "classe_virtuelle"
 
             if not last_activity:
                 continue
@@ -124,14 +133,37 @@ class InactivityService:
 
             total_duration = sum(e['course'].planned_duration_hours or 0.0 for e in enrollments)
 
-            course_ids = [e['course'].id for e in enrollments]
-            modules = self.db.query(Module).filter(
-                Module.participant_id == participant.id,
-                Module.course_id.in_(course_ids),
-                Module.mode_organisation == 'elearning_async'
-            ).all()
-            total_time_spent_seconds = sum(m.lms_time_spent or 0 for m in modules)
+            # Query all LAMs for this ADF (same as course detail page)
+            adf_lam_rows = self.db.query(Course.id_lam).filter(
+                Course.id_action_formation == adf_id
+            ).distinct().all()
+            lam_ids = [row[0] for row in adf_lam_rows if row[0]]
+            if lam_ids:
+                all_modules = self.db.query(Module).filter(
+                    Module.participant_id == participant.id,
+                    Module.id_lam.in_(lam_ids)
+                ).all()
+            else:
+                all_modules = []
+
+            elearning_modules = [m for m in all_modules if m.mode_organisation == 'elearning_async']
+            total_time_spent_seconds = sum(m.lms_time_spent or 0 for m in all_modules)
             total_time_spent_hours = total_time_spent_seconds / 3600.0
+
+            # Compute progression from e-learning module data (same as course detail page)
+            if elearning_modules:
+                avg_progression = sum(m.lms_progression or 0 for m in elearning_modules) / len(elearning_modules)
+            else:
+                avg_progression = 0.0
+
+            # Skip fully completed participants
+            if avg_progression >= 100.0:
+                continue
+
+            if min_progression is not None and avg_progression < min_progression:
+                continue
+            if max_progression is not None and avg_progression > max_progression:
+                continue
 
             days_since_activity = (now - last_activity).days if last_activity else 999
             days_since_enrollment = (now - enrollment_date).days if enrollment_date else 0
@@ -161,6 +193,7 @@ class InactivityService:
                 total_time_spent_hours=total_time_spent_hours,
                 current_progression=avg_progression,
                 last_activity=last_activity,
+                last_activity_source=last_activity_source,
                 days_inactive=days_since_activity,
                 enrollment_date=enrollment_date,
                 days_since_enrollment=days_since_enrollment,
@@ -197,6 +230,26 @@ class InactivityService:
             all_details.sort(key=lambda x: x.days_inactive, reverse=True)
             return InactivitySummary(by_course=None, participants=all_details, **summary_kwargs)
 
+    def _get_last_liveroom_date(self, participant_id: int, adf_id: str) -> Optional[datetime]:
+        """
+        Get the most recent creneau date_fin where the participant was present (presence='1')
+        for a given ADF. Excludes future sessions.
+        """
+        now = datetime.now(timezone.utc)
+        result = (
+            self.db.query(Creneau.date_fin)
+            .join(CreneauParticipant, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(
+                Creneau.id_action_formation == adf_id,
+                CreneauParticipant.participant_id == participant_id,
+                CreneauParticipant.presence == "1",
+                Creneau.date_fin <= now
+            )
+            .order_by(Creneau.date_fin.desc())
+            .first()
+        )
+        return result[0] if result else None
+
     def _classify(self, days_since_activity: int) -> tuple[str, str]:
         """Classify into active / at_risk / inactive based on days since last activity."""
         if days_since_activity < self.at_risk_threshold:
@@ -205,12 +258,12 @@ class InactivityService:
         if days_since_activity < self.inactivity_threshold:
             return (
                 'at_risk',
-                f'No progression update for {days_since_activity} days'
+                f'No activity for {days_since_activity} days'
             )
 
         return (
             'inactive',
-            f'No progression update for {days_since_activity} days'
+            f'No activity for {days_since_activity} days'
         )
 
     def _build_adf_groups(

@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Dict, Any
 from app.models.database import get_db
-from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData
+from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData, Creneau, CreneauParticipant
+from datetime import datetime, timezone
 from app.models.schemas import CourseWithParticipants, ParticipantCourse as ParticipantCourseSchema
 from app.schemas.course import CourseResponse, ModuleResponse
 from app.services.cache_service import cache_service
@@ -11,6 +12,35 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+def _get_last_liveroom_date(db: Session, participant_id: int, adf_id: str):
+    """Get the most recent attended liveroom date_fin for a participant in an ADF."""
+    now = datetime.now(timezone.utc)
+    result = (
+        db.query(Creneau.date_fin)
+        .join(CreneauParticipant, CreneauParticipant.creneau_id == Creneau.id)
+        .filter(
+            Creneau.id_action_formation == adf_id,
+            CreneauParticipant.participant_id == participant_id,
+            CreneauParticipant.presence == "1",
+            Creneau.date_fin <= now
+        )
+        .order_by(Creneau.date_fin.desc())
+        .first()
+    )
+    return result[0] if result else None
+
+def _resolve_last_activity(last_elearning, last_liveroom):
+    """Return (last_activity_datetime, source_string) from the most recent of both."""
+    if last_elearning and last_liveroom:
+        if last_elearning >= last_liveroom:
+            return last_elearning, "elearning"
+        return last_liveroom, "classe_virtuelle"
+    if last_elearning:
+        return last_elearning, "elearning"
+    if last_liveroom:
+        return last_liveroom, "classe_virtuelle"
+    return None, None
 
 @router.get("/stats")
 async def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
@@ -374,19 +404,23 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 if completion_dates:
                     latest_completed_at = max(completion_dates).isoformat()
             
-            # Get last activity from modules
-            last_activity = None
+            # Get last activity from e-learning modules
+            last_elearning = None
             if modules:
-                last_activities = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
-                if last_activities:
-                    last_activity = max(last_activities).isoformat()
-            
+                elearning_dates = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
+                if elearning_dates:
+                    last_elearning = max(elearning_dates)
+
+            # Get last liveroom attendance
+            last_liveroom = _get_last_liveroom_date(db, participant.id, course.id_action_formation)
+            last_activity, last_activity_source = _resolve_last_activity(last_elearning, last_liveroom)
+
             # Get HubSpot data for this participant and ADF
             hubspot_data = db.query(ParticipantHubspotData).filter(
                 ParticipantHubspotData.participant_id == participant.id,
                 ParticipantHubspotData.id_action_formation == course.id_action_formation
             ).first()
-            
+
             participants_data.append({
                 "id": participant.id,
                 "id_participant": participant.id_participant,
@@ -397,7 +431,8 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "overall_progression": round(calculated_progression, 2),  # Use calculated progression
                 "activity_status": pc.activity_status,
                 "date_add": pc.date_add.isoformat() if pc.date_add else None,
-                "last_activity": last_activity,
+                "last_activity": last_activity.isoformat() if last_activity else None,
+                "last_activity_source": last_activity_source,
                 "completed_modules": completed_modules,
                 "total_modules": total_modules,
                 "total_time_spent": total_time_spent,
@@ -521,26 +556,31 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
             else:
                 calculated_progression = 0.0
             
-            # Get last activity from modules
-            last_activity = None
+            # Get last activity from e-learning modules
+            last_elearning = None
             if modules:
-                last_activities = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
-                if last_activities:
-                    last_activity = max(last_activities).isoformat()
-            
+                elearning_dates = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
+                if elearning_dates:
+                    last_elearning = max(elearning_dates)
+
+            # Get last liveroom attendance
+            last_liveroom = _get_last_liveroom_date(db, participant.id, adf_id)
+            last_activity, last_activity_source = _resolve_last_activity(last_elearning, last_liveroom)
+
             # Calculate total time spent across all modules for this participant in this course
             total_time_spent = sum(module.lms_time_spent or 0 for module in modules)
-            
+
             # Get planned duration from the course
             planned_duration_hours = course.planned_duration_hours or 0
-            
+
             courses_data.append({
                 "course_id": course.id,
                 "course_title": course.intitule,
                 "progression": calculated_progression,
                 "activity_status": pc.activity_status,
                 "date_add": pc.date_add.isoformat() if pc.date_add else None,
-                "last_activity": last_activity,
+                "last_activity": last_activity.isoformat() if last_activity else None,
+                "last_activity_source": last_activity_source,
                 "completed_modules": completed_modules,
                 "total_modules": len(modules),
                 "total_time_spent": total_time_spent,

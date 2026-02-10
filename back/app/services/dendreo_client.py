@@ -125,6 +125,19 @@ class DendreoClient:
             logger.warning(f"No LAPS data found for ADF {id_action_formation}")
             return []
 
+    async def get_creneaux(self, id_action_formation: str) -> List[Dict[str, Any]]:
+        """Get all creneaux (liveroom sessions) for a specific ADF, including LCPs (attendance)"""
+        params = {
+            "id_action_de_formation": id_action_formation,
+            "include": "lcps"
+        }
+        try:
+            response = await self._make_request("creneaux.php", params)
+            return response if response and isinstance(response, list) else []
+        except DendreoAPIError:
+            logger.warning(f"No creneaux data found for ADF {id_action_formation}")
+            return []
+
     async def get_lmps_for_lap(self, id_lap: str) -> List[Dict[str, Any]]:
         """Get LMPs data for a specific LAP (participant enrollment)"""
         params = {

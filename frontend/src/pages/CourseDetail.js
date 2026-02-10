@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -6,11 +6,12 @@ import ProgressBar from '../components/ProgressBar';
 import { formatTimeSpentInHours, formatTimeSpent } from '../utils/timeUtils';
 
 import { useCourseParticipants } from '../hooks/useQuery';
-import { 
-  ArrowLeft, 
-  Users, 
-  BookOpen, 
-  Target, 
+import { apiService } from '../services/api';
+import {
+  ArrowLeft,
+  Users,
+  BookOpen,
+  Target,
   Calendar,
   Mail,
   User,
@@ -21,7 +22,8 @@ import {
   ChevronDown,
   ChevronRight,
   PlayCircle,
-  ExternalLink
+  ExternalLink,
+  Loader
 } from 'lucide-react';
 
 const CourseDetail = () => {
@@ -32,8 +34,10 @@ const CourseDetail = () => {
   const [sortBy, setSortBy] = useState('progression');
   const [filterBy, setFilterBy] = useState('all');
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
+  const [hubspotLoading, setHubspotLoading] = useState(null); // email of currently loading participant
+  const [hubspotError, setHubspotError] = useState(null);
+  const hubspotUrlCache = useRef({});
 
-  
   // Use React Query hook for data fetching with caching
   const { 
     data: courseData, 
@@ -111,6 +115,30 @@ const CourseDetail = () => {
       newExpanded.add(participantId);
     }
     setExpandedParticipants(newExpanded);
+  };
+
+  const handleHubspotClick = async (email) => {
+    if (!email) return;
+    // Use cached URL if available
+    if (hubspotUrlCache.current[email]) {
+      window.open(hubspotUrlCache.current[email], '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setHubspotLoading(email);
+    setHubspotError(null);
+    try {
+      const data = await apiService.getHubspotContact(email);
+      if (data?.url) {
+        hubspotUrlCache.current[email] = data.url;
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      const errorKey = err.response?.status === 404 ? 'hubspotNotFound' : 'hubspotError';
+      setHubspotError({ email, key: errorKey });
+      setTimeout(() => setHubspotError(null), 3000);
+    } finally {
+      setHubspotLoading(null);
+    }
   };
 
   const getHubSpotDealUrl = (transactionId) => {
@@ -391,7 +419,12 @@ const CourseDetail = () => {
                               </div>
                               <div className="ml-3">
                                 <h3 className="text-sm font-medium text-gray-900">
-                                  {participant.prenom} {participant.nom}
+                                  <span
+                                    className="cursor-pointer hover:text-primary-600"
+                                    onClick={() => navigate(`/participants/${participant.id}`)}
+                                  >
+                                    {participant.prenom} {participant.nom}
+                                  </span>
                                   {participant.id_participant && (
                                     <button
                                       onClick={(e) => {
@@ -405,7 +438,24 @@ const CourseDetail = () => {
                                       Dendreo
                                     </button>
                                   )}
+                                  {participant.email && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleHubspotClick(participant.email);
+                                      }}
+                                      disabled={hubspotLoading === participant.email}
+                                      className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50"
+                                      title={t('common.openHubspotProfile')}
+                                    >
+                                      {hubspotLoading === participant.email ? <Loader size={12} className="mr-1 animate-spin" /> : <ExternalLink size={12} className="mr-1" />}
+                                      HubSpot
+                                    </button>
+                                  )}
                                 </h3>
+                                {hubspotError?.email === participant.email && (
+                                  <p className="text-xs text-red-500 mt-0.5">{t(`common.${hubspotError.key}`)}</p>
+                                )}
                                 <div className="flex items-center text-sm text-gray-600">
                                   <Mail size={12} className="mr-1" />
                                   {participant.email}
@@ -474,9 +524,21 @@ const CourseDetail = () => {
                                 ({formatTimeSpent(participant.total_time_spent || 0)})
                               </span>
                             </div>
-                            <div className="flex items-center text-sm text-gray-600">
+                            <div
+                              className="group/source flex items-center text-sm text-gray-600"
+                              title={participant.last_activity_source ? `${t('inactiveManagement.lastActivitySource')}: ${t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}` : ''}
+                            >
                               <Calendar size={14} className="mr-1" />
                               {t('common.lastActivity')}: {formatDate(participant.last_activity)}
+                              {participant.last_activity_source && (
+                                <span className={`opacity-0 group-hover/source:opacity-100 transition-opacity ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                  participant.last_activity_source === 'elearning'
+                                    ? 'bg-blue-50 text-blue-600'
+                                    : 'bg-violet-50 text-violet-600'
+                                }`}>
+                                  {t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center text-sm text-gray-600">
                               <Calendar size={14} className="mr-1" />

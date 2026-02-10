@@ -116,6 +116,9 @@
     "viewCourseDetails": "Voir les détails du cours",
     "viewParticipantDetails": "Voir les détails du participant",
     "openDendreoProfile": "Ouvrir le profil Dendreo",
+    "openHubspotProfile": "Ouvrir le profil HubSpot",
+    "hubspotNotFound": "Contact non trouvé dans HubSpot",
+    "hubspotError": "Erreur HubSpot",
     "openDendreoADF": "Ouvrir l'ADF sur Dendreo",
     "openHubSpotDeal": "Ouvrir le deal HubSpot",
     "hubSpotDeal": "Deal HubSpot",
@@ -385,6 +388,11 @@
     },
     "statusFilter": {
       "title": "Filtrer par statut"
+    },
+    "lastActivitySource": "Source de la dernière activité",
+    "activitySource": {
+      "elearning": "E-learning",
+      "classe_virtuelle": "Classe virtuelle"
     }
   },
   "settings": {

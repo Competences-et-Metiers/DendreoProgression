@@ -118,6 +118,49 @@ class SyncMetadata(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
+class Creneau(Base):
+    """Liveroom session (classe virtuelle) from Dendreo creneaux API."""
+    __tablename__ = "creneaux"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_creneau = Column(String, unique=True, nullable=False)  # Dendreo creneau ID
+    id_action_formation = Column(String, nullable=False)  # ADF ID
+    id_lam = Column(String, nullable=True)  # LAM ID from creneau
+    name = Column(String, nullable=True)  # Session name e.g. "Session 01"
+    date_debut = Column(DateTime(timezone=True), nullable=True)
+    date_fin = Column(DateTime(timezone=True), nullable=True)
+    duration = Column(Integer, default=0)  # Duration in seconds
+    id_salle_de_formation = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    participants = relationship("CreneauParticipant", back_populates="creneau")
+
+
+class CreneauParticipant(Base):
+    """Participant attendance record (LCP) for a liveroom session."""
+    __tablename__ = "creneau_participants"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_lcp = Column(String, unique=True, nullable=False)  # Dendreo LCP ID
+    id_creneau = Column(String, nullable=False)  # Dendreo creneau ID
+    id_lmp = Column(String, nullable=True)  # Module link from LCP
+    id_lap = Column(String, nullable=True)  # LAP enrollment link
+    id_participant = Column(String, nullable=False)  # Dendreo participant ID
+    participant_id = Column(Integer, ForeignKey("participants.id"), nullable=True)  # DB FK
+    creneau_id = Column(Integer, ForeignKey("creneaux.id"), nullable=True)  # DB FK
+    presence = Column(String(10), default="")  # "0"=absent, "1"=present, ""=unmarked
+    heures_presence = Column(Float, default=0.0)
+    heures_absence = Column(Float, default=0.0)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    creneau = relationship("Creneau", back_populates="participants")
+    participant = relationship("Participant")
+
+
 class User(Base):
     """User model for authentication."""
     __tablename__ = "users"

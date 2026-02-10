@@ -116,6 +116,9 @@
     "viewCourseDetails": "View course details",
     "viewParticipantDetails": "View participant details",
     "openDendreoProfile": "Open Dendreo profile",
+    "openHubspotProfile": "Open HubSpot profile",
+    "hubspotNotFound": "Contact not found in HubSpot",
+    "hubspotError": "HubSpot error",
     "openDendreoADF": "Open ADF on Dendreo",
     "openHubSpotDeal": "Open HubSpot deal",
     "hubSpotDeal": "HubSpot Deal",
@@ -336,7 +339,12 @@
   "inactiveManagement": {
     "title": "Inactive Management",
     "subtitle": "Track and manage inactive participants",
-    "placeholder": "Inactive participant management will be available soon. You will be able to identify and re-engage participants who have been inactive."
+    "placeholder": "Inactive participant management will be available soon. You will be able to identify and re-engage participants who have been inactive.",
+    "lastActivitySource": "Last activity source",
+    "activitySource": {
+      "elearning": "E-learning",
+      "classe_virtuelle": "Virtual classroom"
+    }
   },
   "settings": {
     "title": "Settings",

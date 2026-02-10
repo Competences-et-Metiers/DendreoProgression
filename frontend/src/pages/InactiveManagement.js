@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -271,6 +271,43 @@ const InactiveManagement = () => {
     return filtered;
   };
 
+  // Compute stats from client-side filtered data (ADF + formateur filters, ignoring status filter)
+  const filteredStats = useMemo(() => {
+    if (!data) return { total: 0, active: 0, at_risk: 0, inactive: 0 };
+
+    // Collect all participants from either view mode
+    let allParticipants = [];
+    if (data.participants) {
+      allParticipants = data.participants;
+    } else if (data.by_course) {
+      data.by_course.forEach(course => {
+        if (course.participants) {
+          allParticipants = allParticipants.concat(course.participants);
+        }
+      });
+    }
+
+    // Apply ADF filter
+    if (selectedADFs.length > 0) {
+      allParticipants = allParticipants.filter(p => selectedADFs.includes(p.id_action_formation));
+    }
+
+    // Apply formateur filter
+    if (selectedFormateurs.length > 0) {
+      allParticipants = allParticipants.filter(p => {
+        if (!p.formateurs || p.formateurs.length === 0) return false;
+        return p.formateurs.some(f => selectedFormateurs.includes(f.id_formateur));
+      });
+    }
+
+    return {
+      total: allParticipants.length,
+      active: allParticipants.filter(p => p.inactivity_status === 'active').length,
+      at_risk: allParticipants.filter(p => p.inactivity_status === 'at_risk').length,
+      inactive: allParticipants.filter(p => p.inactivity_status === 'inactive').length,
+    };
+  }, [data, selectedADFs, selectedFormateurs]);
+
   const toggleSort = (field) => {
     if (sortBy === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -402,114 +439,83 @@ const InactiveManagement = () => {
           </div>
         )}
 
-        {/* Sorting, Status Filter, ADF/Formateur Filters */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Sorting */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <ArrowUpDown size={16} />
+        {/* Sorting & Filters */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 space-y-4">
+          {/* Row 1: Sorting + Status Filter */}
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Sorting - horizontal pills */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-gray-600 flex items-center gap-1 mr-1">
+                <ArrowUpDown size={14} />
                 {t('inactiveManagement.sorting.title')}
-              </h3>
-              <div className="space-y-2">
+              </span>
+              {[
+                { key: 'inactivity', label: t('inactiveManagement.sorting.byInactivity') },
+                { key: 'name', label: t('inactiveManagement.sorting.byName') },
+                { key: 'progression', label: t('inactiveManagement.sorting.byProgression') },
+                { key: 'status', label: t('inactiveManagement.sorting.byStatus') },
+              ].map(({ key, label }) => (
                 <button
-                  onClick={() => toggleSort('inactivity')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-colors ${
-                    sortBy === 'inactivity' ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                  key={key}
+                  onClick={() => toggleSort(key)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    sortBy === key ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <span className="text-sm font-medium">{t('inactiveManagement.sorting.byInactivity')}</span>
-                  {sortBy === 'inactivity' && (
-                    sortDirection === 'desc' ? <ArrowDown size={16} /> : <ArrowUp size={16} />
+                  {label}
+                  {sortBy === key && (
+                    sortDirection === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />
                   )}
                 </button>
-                <button
-                  onClick={() => toggleSort('name')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-colors ${
-                    sortBy === 'name' ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="text-sm font-medium">{t('inactiveManagement.sorting.byName')}</span>
-                  {sortBy === 'name' && (
-                    sortDirection === 'desc' ? <ArrowDown size={16} /> : <ArrowUp size={16} />
-                  )}
-                </button>
-                <button
-                  onClick={() => toggleSort('progression')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-colors ${
-                    sortBy === 'progression' ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="text-sm font-medium">{t('inactiveManagement.sorting.byProgression')}</span>
-                  {sortBy === 'progression' && (
-                    sortDirection === 'desc' ? <ArrowDown size={16} /> : <ArrowUp size={16} />
-                  )}
-                </button>
-                <button
-                  onClick={() => toggleSort('status')}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border transition-colors ${
-                    sortBy === 'status' ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <span className="text-sm font-medium">{t('inactiveManagement.sorting.byStatus')}</span>
-                  {sortBy === 'status' && (
-                    sortDirection === 'desc' ? <ArrowDown size={16} /> : <ArrowUp size={16} />
-                  )}
-                </button>
-              </div>
+              ))}
             </div>
 
-            {/* Status Filter */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                <Filter size={16} />
-                {t('inactiveManagement.statusFilter.title')}
-              </h3>
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={statusFilter.active}
-                    onChange={() => toggleStatusFilter('active')}
-                    className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
-                  />
-                  <CheckCircle2 size={14} className="text-green-600" />
-                  <span className="text-sm font-medium text-gray-700">{t('inactiveManagement.status.active')}</span>
-                </label>
-                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={statusFilter.at_risk}
-                    onChange={() => toggleStatusFilter('at_risk')}
-                    className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
-                  />
-                  <AlertTriangle size={14} className="text-yellow-600" />
-                  <span className="text-sm font-medium text-gray-700">{t('inactiveManagement.status.atRisk')}</span>
-                </label>
-                <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={statusFilter.inactive}
-                    onChange={() => toggleStatusFilter('inactive')}
-                    className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
-                  />
-                  <UserX size={14} className="text-red-600" />
-                  <span className="text-sm font-medium text-gray-700">{t('inactiveManagement.status.inactive')}</span>
-                </label>
-              </div>
-            </div>
+            {/* Divider */}
+            <div className="hidden lg:block w-px bg-gray-200" />
 
+            {/* Status Filter - horizontal pills */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-gray-600 flex items-center gap-1 mr-1">
+                <Filter size={14} />
+                Statut
+              </span>
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                statusFilter.active ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-200 text-gray-400'
+              }`}>
+                <input type="checkbox" checked={statusFilter.active} onChange={() => toggleStatusFilter('active')} className="sr-only" />
+                <CheckCircle2 size={12} />
+                {t('inactiveManagement.status.active')}
+              </label>
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                statusFilter.at_risk ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-white border-gray-200 text-gray-400'
+              }`}>
+                <input type="checkbox" checked={statusFilter.at_risk} onChange={() => toggleStatusFilter('at_risk')} className="sr-only" />
+                <AlertTriangle size={12} />
+                {t('inactiveManagement.status.atRisk')}
+              </label>
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                statusFilter.inactive ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-400'
+              }`}>
+                <input type="checkbox" checked={statusFilter.inactive} onChange={() => toggleStatusFilter('inactive')} className="sr-only" />
+                <UserX size={12} />
+                {t('inactiveManagement.status.inactive')}
+              </label>
+            </div>
+          </div>
+
+          {/* Row 2: ADF + Formateur Filters side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
             {/* ADF Filter */}
             <div>
               <button
                 onClick={() => setShowAdfDropdown(!showAdfDropdown)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors mb-2"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <BookOpen size={16} className="text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-900">Filtrer par formation (ADF)</span>
+                  <span className="text-sm font-medium text-gray-900">Filtrer par formation (ADF)</span>
                   {selectedADFs.length > 0 && (
-                    <span className="ml-2 px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
+                    <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
                       {selectedADFs.length}
                     </span>
                   )}
@@ -543,7 +549,7 @@ const InactiveManagement = () => {
                 );
 
                 return (
-                  <div className="pl-6 pr-2 space-y-2">
+                  <div className="mt-2 space-y-2">
                     <input
                       type="text"
                       value={adfSearchTerm}
@@ -551,7 +557,7 @@ const InactiveManagement = () => {
                       placeholder="Rechercher une formation..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                     />
-                    <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-2">
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 rounded-lg p-2">
                       {filteredADFs.length === 0 ? (
                         <p className="text-sm text-gray-500 text-center py-2">Aucune formation trouvée</p>
                       ) : (
@@ -594,7 +600,7 @@ const InactiveManagement = () => {
                       )}
                     </div>
                     {selectedADFs.length > 0 && (
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-gray-500">
                         {selectedADFs.length} formation{selectedADFs.length > 1 ? 's' : ''} sélectionnée{selectedADFs.length > 1 ? 's' : ''}
                       </p>
                     )}
@@ -607,13 +613,13 @@ const InactiveManagement = () => {
             <div>
               <button
                 onClick={() => setShowFormateurDropdown(!showFormateurDropdown)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors mb-2"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <User size={16} className="text-gray-600" />
-                  <span className="text-sm font-semibold text-gray-900">Filtrer par formateur</span>
+                  <span className="text-sm font-medium text-gray-900">Filtrer par formateur</span>
                   {selectedFormateurs.length > 0 && (
-                    <span className="ml-2 px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
+                    <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
                       {selectedFormateurs.length}
                     </span>
                   )}
@@ -667,7 +673,7 @@ const InactiveManagement = () => {
                 );
 
                 return (
-                  <div className="pl-6 pr-2 space-y-2">
+                  <div className="mt-2 space-y-2">
                     <input
                       type="text"
                       value={formateurSearchTerm}
@@ -675,7 +681,7 @@ const InactiveManagement = () => {
                       placeholder="Rechercher un formateur..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                     />
-                    <div className="max-h-60 overflow-y-auto space-y-2 border border-gray-200 rounded-lg p-2">
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 rounded-lg p-2">
                       {filteredFormateurs.length === 0 ? (
                         <p className="text-sm text-gray-500 text-center py-2">Aucun formateur trouvé</p>
                       ) : (
@@ -718,7 +724,7 @@ const InactiveManagement = () => {
                       )}
                     </div>
                     {selectedFormateurs.length > 0 && (
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-gray-500">
                         {selectedFormateurs.length} formateur{selectedFormateurs.length > 1 ? 's' : ''} sélectionné{selectedFormateurs.length > 1 ? 's' : ''}
                       </p>
                     )}
@@ -753,7 +759,7 @@ const InactiveManagement = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">{t('inactiveManagement.stats.total')}</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">{data.total_participants}</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-2">{filteredStats.total}</p>
                   </div>
                   <div className="p-3 bg-gray-100 rounded-lg">
                     <User size={24} className="text-gray-600" />
@@ -765,7 +771,7 @@ const InactiveManagement = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-green-700">{t('inactiveManagement.stats.active')}</p>
-                    <p className="text-3xl font-bold text-green-900 mt-2">{data.active_count}</p>
+                    <p className="text-3xl font-bold text-green-900 mt-2">{filteredStats.active}</p>
                   </div>
                   <div className="p-3 bg-green-100 rounded-lg">
                     <CheckCircle2 size={24} className="text-green-600" />
@@ -777,7 +783,7 @@ const InactiveManagement = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-yellow-700">{t('inactiveManagement.stats.atRisk')}</p>
-                    <p className="text-3xl font-bold text-yellow-900 mt-2">{data.at_risk_count}</p>
+                    <p className="text-3xl font-bold text-yellow-900 mt-2">{filteredStats.at_risk}</p>
                   </div>
                   <div className="p-3 bg-yellow-100 rounded-lg">
                     <AlertTriangle size={24} className="text-yellow-600" />
@@ -789,7 +795,7 @@ const InactiveManagement = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-red-700">{t('inactiveManagement.stats.inactive')}</p>
-                    <p className="text-3xl font-bold text-red-900 mt-2">{data.inactive_count}</p>
+                    <p className="text-3xl font-bold text-red-900 mt-2">{filteredStats.inactive}</p>
                   </div>
                   <div className="p-3 bg-red-100 rounded-lg">
                     <UserX size={24} className="text-red-600" />
@@ -876,9 +882,21 @@ const InactiveManagement = () => {
                                         <Calendar size={14} />
                                         Ajouté: {formatDate(participant.enrollment_date)}
                                       </span>
-                                      <span className="flex items-center gap-1">
+                                      <span
+                                        className="group/source flex items-center gap-1"
+                                        title={participant.last_activity_source ? `${t('inactiveManagement.lastActivitySource')}: ${t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}` : ''}
+                                      >
                                         <Clock size={14} />
                                         {participant.days_inactive || 0} {t('common.daysInactive')}
+                                        {participant.last_activity_source && (
+                                          <span className={`opacity-0 group-hover/source:opacity-100 transition-opacity inline-flex items-center ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                            participant.last_activity_source === 'elearning'
+                                              ? 'bg-blue-50 text-blue-600'
+                                              : 'bg-violet-50 text-violet-600'
+                                          }`}>
+                                            {t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}
+                                          </span>
+                                        )}
                                       </span>
                                       {participant.total_planned_duration_hours > 0 && (
                                         <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
@@ -950,9 +968,21 @@ const InactiveManagement = () => {
                                 <Calendar size={14} />
                                 Ajouté: {formatDate(participant.enrollment_date)}
                               </span>
-                              <span className="flex items-center gap-1">
+                              <span
+                                className="group/source flex items-center gap-1"
+                                title={participant.last_activity_source ? `${t('inactiveManagement.lastActivitySource')}: ${t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}` : ''}
+                              >
                                 <Clock size={14} />
                                 {participant.days_inactive || 0} {t('common.daysInactive')}
+                                {participant.last_activity_source && (
+                                  <span className={`opacity-0 group-hover/source:opacity-100 transition-opacity inline-flex items-center ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                    participant.last_activity_source === 'elearning'
+                                      ? 'bg-blue-50 text-blue-600'
+                                      : 'bg-violet-50 text-violet-600'
+                                  }`}>
+                                    {t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}
+                                  </span>
+                                )}
                               </span>
                               {participant.total_planned_duration_hours > 0 && (
                                 <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">

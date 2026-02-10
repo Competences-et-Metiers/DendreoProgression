@@ -62,21 +62,26 @@ echo "Waiting for database..."\n\
 timeout 60 bash -c "until python -c '\''from app.models.database import engine; from sqlalchemy import text; engine.connect().execute(text(\"SELECT 1\"))'\'' 2>/dev/null; do echo '\''Waiting for database...'\''; sleep 2; done"\n\
 echo "Database is ready!"\n\
 \n\
-# Check if sync should be run on deployment using the new logic\n\
-echo "🔍 Checking if sync should run on deployment..."\n\
-if python3 -c "from scripts.sync_dendreo import should_run_sync_on_deployment; import sys; sys.exit(0 if should_run_sync_on_deployment() else 1)"; then\n\
-    echo "✅ Sync should run on deployment - executing initial sync..."\n\
-    python3 scripts/sync_dendreo.py --log-level ${LOG_LEVEL:-INFO} --force\n\
-    SYNC_RESULT=$?\n\
-    if [ $SYNC_RESULT -eq 0 ]; then\n\
-        echo "✅ Initial sync completed successfully"\n\
-    else\n\
-        echo "❌ Initial sync failed with exit code $SYNC_RESULT"\n\
-        echo "⚠️  Will continue with cron setup - scheduled syncs may retry"\n\
-    fi\n\
+# Check if startup sync is disabled\n\
+if [ "${SKIP_STARTUP_SYNC}" = "true" ]; then\n\
+    echo "⏭️  SKIP_STARTUP_SYNC=true - skipping startup sync"\n\
 else\n\
-    echo "📊 Recent sync found or database has data - skipping deployment sync"\n\
-    echo "ℹ️  Next scheduled sync will run at 8 AM daily"\n\
+    # Check if sync should be run on deployment using the new logic\n\
+    echo "🔍 Checking if sync should run on deployment..."\n\
+    if python3 -c "from scripts.sync_dendreo import should_run_sync_on_deployment; import sys; sys.exit(0 if should_run_sync_on_deployment() else 1)"; then\n\
+        echo "✅ Sync should run on deployment - executing initial sync..."\n\
+        python3 scripts/sync_dendreo.py --log-level ${LOG_LEVEL:-INFO} --force\n\
+        SYNC_RESULT=$?\n\
+        if [ $SYNC_RESULT -eq 0 ]; then\n\
+            echo "✅ Initial sync completed successfully"\n\
+        else\n\
+            echo "❌ Initial sync failed with exit code $SYNC_RESULT"\n\
+            echo "⚠️  Will continue with cron setup - scheduled syncs may retry"\n\
+        fi\n\
+    else\n\
+        echo "📊 Recent sync found or database has data - skipping deployment sync"\n\
+        echo "ℹ️  Next scheduled sync will run at 8 AM daily"\n\
+    fi\n\
 fi\n\
 \n\
 # Create environment file for cron (sh-compatible)\n\

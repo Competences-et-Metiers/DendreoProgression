@@ -97,6 +97,12 @@ export const apiService = {
     return response.data;
   },
 
+  // HubSpot
+  async getHubspotContact(email) {
+    const response = await api.get(`/hubspot/contact/${encodeURIComponent(email)}`);
+    return response.data;
+  },
+
   // Sync operations
   async syncAll() {
     const response = await api.post('/sync/sync-all');

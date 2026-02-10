@@ -5,7 +5,7 @@ from app.services.data_processor import DataProcessor
 from app.models.database import get_db
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData
+from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, Creneau, CreneauParticipant
 import os
 import asyncio
 
@@ -44,6 +44,10 @@ class DendreoSync:
             "participant_courses_removed": 0,
             "hubspot_data_created": 0,
             "hubspot_data_updated": 0,
+            "creneaux_created": 0,
+            "creneaux_updated": 0,
+            "creneau_participants_created": 0,
+            "creneau_participants_updated": 0,
             "hubspot_updates_total": 0,
             "hubspot_updates_successful": 0,
             "hubspot_updates_failed": 0,
@@ -228,6 +232,17 @@ class DendreoSync:
                             logger.warning(f"Error processing LAP {id_lap}: {e}")
                             continue
 
+                    # Fetch and process creneaux (liveroom sessions) for this ADF
+                    try:
+                        creneaux_data = await self.client.get_creneaux(id_adf)
+                        if creneaux_data:
+                            logger.info(f"   Found {len(creneaux_data)} creneaux for ADF {id_adf}")
+                            await self._process_creneaux(creneaux_data, id_adf)
+                        else:
+                            logger.debug(f"   No creneaux found for ADF {id_adf}")
+                    except Exception as e:
+                        logger.warning(f"Error processing creneaux for ADF {id_adf}: {e}")
+
                     # Commit after each ADF to avoid large transactions
                     self.db.commit()
                     logger.info(f"✅ Completed ADF {id_adf} ({adf_idx}/{len(adf_data)})")
@@ -302,6 +317,119 @@ class DendreoSync:
 
         except Exception as e:
             logger.error(f"Error during sync: {str(e)}")
+            self.db.rollback()
+            raise
+
+    async def sync_single_adf(self, id_action_formation: str) -> Dict[str, Any]:
+        """Sync a single ADF by its id_action_formation. Skips cleanup and HubSpot updates."""
+        try:
+            logger.info(f"🎯 Starting single-ADF sync for {id_action_formation}")
+            self.client.reset_rate_limit_stats()
+            start_time = datetime.now()
+
+            # Fetch all ADFs to find the target (API has no single-ADF filter)
+            adf_data = await self.client.get_actions_de_formation()
+            if not isinstance(adf_data, list):
+                return {"status": "error", "message": "Invalid ADFs data received from API"}
+
+            target_adf = None
+            for adf in adf_data:
+                if str(adf.get('id_action_de_formation')) == str(id_action_formation):
+                    target_adf = adf
+                    break
+
+            if not target_adf:
+                return {"status": "error", "message": f"ADF {id_action_formation} not found in Dendreo API"}
+
+            id_etape_process = target_adf.get('id_etape_process')
+            if not id_etape_process or str(id_etape_process) not in ['5', '6']:
+                logger.warning(f"ADF {id_action_formation} has inactive status {id_etape_process}, syncing anyway (forced)")
+
+            # Process the ADF to create/update courses
+            active_courses = await self._process_adfs([target_adf])
+            self.db.commit()
+
+            id_adf = str(id_action_formation)
+
+            # Fetch and process LAPs → LMPs (same logic as sync_all per-ADF block)
+            laps_data = await self.client.get_laps(id_adf)
+            if laps_data:
+                logger.info(f"   Found {len(laps_data)} LAPs for ADF {id_adf}")
+
+                for lap_idx, lap_record in enumerate(laps_data, 1):
+                    id_lap = lap_record.get('id_lap')
+                    if not id_lap:
+                        continue
+
+                    participant_data = lap_record.get('participant')
+                    if not participant_data:
+                        continue
+
+                    id_entreprise = lap_record.get('id_entreprise')
+                    if id_entreprise:
+                        participant_data['id_entreprise'] = id_entreprise
+
+                    date_add_str = participant_data.get('date_add')
+                    date_add = None
+                    if date_add_str:
+                        try:
+                            date_add = datetime.strptime(date_add_str, '%Y-%m-%d %H:%M:%S')
+                        except ValueError:
+                            pass
+
+                    participant = await self._get_or_create_participant(participant_data)
+                    if not participant:
+                        continue
+
+                    try:
+                        lmps_data = await self.client.get_lmps_for_lap(id_lap)
+                        if lmps_data:
+                            await self._process_lmps(lmps_data, active_courses)
+
+                            course_ids = [c.id for c in self.db.query(Course).filter(Course.id_action_formation == id_adf).all()]
+                            if course_ids:
+                                participant_courses = self.db.query(ParticipantCourse).filter(
+                                    ParticipantCourse.participant_id == participant.id,
+                                    ParticipantCourse.course_id.in_(course_ids)
+                                ).all()
+                                for pc in participant_courses:
+                                    pc.id_lap = id_lap
+                                    if date_add:
+                                        pc.date_add = date_add
+                                    pc.updated_at = datetime.utcnow()
+
+                    except Exception as e:
+                        logger.warning(f"Error processing LAP {id_lap}: {e}")
+                        continue
+            else:
+                logger.info(f"   No LAPs found for ADF {id_adf}")
+
+            # Fetch and process creneaux
+            try:
+                creneaux_data = await self.client.get_creneaux(id_adf)
+                if creneaux_data:
+                    logger.info(f"   Found {len(creneaux_data)} creneaux for ADF {id_adf}")
+                    await self._process_creneaux(creneaux_data, id_adf)
+                else:
+                    logger.debug(f"   No creneaux found for ADF {id_adf}")
+            except Exception as e:
+                logger.warning(f"Error processing creneaux for ADF {id_adf}: {e}")
+
+            self.db.commit()
+
+            duration = (datetime.now() - start_time).total_seconds()
+            rate_limit_stats = self.client.get_rate_limit_stats()
+            logger.info(f"✅ Single-ADF sync for {id_adf} completed in {duration:.2f}s. Stats: {self.stats}")
+
+            return {
+                "status": "success",
+                "message": f"Single-ADF sync for {id_adf} completed in {duration:.2f}s",
+                "stats": self.stats,
+                "rate_limiting": rate_limit_stats
+            }
+
+        except Exception as e:
+            logger.error(f"Error during single-ADF sync: {str(e)}")
             self.db.rollback()
             raise
 
@@ -930,6 +1058,133 @@ class DendreoSync:
             logger.error(f"Error during orphaned courses cleanup: {str(e)}")
             self.db.rollback()
             raise
+
+    async def _process_creneaux(self, creneaux_data: List[Dict], id_adf: str):
+        """Process creneaux (liveroom session) data and LCP attendance records for an ADF"""
+        for creneau_data in creneaux_data:
+            id_creneau = creneau_data.get('id_creneau')
+            if not id_creneau:
+                continue
+
+            # Parse dates
+            date_debut = None
+            date_debut_raw = creneau_data.get('date_debut', '')
+            if date_debut_raw and date_debut_raw.strip():
+                try:
+                    date_debut = datetime.strptime(date_debut_raw.strip(), '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    pass
+
+            date_fin = None
+            date_fin_raw = creneau_data.get('date_fin', '')
+            if date_fin_raw and date_fin_raw.strip():
+                try:
+                    date_fin = datetime.strptime(date_fin_raw.strip(), '%Y-%m-%d %H:%M:%S')
+                except ValueError:
+                    pass
+
+            # Parse duration
+            duration = 0
+            try:
+                duration = int(creneau_data.get('duration', 0))
+            except (ValueError, TypeError):
+                duration = 0
+
+            # Upsert Creneau record
+            creneau = self.db.query(Creneau).filter(Creneau.id_creneau == id_creneau).first()
+            if creneau:
+                creneau.id_action_formation = id_adf
+                creneau.id_lam = creneau_data.get('id_lam')
+                creneau.name = creneau_data.get('name', '')
+                creneau.date_debut = date_debut
+                creneau.date_fin = date_fin
+                creneau.duration = duration
+                creneau.id_salle_de_formation = creneau_data.get('id_salle_de_formation')
+                creneau.updated_at = datetime.utcnow()
+                self.stats["creneaux_updated"] += 1
+            else:
+                creneau = Creneau(
+                    id_creneau=id_creneau,
+                    id_action_formation=id_adf,
+                    id_lam=creneau_data.get('id_lam'),
+                    name=creneau_data.get('name', ''),
+                    date_debut=date_debut,
+                    date_fin=date_fin,
+                    duration=duration,
+                    id_salle_de_formation=creneau_data.get('id_salle_de_formation')
+                )
+                self.db.add(creneau)
+                self.stats["creneaux_created"] += 1
+
+            # Flush to get creneau.id for FK
+            self.db.flush()
+
+            # Process LCPs (attendance records)
+            lcps = creneau_data.get('lcps', [])
+            for lcp_data in lcps:
+                id_lcp = lcp_data.get('id_lcp')
+                if not id_lcp:
+                    continue
+
+                # Resolve participant Dendreo ID from nested lap.participant
+                lap_data = lcp_data.get('lap', {})
+                participant_data = lap_data.get('participant', {}) if lap_data else {}
+                dendreo_participant_id = participant_data.get('id_participant') if participant_data else None
+
+                # Resolve DB FK
+                participant_id = None
+                if dendreo_participant_id:
+                    participant = self.db.query(Participant).filter(
+                        Participant.id_participant == str(dendreo_participant_id)
+                    ).first()
+                    if participant:
+                        participant_id = participant.id
+
+                # Parse presence hours
+                heures_presence = 0.0
+                try:
+                    heures_presence = float(lcp_data.get('heures_presence', 0))
+                except (ValueError, TypeError):
+                    pass
+
+                heures_absence = 0.0
+                try:
+                    heures_absence = float(lcp_data.get('heures_absence', 0))
+                except (ValueError, TypeError):
+                    pass
+
+                # Upsert CreneauParticipant
+                cp = self.db.query(CreneauParticipant).filter(
+                    CreneauParticipant.id_lcp == id_lcp
+                ).first()
+
+                if cp:
+                    cp.id_creneau = id_creneau
+                    cp.id_lmp = lcp_data.get('id_lmp')
+                    cp.id_lap = lcp_data.get('id_lap')
+                    cp.id_participant = str(dendreo_participant_id) if dendreo_participant_id else cp.id_participant
+                    cp.participant_id = participant_id
+                    cp.creneau_id = creneau.id
+                    cp.presence = str(lcp_data.get('presence', ''))
+                    cp.heures_presence = heures_presence
+                    cp.heures_absence = heures_absence
+                    cp.updated_at = datetime.utcnow()
+                    self.stats["creneau_participants_updated"] += 1
+                else:
+                    cp = CreneauParticipant(
+                        id_lcp=id_lcp,
+                        id_creneau=id_creneau,
+                        id_lmp=lcp_data.get('id_lmp'),
+                        id_lap=lcp_data.get('id_lap'),
+                        id_participant=str(dendreo_participant_id) if dendreo_participant_id else '',
+                        participant_id=participant_id,
+                        creneau_id=creneau.id,
+                        presence=str(lcp_data.get('presence', '')),
+                        heures_presence=heures_presence,
+                        heures_absence=heures_absence
+                    )
+                    self.db.add(cp)
+                    self.stats["creneau_participants_created"] += 1
 
     async def _process_lmps(self, lmp_batch: List[Dict], active_courses: Dict[str, Course]) -> set:
         """Process LMP data to create or update modules and participants"""
