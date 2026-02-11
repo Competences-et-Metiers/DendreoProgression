@@ -999,9 +999,14 @@ class DendreoSync:
                 
                 # Only remove if participant has no modules AND no HubSpot data
                 if module_count == 0 and hubspot_count == 0:
+                    # Clean up creneau_participants FK references before deleting
+                    creneau_deleted = self.db.query(CreneauParticipant).filter(
+                        CreneauParticipant.participant_id == participant.id
+                    ).delete()
+                    if creneau_deleted:
+                        logger.info(f"Cleared {creneau_deleted} creneau_participant records for participant {participant.id_participant}")
+
                     logger.info(f"Removing orphaned participant: {participant.id_participant} ({participant.email}) - no modules and no HubSpot data")
-                    
-                    # Remove the participant
                     self.db.delete(participant)
                     removed_participants += 1
                 else:
@@ -1202,14 +1207,9 @@ class DendreoSync:
                     if isinstance(module_data, dict):
                         mode_organisation = module_data.get('mode_organisation', '')
                 
-                # Skip non-elearning_async modules
-                if mode_organisation and mode_organisation != 'elearning_async':
-                    logger.debug(f"Skipping LMP - mode_organisation is '{mode_organisation}' (not elearning_async)")
-                    continue
-                
-                # Default to elearning_async if no mode_organisation found (for existing data)
+                # Store mode_organisation as-is (empty string if not provided)
                 if not mode_organisation:
-                    mode_organisation = 'elearning_async'
+                    mode_organisation = ''
                 
                 # Extract participant data
                 participant_data = lmp.get('participant')

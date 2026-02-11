@@ -114,6 +114,8 @@ class SyncMetadata(Base):
     status = Column(String, nullable=False)  # 'success', 'error', 'in_progress'
     stats = Column(Text, nullable=True)  # JSON string of sync statistics
     error_message = Column(Text, nullable=True)
+    api_calls_count = Column(Integer, default=0, nullable=False)  # Total API calls during this sync
+    duration_seconds = Column(Float, nullable=True)  # How long the sync took
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -168,6 +170,23 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
+    role = Column(String(20), default='user', nullable=False)  # 'admin' or 'user'
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class AdminSyncConfig(Base):
+    """Admin configuration for sync scheduling and cooldown (singleton table)."""
+    __tablename__ = "admin_sync_config"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    cron_enabled = Column(Boolean, default=True, nullable=False)  # Enable/disable scheduled syncs
+    cooldown_hours = Column(Float, default=12.0, nullable=False)  # Skip scheduled sync if last sync is newer than this
+    schedule_days = Column(String(20), default='0,1,2,3,4', nullable=False)  # Mon=0..Sun=6, comma-separated
+    schedule_time = Column(String(5), default='08:00', nullable=False)  # HH:MM when sync should run
+    last_updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    updated_by_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # Who last updated this config
+
+    # Relationship
+    updated_by = relationship("User")

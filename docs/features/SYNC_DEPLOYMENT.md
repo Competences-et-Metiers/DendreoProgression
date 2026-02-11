@@ -255,14 +255,45 @@ CREATE INDEX IF NOT EXISTS idx_modules_participant_lam ON modules(participant_id
 
 ### 2. Environment Variables
 
-Add to `.env.prod`:
+**Sync Control Options:**
+
+| Variable | Default | Effect | Use Case |
+|----------|---------|--------|----------|
+| `SKIP_STARTUP_SYNC` | `false` | Skips sync when container starts | Testing, manual control |
+| `DISABLE_CRON_SCHEDULE` | `false` | Disables scheduled cron syncs entirely | Emergency, API quota issues, manual-only mode |
+| `DENDREO_ADF_LIMIT` | unlimited | Limits number of ADFs processed | Testing, gradual rollout |
+| `SYNC_SCHEDULE` | `0 8 * * *` | Cron schedule for automatic syncs | Change sync timing |
+
+**Common Combinations:**
 
 ```bash
-# Limit number of ADFs processed (for testing)
-DENDREO_ADF_LIMIT=50
+# Normal production (syncs on boot + daily at 8 AM)
+SKIP_STARTUP_SYNC=false
+DISABLE_CRON_SCHEDULE=false
 
-# Skip the automatic sync on container startup (useful for testing/debugging)
+# Manual-only mode (no automatic syncs at all)
 SKIP_STARTUP_SYNC=true
+DISABLE_CRON_SCHEDULE=true
+
+# Boot once, then scheduled (skip initial sync, but cron runs daily)
+SKIP_STARTUP_SYNC=true
+DISABLE_CRON_SCHEDULE=false
+
+# Emergency restart (when API quota exhausted)
+SKIP_STARTUP_SYNC=true
+DISABLE_CRON_SCHEDULE=true
+```
+
+**Full Configuration Example** (add to `.env.prod`):
+
+```bash
+# Sync timing and control
+SYNC_SCHEDULE="0 8 * * 1-5"           # 8 AM Monday-Friday
+SKIP_STARTUP_SYNC=false               # Run sync on container startup
+DISABLE_CRON_SCHEDULE=false           # Enable scheduled syncs
+
+# Sync limits
+DENDREO_ADF_LIMIT=                    # Unlimited (leave empty for production)
 
 # Redis configuration
 REDIS_ENABLED=true
@@ -271,7 +302,36 @@ REDIS_URL=redis://localhost:6379/0
 
 ## 🚨 Emergency Procedures
 
-### 1. Stop Sync Process
+### 1. Restart Production Without Syncing (API Quota Exhausted)
+
+If you've hit API limits and need to restart prod infrastructure without triggering any syncs:
+
+```bash
+# Set both skip flags in .env.prod or inline
+SKIP_STARTUP_SYNC=true DISABLE_CRON_SCHEDULE=true ./deploy-prod.sh
+
+# Or add to .env.prod:
+# SKIP_STARTUP_SYNC=true
+# DISABLE_CRON_SCHEDULE=true
+# Then run: ./deploy-prod.sh
+```
+
+This will:
+- ✅ Start all services (nginx, backend, postgres, redis, sync container)
+- ✅ Keep sync container alive for manual commands
+- ❌ Skip startup sync
+- ❌ Skip setting up cron schedule
+
+**To manually sync later:**
+```bash
+# Enter sync container
+docker compose -f docker-compose.prod.yml exec sync bash
+
+# Run manual sync
+python3 scripts/sync_dendreo.py --force
+```
+
+### 2. Stop Sync Process (Old Method - Not Recommended)
 
 ```bash
 # If using cron
@@ -282,18 +342,33 @@ sudo systemctl stop dendreo-sync.timer
 sudo systemctl disable dendreo-sync.timer
 ```
 
-### 2. Reset Stuck Sync
+### 4. Reset Stuck Sync
 
 ```bash
-# Update database to clear stuck "in_progress" status
-psql -h localhost -U your_user -d your_db -c "UPDATE sync_metadata SET status = 'error', error_message = 'Manually reset' WHERE status = 'in_progress';"
+# Method 1: From host (postgres must be running)
+docker compose -f docker-compose.prod.yml exec postgres \
+  psql -U postgres -d dendreo_prod_db -c \
+  "UPDATE sync_metadata SET status='error', error_message='Manually cleared - interrupted sync' WHERE status='in_progress';"
+
+# Method 2: Using provided script
+docker compose -f docker-compose.prod.yml exec sync \
+  python3 scripts/sync_dendreo.py --cleanup-stuck
 ```
 
-### 3. Manual Sync
+### 5. Manual Sync Commands
 
 ```bash
+# Dry run (no changes, test API connectivity)
+docker compose -f docker-compose.prod.yml exec sync \
+  python3 scripts/sync_dendreo.py --dry-run
+
 # Force immediate sync
-python3 back/scripts/sync_dendreo.py --force --log-level DEBUG
+docker compose -f docker-compose.prod.yml exec sync \
+  python3 scripts/sync_dendreo.py --force --log-level DEBUG
+
+# Sync specific ADF only
+docker compose -f docker-compose.prod.yml exec sync \
+  python3 scripts/sync_dendreo.py --adf 124
 ```
 
 ## 📋 Deployment Checklist

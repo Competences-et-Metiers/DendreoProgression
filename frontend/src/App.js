@@ -15,6 +15,7 @@ import ParticipantDetail from './pages/ParticipantDetail';
 import Account from './pages/Account';
 import InactiveManagement from './pages/InactiveManagement';
 import Settings from './pages/Settings';
+import AdminSyncDashboard from './pages/AdminSyncDashboard';
 import { Loader2 } from 'lucide-react';
 
 // Protected route wrapper
@@ -31,6 +32,30 @@ const ProtectedRoute = ({ children }) => {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+// Admin route wrapper
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== 'admin') {
+    alert('Admin access required');
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -61,6 +86,14 @@ const AppContent = () => {
                   <Route path="/account" element={<Account />} />
                   <Route path="/inactive-management" element={<InactiveManagement />} />
                   <Route path="/settings" element={<Settings />} />
+                  <Route
+                    path="/admin/sync"
+                    element={
+                      <AdminRoute>
+                        <AdminSyncDashboard />
+                      </AdminRoute>
+                    }
+                  />
                 </Routes>
               </Layout>
             </ProtectedRoute>

@@ -10,16 +10,17 @@ import {
   LogOut,
   Menu,
   ChevronLeft,
-  BookOpen
+  BookOpen,
+  Shield
 } from 'lucide-react';
 
 const Sidebar = ({ collapsed, onToggle }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
-  const menuItems = [
+  const baseMenuItems = [
     {
       id: 'dashboard',
       label: t('sidebar.dashboard'),
@@ -56,6 +57,22 @@ const Sidebar = ({ collapsed, onToggle }) => {
       active: false
     }
   ];
+
+  // Add admin menu item if user is admin
+  const menuItems = user?.role === 'admin'
+    ? [
+        ...baseMenuItems.slice(0, 3),
+        {
+          id: 'admin-sync',
+          label: 'Admin: Sync',
+          icon: Shield,
+          path: '/admin/sync',
+          active: true,
+          isAdmin: true
+        },
+        ...baseMenuItems.slice(3)
+      ]
+    : baseMenuItems;
 
   const isActive = (path) => {
     if (path === '/') {

@@ -22,13 +22,15 @@ from app.config.settings import settings
 
 def setup_logging(log_level: str = "INFO"):
     """Setup logging configuration"""
+    handlers = [logging.StreamHandler()]
+    try:
+        handlers.append(logging.FileHandler('logs/sync.log'))
+    except (PermissionError, OSError):
+        pass
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler('logs/sync.log')
-        ]
+        handlers=handlers
     )
     return logging.getLogger(__name__)
 
@@ -218,7 +220,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
                     SyncMetadata.status == 'success',
                     SyncMetadata.last_sync_at > one_hour_ago
                 ).first()
-                
+
                 if recent_sync:
                     logger.info(f"ℹ️  Recent successful sync found at {recent_sync.last_sync_at}. Use --force to override.")
                     return {
@@ -226,6 +228,26 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
                         "message": "Recent sync found",
                         "last_sync_at": recent_sync.last_sync_at.isoformat()
                     }
+
+                # Check cooldown from admin config
+                from app.models.models import AdminSyncConfig
+                admin_config = db.query(AdminSyncConfig).first()
+                if admin_config and admin_config.cooldown_hours > 0:
+                    cooldown_cutoff = datetime.now(timezone.utc) - timedelta(hours=admin_config.cooldown_hours)
+                    recent_sync_cooldown = db.query(SyncMetadata).filter(
+                        SyncMetadata.sync_type == 'sync_all',
+                        SyncMetadata.status == 'success',
+                        SyncMetadata.last_sync_at > cooldown_cutoff
+                    ).first()
+
+                    if recent_sync_cooldown:
+                        time_since_last = datetime.now(timezone.utc) - recent_sync_cooldown.last_sync_at
+                        logger.info(f"⏱️  Cooldown active: last sync was {time_since_last.total_seconds() / 3600:.1f}h ago, cooldown is {admin_config.cooldown_hours}h")
+                        return {
+                            "status": "skipped",
+                            "message": f"Cooldown active ({admin_config.cooldown_hours}h)",
+                            "last_sync_at": recent_sync_cooldown.last_sync_at.isoformat()
+                        }
         
         if dry_run:
             logger.info("🧪 DRY RUN MODE - No database changes will be made")
@@ -279,11 +301,17 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
             with get_db_session() as db:
                 record = db.query(SyncMetadata).get(sync_metadata_id)
                 if record:
+                    # Calculate duration
+                    sync_end_time = datetime.now(timezone.utc)
+                    duration = (sync_end_time - sync_start_time).total_seconds()
+
                     record.status = 'success'
                     record.stats = str(result.get('stats', {}))
-                    record.updated_at = datetime.now(timezone.utc)
+                    record.api_calls_count = result.get('rate_limiting', {}).get('total_requests', 0)
+                    record.duration_seconds = duration
+                    record.updated_at = sync_end_time
                     db.commit()
-                    logger.info("✅ Sync metadata updated with success")
+                    logger.info(f"✅ Sync metadata updated with success (API calls: {record.api_calls_count}, duration: {duration:.1f}s)")
                 else:
                     logger.error(f"Could not find sync metadata record ID {sync_metadata_id} to update")
         

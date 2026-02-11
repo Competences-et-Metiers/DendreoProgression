@@ -109,4 +109,3 @@ dump.rdb
 
 # Backups (created by deploy-prod.sh)
 backups/
-.backups/

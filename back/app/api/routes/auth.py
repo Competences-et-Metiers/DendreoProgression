@@ -45,10 +45,10 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Create access token
-    access_token = create_access_token(data={"sub": user.username})
+    # Create access token with role
+    access_token = create_access_token(data={"sub": user.username, "role": user.role})
 
-    logger.info(f"User '{request.username}' logged in successfully")
+    logger.info(f"User '{request.username}' logged in successfully (role: {user.role})")
 
     return TokenResponse(access_token=access_token)
 
