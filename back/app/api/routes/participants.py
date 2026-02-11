@@ -119,7 +119,6 @@ def calculate_activity_status(participant_course: ParticipantCourse, db: Session
                 modules = db.query(Module).filter(
                     Module.id_lam.in_(lam_ids_list),
                     Module.participant_id == participant_course.participant_id,
-                    Module.mode_organisation == 'elearning_async',
                     Module.lms_last_access_at.isnot(None)
                 ).all()
                 

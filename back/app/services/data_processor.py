@@ -182,23 +182,19 @@ class DataProcessor:
         mode_organisation = module_data.get('mode_organisation', '')
         module_title = module_data.get('intitule', '')
 
-        # Determine if this is an e-learning module (for progression tracking)
-        is_elearning = mode_organisation == 'elearning_async'
-
         # Find existing module by id_lam AND participant_id (unique constraint)
         module = self.db.query(Module).filter(
             Module.id_lam == id_lam,
             Module.participant_id == participant_id
         ).first()
 
-        # Parse progression - only for e-learning modules
+        # Parse progression
         progression = 0.0
-        if is_elearning:
-            progression_str = record.get('lms_progression', '0') or '0'
-            try:
-                progression = float(progression_str) if progression_str else 0.0
-            except (ValueError, TypeError):
-                progression = 0.0
+        progression_str = record.get('lms_progression', '0') or '0'
+        try:
+            progression = float(progression_str) if progression_str else 0.0
+        except (ValueError, TypeError):
+            progression = 0.0
 
         # Parse last access
         last_access = None

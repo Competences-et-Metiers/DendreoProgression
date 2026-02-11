@@ -434,54 +434,26 @@ class DendreoSync:
             raise
 
     def _filter_elearning_records(self, data: List[Dict]) -> List[Dict]:
-        """Filter records for processing (e-learning modules for progression, all modes for time tracking)"""
+        """Filter records for processing (all module types)"""
         filtered = []
         module_counts = {}  # {id_lam: count} to track trackable modules per course
-        
+
         if not isinstance(data, list):
             logger.error(f"Invalid data type received: {type(data)}")
             return []
-            
+
         for record in data:
             if not isinstance(record, dict):
                 logger.warning(f"Invalid record type: {type(record)}, skipping")
                 continue
-                
+
             # Check if record has required data
             if not record.get('participant'):
                 continue
-                
-            # Check if it's an e-learning module OR has time data (for time tracking)
-            should_include = False
+
             id_lam = record.get('id_lam')
-            
-            # Always include e-learning modules (for both progression and time tracking)
-            module_data = record.get('module', {})
-            if isinstance(module_data, dict):
-                if module_data.get('mode_organisation') == 'elearning_async':
-                    should_include = True
-            
-            # Check root level if not found in module data
-            if not should_include and record.get('mode_organisation') == 'elearning_async':
-                should_include = True
-                
-            # Check custom properties if not found at other levels
-            custom_props = record.get('custom_properties')
-            if not should_include and isinstance(custom_props, dict):
-                if custom_props.get('mode_organisation') == 'elearning_async':
-                    should_include = True
-            
-            # Also include non-elearning records that have time data (for time tracking only)
-            if not should_include:
-                has_time_data = (
-                    record.get('lms_tempspasse') or 
-                    (isinstance(custom_props, dict) and custom_props.get('total_time_spent'))
-                )
-                if has_time_data:
-                    should_include = True
-                    logger.debug(f"Including non-elearning record for time tracking: LAM {id_lam}, mode: {record.get('mode_organisation', 'unknown')}")
-                
-            if should_include and id_lam:
+
+            if id_lam:
                 filtered.append(record)
                 # Track module count for this course
                 module_counts[id_lam] = module_counts.get(id_lam, 0) + 1
@@ -494,7 +466,7 @@ class DendreoSync:
                 course.total_modules = count
                 logger.debug(f"Updated course {course.id_action_formation} with {count} trackable modules")
                 
-        logger.info(f"Filtered {len(filtered)} records for processing (e-learning for progression + all modes with time data) from {len(data)} total records")
+        logger.info(f"Filtered {len(filtered)} records for processing from {len(data)} total records")
         return filtered
 
     async def _process_adfs(self, adf_batch: List[Dict]) -> Dict[str, Course]:

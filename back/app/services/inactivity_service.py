@@ -146,13 +146,12 @@ class InactivityService:
             else:
                 all_modules = []
 
-            elearning_modules = [m for m in all_modules if m.mode_organisation == 'elearning_async']
             total_time_spent_seconds = sum(m.lms_time_spent or 0 for m in all_modules)
             total_time_spent_hours = total_time_spent_seconds / 3600.0
 
-            # Compute progression from e-learning module data (same as course detail page)
-            if elearning_modules:
-                avg_progression = sum(m.lms_progression or 0 for m in elearning_modules) / len(elearning_modules)
+            # Compute progression from all module data (same as course detail page)
+            if all_modules:
+                avg_progression = sum(m.lms_progression or 0 for m in all_modules) / len(all_modules)
             else:
                 avg_progression = 0.0
 
