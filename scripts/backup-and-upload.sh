@@ -41,12 +41,14 @@ mkdir -p "${BACKUP_DIR}"
 
 # Create database backup
 echo -e "${YELLOW}Creating database backup...${NC}"
-docker exec "${CONTAINER_NAME}" pg_dump \
+if ! docker exec "${CONTAINER_NAME}" pg_dump \
   -U "${DB_USER}" \
   -d "${DB_NAME}" \
   --format=custom \
-  --verbose \
-  --file=/tmp/dendreo_backup.dump 2>&1 | grep -E "processing|creating|setting"
+  --file=/tmp/dendreo_backup.dump; then
+  echo -e "${RED}Error: pg_dump failed${NC}"
+  exit 1
+fi
 
 # Copy backup from container to host
 echo -e "${YELLOW}Copying backup from container...${NC}"
