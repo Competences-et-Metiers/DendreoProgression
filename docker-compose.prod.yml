@@ -105,7 +105,7 @@ services:
       # Sync Configuration - Hourly cron check (DB config controls actual schedule)
       SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 * * * *}
       DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-}
-      SKIP_STARTUP_SYNC: ${SKIP_STARTUP_SYNC:-false}
+      SKIP_STARTUP_SYNC: ${SKIP_STARTUP_SYNC:-true}
       DISABLE_CRON_SCHEDULE: ${DISABLE_CRON_SCHEDULE:-false}
     # Auto-migrate DB schema before starting cron/entrypoint
     command: ["bash", "-lc", "echo '⏳ Waiting for database...'; until pg_isready -h postgres -p 5432 -U '$POSTGRES_USER' -d '$POSTGRES_DB' -t 3 >/dev/null 2>&1; do echo '...still waiting'; sleep 2; done; echo '✅ Database is ready'; python3 scripts/migrate_database.py || echo '⚠️  Migration failed or skipped'; exec /app/entrypoint.sh"]
