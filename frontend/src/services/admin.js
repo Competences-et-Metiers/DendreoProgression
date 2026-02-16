@@ -68,6 +68,22 @@ export const adminService = {
     const response = await api.get(`/admin/sync/history?limit=${limit}`);
     return response.data;
   },
+
+  /**
+   * Resume sync from where the last one stopped (skipped ADFs)
+   */
+  resumeSync: async () => {
+    const response = await api.post('/admin/sync/resume');
+    return response.data;
+  },
+
+  /**
+   * Get live sync log (incremental, byte-offset based)
+   */
+  getLiveLog: async (offset = 0) => {
+    const response = await api.get(`/admin/sync/live-log?offset=${offset}`);
+    return response.data;
+  },
 };
 
 export default adminService;

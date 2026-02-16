@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { adminService } from '../services/admin';
 import {
   Shield,
@@ -16,6 +16,8 @@ import {
   RefreshCw,
   Save,
   CalendarDays,
+  Terminal,
+  FastForward,
 } from 'lucide-react';
 
 const AdminSyncDashboard = () => {
@@ -24,12 +26,69 @@ const AdminSyncDashboard = () => {
   const [syncConfig, setSyncConfig] = useState(null);
   const [syncHistory, setSyncHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
   const [actionOutput, setActionOutput] = useState(null);
   const [adfId, setAdfId] = useState('');
   const [cooldownHours, setCooldownHours] = useState(12.0);
   const [scheduleDays, setScheduleDays] = useState('0,1,2,3,4');
   const [scheduleTime, setScheduleTime] = useState('08:00');
+  const [dendreoApiLimit, setDendreoApiLimit] = useState('');
+  const [hubspotApiLimit, setHubspotApiLimit] = useState('');
+
+  // Live log state
+  const [liveLog, setLiveLog] = useState('');
+  const [isPollingLog, setIsPollingLog] = useState(false);
+  const pollingRef = useRef(null);
+  const logEndRef = useRef(null);
+  const logOffsetRef = useRef(0);
+
+  const scrollToLogBottom = () => {
+    if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    setIsPollingLog(false);
+  }, []);
+
+  const pollLog = useCallback(async () => {
+    try {
+      const data = await adminService.getLiveLog(logOffsetRef.current);
+      if (data.content) {
+        setLiveLog(prev => prev + data.content);
+        logOffsetRef.current = data.offset;
+        setTimeout(scrollToLogBottom, 50);
+      }
+      if (!data.is_running) {
+        stopPolling();
+        loadDashboardData();
+      }
+    } catch (err) {
+      console.error('Log poll error:', err);
+    }
+  }, [stopPolling]);
+
+  const startPolling = useCallback((resetLog = true) => {
+    if (pollingRef.current) return;
+    if (resetLog) {
+      setLiveLog('');
+      logOffsetRef.current = 0;
+    }
+    setIsPollingLog(true);
+    pollLog();
+    pollingRef.current = setInterval(pollLog, 2000);
+  }, [pollLog]);
+
+  // Clean up polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const loadDashboardData = async (isInitial = false) => {
     try {
@@ -47,6 +106,8 @@ const AdminSyncDashboard = () => {
       setCooldownHours(config.cooldown_hours);
       setScheduleDays(config.schedule_days || '0,1,2,3,4');
       setScheduleTime(config.schedule_time || '08:00');
+      setDendreoApiLimit(config.dendreo_api_limit || '');
+      setHubspotApiLimit(config.hubspot_api_limit || '');
       setSyncHistory(history);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -56,54 +117,79 @@ const AdminSyncDashboard = () => {
   };
 
   useEffect(() => {
-    loadDashboardData(true);
+    const init = async () => {
+      await loadDashboardData(true);
+    };
+    init();
     const interval = setInterval(() => loadDashboardData(false), 30000);
     return () => clearInterval(interval);
   }, []);
 
+  // Start polling if sync is already running on page load
+  useEffect(() => {
+    if (syncStatus?.is_running && !pollingRef.current) {
+      startPolling(true);
+    }
+  }, [syncStatus?.is_running, startPolling]);
+
   const handleDryRun = async () => {
     if (!window.confirm('Run a dry-run sync? This will test the sync without making changes.')) return;
-    setActionLoading(true);
     setActionOutput(null);
     try {
       const result = await adminService.triggerDryRun();
       setActionOutput(result);
-      await loadDashboardData();
+      if (result.status === 'started') {
+        startPolling(true);
+      }
     } catch (error) {
-      setActionOutput({ status: 'error', message: error.message });
-    } finally {
-      setActionLoading(false);
+      const msg = error.response?.data?.detail || error.message;
+      setActionOutput({ status: 'error', message: msg });
     }
   };
 
   const handleForceSync = async () => {
     if (!window.confirm('Force a full sync NOW? This will make API calls immediately.')) return;
-    setActionLoading(true);
     setActionOutput(null);
     try {
       const result = await adminService.forceSync();
       setActionOutput(result);
-      await loadDashboardData();
+      if (result.status === 'started') {
+        startPolling(true);
+      }
     } catch (error) {
-      setActionOutput({ status: 'error', message: error.message });
-    } finally {
-      setActionLoading(false);
+      const msg = error.response?.data?.detail || error.message;
+      setActionOutput({ status: 'error', message: msg });
     }
   };
 
   const handleSyncAdf = async () => {
     if (!adfId.trim()) return;
     if (!window.confirm(`Sync ADF ${adfId}?`)) return;
-    setActionLoading(true);
     setActionOutput(null);
     try {
       const result = await adminService.syncSpecificAdf(adfId);
       setActionOutput(result);
-      await loadDashboardData();
+      if (result.status === 'started') {
+        startPolling(true);
+      }
     } catch (error) {
-      setActionOutput({ status: 'error', message: error.message });
-    } finally {
-      setActionLoading(false);
+      const msg = error.response?.data?.detail || error.message;
+      setActionOutput({ status: 'error', message: msg });
+    }
+  };
+
+  const handleResumeSync = async () => {
+    if (!window.confirm(`Resume sync for ${syncStatus?.skipped_adf_count} remaining ADFs?`)) return;
+    setActionOutput(null);
+    try {
+      const result = await adminService.resumeSync();
+      setActionOutput(result);
+      if (result.status === 'started') {
+        startPolling(true);
+      }
+    } catch (error) {
+      const msg = error.response?.data?.detail || error.message;
+      setActionOutput({ status: 'error', message: msg });
     }
   };
 
@@ -138,6 +224,8 @@ const AdminSyncDashboard = () => {
         schedule_days: scheduleDays,
         schedule_time: scheduleTime,
         cooldown_hours: parseFloat(cooldownHours),
+        dendreo_api_limit: dendreoApiLimit ? parseInt(dendreoApiLimit, 10) : 0,
+        hubspot_api_limit: hubspotApiLimit ? parseInt(hubspotApiLimit, 10) : 0,
       });
       await loadDashboardData();
     } catch (error) {
@@ -420,13 +508,49 @@ const AdminSyncDashboard = () => {
                 </p>
               </div>
 
+              {/* API Limits */}
+              <div className="border-t border-gray-200 pt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  API Call Limits per Sync
+                </label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Dendreo API</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      placeholder="Unlimited"
+                      value={dendreoApiLimit}
+                      onChange={(e) => setDendreoApiLimit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">HubSpot API</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="10"
+                      placeholder="Unlimited"
+                      value={hubspotApiLimit}
+                      onChange={(e) => setHubspotApiLimit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500 mt-1">
+                  Max API calls per sync run. 0 or empty = unlimited. Remaining ADFs are skipped when the limit is reached.
+                </p>
+              </div>
+
               {/* Save Button */}
               <button
                 onClick={handleSaveSchedule}
                 className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium"
               >
                 <Save size={14} />
-                Save Schedule
+                Save Configuration
               </button>
             </div>
           </div>
@@ -441,7 +565,7 @@ const AdminSyncDashboard = () => {
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleDryRun}
-              disabled={actionLoading}
+              disabled={isPollingLog}
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FlaskConical size={18} />
@@ -449,24 +573,34 @@ const AdminSyncDashboard = () => {
             </button>
             <button
               onClick={handleForceSync}
-              disabled={actionLoading}
+              disabled={isPollingLog}
               className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Zap size={18} />
               Force Sync
             </button>
+            {syncStatus?.skipped_adf_count > 0 && (
+              <button
+                onClick={handleResumeSync}
+                disabled={isPollingLog}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FastForward size={18} />
+                Resume ({syncStatus.skipped_adf_count} ADFs)
+              </button>
+            )}
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 placeholder="ADF ID"
                 value={adfId}
                 onChange={(e) => setAdfId(e.target.value)}
-                disabled={actionLoading}
+                disabled={isPollingLog}
                 className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
               />
               <button
                 onClick={handleSyncAdf}
-                disabled={actionLoading || !adfId.trim()}
+                disabled={isPollingLog || !adfId.trim()}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Target size={18} />
@@ -475,42 +609,57 @@ const AdminSyncDashboard = () => {
             </div>
           </div>
 
-          {actionLoading && (
-            <div className="flex items-center gap-2 mt-4 text-sm text-gray-600">
-              <Loader2 size={16} className="animate-spin" />
-              Sync in progress...
-            </div>
-          )}
-
           {actionOutput && (
-            <div className={`mt-4 p-4 rounded-lg border ${
-              actionOutput.status === 'success'
-                ? 'bg-green-50 border-green-200'
-                : 'bg-red-50 border-red-200'
+            <div className={`mt-4 p-3 rounded-lg border ${
+              actionOutput.status === 'started'
+                ? 'bg-blue-50 border-blue-200'
+                : actionOutput.status === 'error'
+                ? 'bg-red-50 border-red-200'
+                : 'bg-green-50 border-green-200'
             }`}>
-              <div className="flex items-center gap-2 mb-2">
-                {actionOutput.status === 'success' ? (
-                  <CheckCircle2 size={16} className="text-green-600" />
-                ) : (
+              <div className="flex items-center gap-2">
+                {actionOutput.status === 'started' ? (
+                  <Loader2 size={16} className="text-blue-600 animate-spin" />
+                ) : actionOutput.status === 'error' ? (
                   <XCircle size={16} className="text-red-600" />
+                ) : (
+                  <CheckCircle2 size={16} className="text-green-600" />
                 )}
-                <span className={`text-sm font-semibold ${
-                  actionOutput.status === 'success' ? 'text-green-800' : 'text-red-800'
-                }`}>
-                  {actionOutput.status.toUpperCase()}
-                </span>
+                <span className="text-sm font-medium">{actionOutput.message}</span>
               </div>
-              {actionOutput.message && (
-                <p className="text-sm text-gray-700 mb-2">{actionOutput.message}</p>
-              )}
-              {actionOutput.output && (
-                <pre className="mt-2 p-3 bg-gray-900 text-gray-200 rounded-lg text-xs overflow-x-auto max-h-64 overflow-y-auto leading-relaxed">
-                  {actionOutput.output}
-                </pre>
-              )}
             </div>
           )}
         </div>
+
+        {/* Live Sync Log */}
+        {(isPollingLog || liveLog) && (
+          <div className="bg-gray-900 rounded-lg border border-gray-700 mb-6">
+            <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal size={16} className="text-green-400" />
+                <span className="text-sm font-medium text-gray-200">Sync Log</span>
+                {isPollingLog && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-green-900 text-green-300 rounded-full text-xs font-medium">
+                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                    Live
+                  </span>
+                )}
+              </div>
+              {!isPollingLog && liveLog && (
+                <button
+                  onClick={() => { setLiveLog(''); logOffsetRef.current = 0; }}
+                  className="text-xs text-gray-400 hover:text-gray-200 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <pre className="p-4 text-xs text-gray-300 overflow-x-auto max-h-96 overflow-y-auto leading-relaxed font-mono whitespace-pre-wrap">
+              {liveLog || 'Waiting for output...'}
+              <div ref={logEndRef} />
+            </pre>
+          </div>
+        )}
 
         {/* Sync History */}
         <div className="bg-white rounded-lg border border-gray-200">

@@ -200,6 +200,8 @@ class AdminSyncConfig(Base):
     cooldown_hours = Column(Float, default=12.0, nullable=False)  # Skip scheduled sync if last sync is newer than this
     schedule_days = Column(String(20), default='0,1,2,3,4', nullable=False)  # Mon=0..Sun=6, comma-separated
     schedule_time = Column(String(5), default='08:00', nullable=False)  # HH:MM when sync should run
+    dendreo_api_limit = Column(Integer, nullable=True)  # Max Dendreo API calls per sync (NULL = unlimited)
+    hubspot_api_limit = Column(Integer, nullable=True)  # Max HubSpot API calls per sync (NULL = unlimited)
     last_updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     updated_by_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # Who last updated this config
 

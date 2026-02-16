@@ -164,14 +164,15 @@ async def run_sync_single_adf(id_action_formation: str) -> dict:
         return {"status": "error", "message": f"Single-ADF sync failed: {str(e)}"}
 
 
-async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
+async def run_sync(force: bool = False, dry_run: bool = False, only_adf_ids: list = None) -> dict:
     """
     Run the Dendreo sync process
-    
+
     Args:
         force: Force sync even if recent sync exists
         dry_run: Don't actually update the database
-    
+        only_adf_ids: If provided, only sync these specific ADF IDs (for resume)
+
     Returns:
         Dictionary with sync results
     """
@@ -276,7 +277,7 @@ async def run_sync(force: bool = False, dry_run: bool = False) -> dict:
             with get_db_session() as db:
                 client = DendreoClient()
                 sync_service = DendreoSync(db, client)
-                result = await sync_service.sync_all()
+                result = await sync_service.sync_all(only_adf_ids=only_adf_ids)
         else:
             # Simulate sync for dry run
             logger.info("🧪 Simulating sync process...")
@@ -397,6 +398,13 @@ Examples:
         help='Sync a single ADF by its id_action_formation (e.g. --adf 124)'
     )
 
+    parser.add_argument(
+        '--resume-adfs',
+        type=str,
+        default=None,
+        help='Comma-separated ADF IDs to resume syncing (e.g. --resume-adfs 124,456,789)'
+    )
+
     args = parser.parse_args()
     
     # Setup logging
@@ -433,7 +441,11 @@ Examples:
             logger.info(f"🎯 Single-ADF mode: syncing ADF {args.adf}")
             result = asyncio.run(run_sync_single_adf(args.adf))
         else:
-            result = asyncio.run(run_sync(force=args.force, dry_run=args.dry_run))
+            resume_adf_ids = None
+            if args.resume_adfs:
+                resume_adf_ids = [aid.strip() for aid in args.resume_adfs.split(',') if aid.strip()]
+                logger.info(f"🔄 Resume mode: syncing {len(resume_adf_ids)} specific ADFs")
+            result = asyncio.run(run_sync(force=args.force, dry_run=args.dry_run, only_adf_ids=resume_adf_ids))
         
         # Print results
         logger.info("=" * 60)

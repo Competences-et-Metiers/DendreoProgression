@@ -5,7 +5,7 @@ from app.services.data_processor import DataProcessor
 from app.models.database import get_db
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, Creneau, CreneauParticipant, ModuleCategory
+from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, Creneau, CreneauParticipant, ModuleCategory, AdminSyncConfig
 import os
 import asyncio
 
@@ -53,11 +53,18 @@ class DendreoSync:
             "hubspot_updates_successful": 0,
             "hubspot_updates_failed": 0,
             "hubspot_status": "unknown",
-            "hubspot_error": None
+            "hubspot_error": None,
+            "adfs_skipped_api_limit": 0,
+            "dendreo_api_limit": None,
+            "hubspot_api_limit": None
         }
 
-    async def sync_all(self) -> Dict[str, Any]:
-        """Synchronize all data from Dendreo using chunked LAP-based approach"""
+    async def sync_all(self, only_adf_ids: List[str] = None) -> Dict[str, Any]:
+        """Synchronize all data from Dendreo using chunked LAP-based approach
+
+        Args:
+            only_adf_ids: If provided, only process these specific ADF IDs (used for resume)
+        """
         try:
             logger.info("🚀 Starting CHUNKED sync from Dendreo API (LAP-based approach)")
 
@@ -65,6 +72,20 @@ class DendreoSync:
             self.client.reset_rate_limit_stats()
 
             start_time = datetime.now()
+
+            # Read API limits from admin config
+            admin_config = self.db.query(AdminSyncConfig).first()
+            dendreo_api_limit = None
+            hubspot_api_limit = None
+            if admin_config:
+                dendreo_api_limit = admin_config.dendreo_api_limit if admin_config.dendreo_api_limit and admin_config.dendreo_api_limit > 0 else None
+                hubspot_api_limit = admin_config.hubspot_api_limit if admin_config.hubspot_api_limit and admin_config.hubspot_api_limit > 0 else None
+            if dendreo_api_limit:
+                logger.info(f"🔒 Dendreo API limit: {dendreo_api_limit} calls")
+                self.stats["dendreo_api_limit"] = dendreo_api_limit
+            if hubspot_api_limit:
+                logger.info(f"🔒 HubSpot API limit: {hubspot_api_limit} calls")
+                self.stats["hubspot_api_limit"] = hubspot_api_limit
 
             # Fetch ADFs (lightweight - no 70MB monster!)
             adf_data = await self.client.get_actions_de_formation()
@@ -79,6 +100,11 @@ class DendreoSync:
             # Fetch and sync module categories (1 API call)
             await self._sync_module_categories()
             self.db.commit()
+
+            # Filter to specific ADF IDs if resuming
+            if only_adf_ids:
+                adf_data = [a for a in adf_data if str(a.get('id_action_de_formation')) in only_adf_ids]
+                logger.info(f"🔄 Resume mode: filtered to {len(adf_data)} ADFs out of {len(only_adf_ids)} requested IDs")
 
             # Apply ADF limit if set
             if self.adf_limit:
@@ -108,10 +134,30 @@ class DendreoSync:
             for i, sample_adf in enumerate(adf_data[:5], 1):
                 logger.info(f"   ADF {i}: id={sample_adf.get('id_action_de_formation')}, id_etape_process={sample_adf.get('id_etape_process')} (type: {type(sample_adf.get('id_etape_process'))})")
 
+            api_limit_reached = False
             for adf_idx, adf in enumerate(adf_data, 1):
                 id_adf = adf.get('id_action_de_formation')
                 if not id_adf:
                     continue
+
+                # Check Dendreo API limit before processing each ADF
+                if dendreo_api_limit and self.client.total_requests >= dendreo_api_limit:
+                    # Collect skipped active ADF IDs for resume capability
+                    skipped_adf_ids = []
+                    for remaining_adf in adf_data[adf_idx - 1:]:
+                        r_id = remaining_adf.get('id_action_de_formation')
+                        r_status = remaining_adf.get('id_etape_process')
+                        if r_id and str(r_status) in ['5', '6']:
+                            skipped_adf_ids.append(str(r_id))
+
+                    logger.warning(
+                        f"🔒 Dendreo API limit reached ({self.client.total_requests}/{dendreo_api_limit} calls). "
+                        f"Skipping {len(skipped_adf_ids)} remaining active ADFs."
+                    )
+                    self.stats["adfs_skipped_api_limit"] = len(skipped_adf_ids)
+                    self.stats["skipped_adf_ids"] = skipped_adf_ids
+                    api_limit_reached = True
+                    break
 
                 # Only process active ADFs (status 5 or 6)
                 id_etape_process = adf.get('id_etape_process')
@@ -306,8 +352,8 @@ class DendreoSync:
             try:
                 # Import the function here to avoid circular imports
                 from update_hubspot_progression import update_hubspot_progressions_for_sync
-                
-                hubspot_result = await update_hubspot_progressions_for_sync(self.db)
+
+                hubspot_result = await update_hubspot_progressions_for_sync(self.db, max_api_calls=hubspot_api_limit)
                 
                 # Add HubSpot stats to our sync stats
                 self.stats["hubspot_updates_total"] = hubspot_result.get("total_processed", 0)
@@ -335,13 +381,16 @@ class DendreoSync:
             rate_limit_stats = self.client.get_rate_limit_stats()
             logger.info(f"🚦 Rate Limiting Stats: {rate_limit_stats}")
 
-            logger.info(f"✅ CHUNKED sync completed successfully in {duration:.2f}s. Final stats: {self.stats}")
+            if api_limit_reached:
+                logger.warning(f"⚠️  CHUNKED sync completed with API limit reached in {duration:.2f}s. {self.stats['adfs_skipped_api_limit']} ADFs skipped. Final stats: {self.stats}")
+            else:
+                logger.info(f"✅ CHUNKED sync completed successfully in {duration:.2f}s. Final stats: {self.stats}")
             logger.info(f"📊 Processed {len(adf_data)} ADFs using chunked LAP-based approach (no 70MB timeouts!)")
 
             # Add rate limiting info to return stats
             return {
                 "status": "success",
-                "message": f"Chunked sync completed successfully in {duration:.2f} seconds",
+                "message": f"Chunked sync completed in {duration:.2f} seconds" + (f" (API limit reached, {self.stats['adfs_skipped_api_limit']} ADFs skipped)" if api_limit_reached else ""),
                 "stats": self.stats,
                 "rate_limiting": rate_limit_stats
             }
