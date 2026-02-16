@@ -5,7 +5,7 @@ from app.services.data_processor import DataProcessor
 from app.models.database import get_db
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, Creneau, CreneauParticipant
+from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, Creneau, CreneauParticipant, ModuleCategory
 import os
 import asyncio
 
@@ -48,6 +48,7 @@ class DendreoSync:
             "creneaux_updated": 0,
             "creneau_participants_created": 0,
             "creneau_participants_updated": 0,
+            "categories_synced": 0,
             "hubspot_updates_total": 0,
             "hubspot_updates_successful": 0,
             "hubspot_updates_failed": 0,
@@ -74,6 +75,10 @@ class DendreoSync:
                     "status": "error",
                     "message": "Invalid ADFs data received from API"
                 }
+
+            # Fetch and sync module categories (1 API call)
+            await self._sync_module_categories()
+            self.db.commit()
 
             # Apply ADF limit if set
             if self.adf_limit:
@@ -167,6 +172,32 @@ class DendreoSync:
                                 continue
 
                             logger.debug(f"      Found {len(lmps_data)} LMPs for LAP {id_lap}")
+
+                            # Create courses on-the-fly for id_lam values not yet in active_courses
+                            # (handles ADFs whose modules list is empty in the ADF payload)
+                            for lmp in lmps_data:
+                                lmp_id_lam = lmp.get('id_lam')
+                                if lmp_id_lam and lmp_id_lam not in active_courses:
+                                    existing = self.db.query(Course).filter(
+                                        Course.id_action_formation == id_adf,
+                                        Course.id_lam == lmp_id_lam
+                                    ).first()
+                                    if existing:
+                                        active_courses[lmp_id_lam] = existing
+                                    else:
+                                        new_course = Course(
+                                            id_action_formation=id_adf,
+                                            id_lam=lmp_id_lam,
+                                            intitule=adf.get('intitule', ''),
+                                            status=adf.get('id_etape_process', '5'),
+                                            categorie_module_id=adf.get('categorie_module_id') or None,
+                                            total_modules=0,
+                                        )
+                                        self.db.add(new_course)
+                                        self.db.flush()
+                                        active_courses[lmp_id_lam] = new_course
+                                        self.stats["courses_created"] += 1
+                                        logger.info(f"Created course from LMP data: ADF {id_adf} LAM {lmp_id_lam}")
 
                             # Process LMPs for this LAP
                             lap_participant_courses = await self._process_lmps(lmps_data, active_courses)
@@ -341,10 +372,6 @@ class DendreoSync:
             if not target_adf:
                 return {"status": "error", "message": f"ADF {id_action_formation} not found in Dendreo API"}
 
-            id_etape_process = target_adf.get('id_etape_process')
-            if not id_etape_process or str(id_etape_process) not in ['5', '6']:
-                logger.warning(f"ADF {id_action_formation} has inactive status {id_etape_process}, syncing anyway (forced)")
-
             # Process the ADF to create/update courses
             active_courses = await self._process_adfs([target_adf])
             self.db.commit()
@@ -384,6 +411,32 @@ class DendreoSync:
                     try:
                         lmps_data = await self.client.get_lmps_for_lap(id_lap)
                         if lmps_data:
+                            # Create courses on-the-fly for id_lam values not yet in active_courses
+                            # (handles ADFs whose modules list is empty in the ADF payload)
+                            for lmp in lmps_data:
+                                lmp_id_lam = lmp.get('id_lam')
+                                if lmp_id_lam and lmp_id_lam not in active_courses:
+                                    existing = self.db.query(Course).filter(
+                                        Course.id_action_formation == id_adf,
+                                        Course.id_lam == lmp_id_lam
+                                    ).first()
+                                    if existing:
+                                        active_courses[lmp_id_lam] = existing
+                                    else:
+                                        new_course = Course(
+                                            id_action_formation=id_adf,
+                                            id_lam=lmp_id_lam,
+                                            intitule=target_adf.get('intitule', ''),
+                                            status=target_adf.get('id_etape_process', '5'),
+                                            categorie_module_id=target_adf.get('categorie_module_id') or None,
+                                            total_modules=0,
+                                        )
+                                        self.db.add(new_course)
+                                        self.db.flush()
+                                        active_courses[lmp_id_lam] = new_course
+                                        self.stats["courses_created"] += 1
+                                        logger.info(f"Created course from LMP data: ADF {id_adf} LAM {lmp_id_lam}")
+
                             await self._process_lmps(lmps_data, active_courses)
 
                             course_ids = [c.id for c in self.db.query(Course).filter(Course.id_action_formation == id_adf).all()]
@@ -469,6 +522,52 @@ class DendreoSync:
         logger.info(f"Filtered {len(filtered)} records for processing from {len(data)} total records")
         return filtered
 
+    async def _sync_module_categories(self):
+        """Fetch and upsert module categories from Dendreo"""
+        try:
+            categories_data = await self.client.get_module_categories()
+            if not categories_data:
+                logger.info("No module categories found in API")
+                return
+
+            logger.info(f"📁 Syncing {len(categories_data)} module categories...")
+            for cat in categories_data:
+                id_cat = cat.get('id_categorie_module')
+                if not id_cat:
+                    continue
+
+                display_order = 0
+                try:
+                    display_order = int(cat.get('order', 0))
+                except (ValueError, TypeError):
+                    pass
+
+                existing = self.db.query(ModuleCategory).filter(
+                    ModuleCategory.id_categorie_module == str(id_cat)
+                ).first()
+
+                if existing:
+                    existing.intitule = cat.get('intitule', '')
+                    existing.color = cat.get('color', '')
+                    existing.status = cat.get('status', '1')
+                    existing.display_order = display_order
+                    existing.updated_at = datetime.utcnow()
+                else:
+                    new_cat = ModuleCategory(
+                        id_categorie_module=str(id_cat),
+                        intitule=cat.get('intitule', ''),
+                        color=cat.get('color', ''),
+                        status=cat.get('status', '1'),
+                        display_order=display_order
+                    )
+                    self.db.add(new_cat)
+
+                self.stats["categories_synced"] += 1
+
+            logger.info(f"✅ Synced {self.stats['categories_synced']} module categories")
+        except Exception as e:
+            logger.warning(f"Error syncing module categories: {e}")
+
     async def _process_adfs(self, adf_batch: List[Dict]) -> Dict[str, Course]:
         """Process ADF data to create or update courses"""
         active_courses = {}
@@ -491,8 +590,9 @@ class DendreoSync:
                 logger.debug(f"ADF {id_adf} has no modules, skipping")
                 continue
 
-            # Extract formateurs data from ADF
+            # Extract formateurs and category data from ADF
             formateurs = adf.get('formateurs', [])
+            adf_categorie_module_id = adf.get('categorie_module_id', '') or ''
 
             # Process each module in the ADF
             for module in modules:
@@ -518,6 +618,7 @@ class DendreoSync:
                         id_lam=id_lam,
                         intitule=adf.get('intitule', ''),
                         status=id_etape_process,
+                        categorie_module_id=adf_categorie_module_id if adf_categorie_module_id else None,
                         total_modules=0,  # Will be updated when processing LMPs
                         planned_duration_hours=planned_duration_hours,
                         formateurs=formateurs if formateurs else None
@@ -526,9 +627,10 @@ class DendreoSync:
                     self.stats["courses_created"] += 1
                     logger.debug(f"Created new course: {id_adf} - {id_lam} with {planned_duration_hours}h planned and {len(formateurs)} formateurs")
                 else:
-                    # Update basic course info including formateurs
+                    # Update basic course info including formateurs and category
                     course.intitule = adf.get('intitule', '')
                     course.status = id_etape_process
+                    course.categorie_module_id = adf_categorie_module_id if adf_categorie_module_id else course.categorie_module_id
                     course.formateurs = formateurs if formateurs else None
                     self.stats["courses_updated"] += 1
                     logger.debug(f"Updated course: {id_adf} - {id_lam} (kept existing planned duration: {course.planned_duration_hours}h, updated {len(formateurs)} formateurs)")

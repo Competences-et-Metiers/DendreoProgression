@@ -138,6 +138,15 @@ class DendreoClient:
             logger.warning(f"No creneaux data found for ADF {id_action_formation}")
             return []
 
+    async def get_module_categories(self) -> List[Dict[str, Any]]:
+        """Get all module categories from Dendreo"""
+        try:
+            response = await self._make_request("categories_module.php")
+            return response if response and isinstance(response, list) else []
+        except DendreoAPIError:
+            logger.warning("No module categories data found")
+            return []
+
     async def get_lmps_for_lap(self, id_lap: str) -> List[Dict[str, Any]]:
         """Get LMPs data for a specific LAP (participant enrollment)"""
         params = {

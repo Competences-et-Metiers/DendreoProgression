@@ -9,7 +9,7 @@ active, at_risk, or inactive.
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from typing import List, Dict, Optional
-from app.models.models import Participant, ParticipantCourse, Course, Module, Creneau, CreneauParticipant
+from app.models.models import Participant, ParticipantCourse, Course, Module, Creneau, CreneauParticipant, ModuleCategory
 from app.models.schemas import (
     InactiveParticipantDetail,
     InactiveParticipantsByCourse,
@@ -48,11 +48,31 @@ class InactivityService:
         """
         now = datetime.now(timezone.utc)
 
+        # Build category lookup map: {id_categorie_module: {name, color}}
+        category_map = {}
+        for cat in self.db.query(ModuleCategory).all():
+            category_map[cat.id_categorie_module] = {
+                'name': cat.intitule,
+                'color': cat.color
+            }
+
+        # Pre-build set of (participant_id, adf_id) with liveroom attendance
+        # so we include participants who only have liveroom activity (no LMS access)
+        liveroom_pairs = set()
+        liveroom_results = (
+            self.db.query(CreneauParticipant.participant_id, Creneau.id_action_formation)
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(CreneauParticipant.presence == "1")
+            .distinct()
+            .all()
+        )
+        for pid, adf in liveroom_results:
+            liveroom_pairs.add((pid, adf))
+
         query = (
             self.db.query(ParticipantCourse, Participant, Course)
             .join(Participant, ParticipantCourse.participant_id == Participant.id)
             .join(Course, ParticipantCourse.course_id == Course.id)
-            .filter(ParticipantCourse.last_activity.isnot(None))
         )
 
         if course_id:
@@ -98,8 +118,13 @@ class InactivityService:
                              if e['participant_course'].last_activity]
             last_elearning = max(elearning_last_activities) if elearning_last_activities else None
 
+            # Skip early if no elearning activity and no liveroom attendance
+            has_liveroom = (participant_id, adf_id) in liveroom_pairs
+            if not last_elearning and not has_liveroom:
+                continue
+
             # Liveroom last attended (only sessions where participant was present)
-            last_liveroom = self._get_last_liveroom_date(participant_id, adf_id)
+            last_liveroom = self._get_last_liveroom_date(participant_id, adf_id) if has_liveroom else None
 
             # Determine effective last activity and its source
             last_activity = None
@@ -178,6 +203,10 @@ class InactivityService:
 
             formateurs = enrollments[0]['course'].formateurs if enrollments[0]['course'].formateurs else None
 
+            # Look up category from first course in the group
+            cat_id = enrollments[0]['course'].categorie_module_id
+            cat_info = category_map.get(cat_id, {}) if cat_id else {}
+
             detail = InactiveParticipantDetail(
                 id=participant.id,
                 id_participant=participant.id_participant,
@@ -198,7 +227,9 @@ class InactivityService:
                 days_since_enrollment=days_since_enrollment,
                 inactivity_status=inactivity_status,
                 inactivity_reason=inactivity_reason,
-                formateurs=formateurs
+                formateurs=formateurs,
+                category_name=cat_info.get('name'),
+                category_color=cat_info.get('color')
             )
 
             all_details.append(detail)
@@ -288,6 +319,8 @@ class InactivityService:
                 course_id=first.course_id or 0,
                 course_title=first.course_title,
                 id_action_formation=adf_id,
+                category_name=first.category_name,
+                category_color=first.category_color,
                 total_participants=len(participants),
                 active_count=active,
                 at_risk_count=at_risk,

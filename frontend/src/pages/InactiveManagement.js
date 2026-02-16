@@ -18,12 +18,15 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  CheckCircle2
+  CheckCircle2,
+  X,
+  Download
 } from 'lucide-react';
 import api from '../services/api';
+import { generateInactivityReport } from '../utils/pdfExport';
 
 const InactiveManagement = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   // State with localStorage persistence
   const [groupByCourse, setGroupByCourse] = useState(() => {
@@ -99,6 +102,15 @@ const InactiveManagement = () => {
   const [formateurSearchTerm, setFormateurSearchTerm] = useState('');
   const [showFormateurDropdown, setShowFormateurDropdown] = useState(false);
 
+  // Category filter state
+  const [selectedCategories, setSelectedCategories] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.selectedCategories');
+    return cached ? JSON.parse(cached) : [];
+  });
+
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+
   // Persist state to localStorage
   useEffect(() => {
     localStorage.setItem('inactiveManagement.groupByCourse', JSON.stringify(groupByCourse));
@@ -127,6 +139,10 @@ const InactiveManagement = () => {
   useEffect(() => {
     localStorage.setItem('inactiveManagement.selectedFormateurs', JSON.stringify(selectedFormateurs));
   }, [selectedFormateurs]);
+
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.selectedCategories', JSON.stringify(selectedCategories));
+  }, [selectedCategories]);
 
   // Clean up old localStorage keys from removed active user toggle
   useEffect(() => {
@@ -236,6 +252,11 @@ const InactiveManagement = () => {
       });
     }
 
+    // Apply Category filter
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(p => p.category_name && selectedCategories.includes(p.category_name));
+    }
+
     // Apply status filter
     filtered = filtered.filter(p => statusFilter[p.inactivity_status]);
 
@@ -300,13 +321,18 @@ const InactiveManagement = () => {
       });
     }
 
+    // Apply category filter
+    if (selectedCategories.length > 0) {
+      allParticipants = allParticipants.filter(p => p.category_name && selectedCategories.includes(p.category_name));
+    }
+
     return {
       total: allParticipants.length,
       active: allParticipants.filter(p => p.inactivity_status === 'active').length,
       at_risk: allParticipants.filter(p => p.inactivity_status === 'at_risk').length,
       inactive: allParticipants.filter(p => p.inactivity_status === 'inactive').length,
     };
-  }, [data, selectedADFs, selectedFormateurs]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories]);
 
   const toggleSort = (field) => {
     if (sortBy === field) {
@@ -321,6 +347,54 @@ const InactiveManagement = () => {
     setStatusFilter({
       ...statusFilter,
       [status]: !statusFilter[status]
+    });
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!data) return;
+
+    // Collect all participants regardless of view mode
+    let allParticipants = [];
+    if (data.participants) {
+      allParticipants = data.participants;
+    } else if (data.by_course) {
+      data.by_course.forEach(course => {
+        if (course.participants) {
+          allParticipants = allParticipants.concat(course.participants);
+        }
+      });
+    }
+
+    const filteredParticipants = filterAndSortParticipants(allParticipants);
+
+    // Build active filter descriptions
+    const activeFilterDescriptions = [];
+    if (selectedADFs.length > 0) {
+      activeFilterDescriptions.push(`${selectedADFs.length} ${t('inactiveManagement.pdf.filterADFs')}`);
+    }
+    if (selectedFormateurs.length > 0) {
+      activeFilterDescriptions.push(`${selectedFormateurs.length} ${t('inactiveManagement.pdf.filterFormateurs')}`);
+    }
+    if (selectedCategories.length > 0) {
+      activeFilterDescriptions.push(`${selectedCategories.length} ${t('inactiveManagement.pdf.filterCategories')}`);
+    }
+
+    const disabledStatuses = [];
+    if (!statusFilter.active) disabledStatuses.push(t('inactiveManagement.status.active'));
+    if (!statusFilter.at_risk) disabledStatuses.push(t('inactiveManagement.status.atRisk'));
+    if (!statusFilter.inactive) disabledStatuses.push(t('inactiveManagement.status.inactive'));
+    if (disabledStatuses.length > 0) {
+      activeFilterDescriptions.push(`${t('inactiveManagement.pdf.filterExcluded')}: ${disabledStatuses.join(', ')}`);
+    }
+
+    const lang = i18n.language?.startsWith('fr') ? 'fr' : 'en';
+
+    generateInactivityReport({
+      participants: filteredParticipants,
+      stats: filteredStats,
+      activeFilters: activeFilterDescriptions,
+      t,
+      lang,
     });
   };
 
@@ -366,6 +440,15 @@ const InactiveManagement = () => {
                 <span className="font-medium">
                   {groupByCourse ? t('inactiveManagement.viewFlat') : t('inactiveManagement.viewGrouped')}
                 </span>
+              </button>
+
+              <button
+                onClick={handleDownloadPDF}
+                disabled={!data || isLoading}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download size={18} />
+                <span className="font-medium">{t('inactiveManagement.downloadPdf')}</span>
               </button>
             </div>
           </div>
@@ -501,10 +584,29 @@ const InactiveManagement = () => {
                 {t('inactiveManagement.status.inactive')}
               </label>
             </div>
+
+            {/* Remove Filters */}
+            {(!statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0) && (
+              <>
+                <div className="hidden lg:block w-px bg-gray-200" />
+                <button
+                  onClick={() => {
+                    setStatusFilter({ active: true, at_risk: true, inactive: true });
+                    setSelectedADFs([]);
+                    setSelectedFormateurs([]);
+                    setSelectedCategories([]);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100 transition-colors"
+                >
+                  <X size={12} />
+                  {t('inactiveManagement.removeFilters')}
+                </button>
+              </>
+            )}
           </div>
 
-          {/* Row 2: ADF + Formateur Filters side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 border-t border-gray-100 pt-4">
+          {/* Row 2: ADF + Formateur + Category Filters side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 border-t border-gray-100 pt-4">
             {/* ADF Filter */}
             <div>
               <button
@@ -548,6 +650,10 @@ const InactiveManagement = () => {
                   adf.title.toLowerCase().includes(adfSearchTerm.toLowerCase())
                 );
 
+                const selectedButHiddenADFs = adfSearchTerm
+                  ? adfList.filter(adf => selectedADFs.includes(adf.id) && !adf.title.toLowerCase().includes(adfSearchTerm.toLowerCase()))
+                  : [];
+
                 return (
                   <div className="mt-2 space-y-2">
                     <input
@@ -557,6 +663,22 @@ const InactiveManagement = () => {
                       placeholder="Rechercher une formation..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                     />
+                    {selectedButHiddenADFs.length > 0 && (
+                      <div className="space-y-1 border border-primary-200 bg-primary-50/50 rounded-lg p-2">
+                        <p className="text-[10px] font-medium text-primary-600 uppercase tracking-wide px-2">Sélectionnées</p>
+                        {selectedButHiddenADFs.map((adf) => (
+                          <label key={adf.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-primary-100/50 cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={true}
+                              onChange={() => setSelectedADFs(selectedADFs.filter(id => id !== adf.id))}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                            />
+                            <span className="text-xs text-primary-700 leading-tight">{adf.title}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                     <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 rounded-lg p-2">
                       {filteredADFs.length === 0 ? (
                         <p className="text-sm text-gray-500 text-center py-2">Aucune formation trouvée</p>
@@ -672,6 +794,10 @@ const InactiveManagement = () => {
                   formateur.fullName.toLowerCase().includes(formateurSearchTerm.toLowerCase())
                 );
 
+                const selectedButHiddenFormateurs = formateurSearchTerm
+                  ? formateurList.filter(f => selectedFormateurs.includes(f.id) && !f.fullName.toLowerCase().includes(formateurSearchTerm.toLowerCase()))
+                  : [];
+
                 return (
                   <div className="mt-2 space-y-2">
                     <input
@@ -681,6 +807,22 @@ const InactiveManagement = () => {
                       placeholder="Rechercher un formateur..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
                     />
+                    {selectedButHiddenFormateurs.length > 0 && (
+                      <div className="space-y-1 border border-primary-200 bg-primary-50/50 rounded-lg p-2">
+                        <p className="text-[10px] font-medium text-primary-600 uppercase tracking-wide px-2">Sélectionnés</p>
+                        {selectedButHiddenFormateurs.map((formateur) => (
+                          <label key={formateur.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-primary-100/50 cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={true}
+                              onChange={() => setSelectedFormateurs(selectedFormateurs.filter(id => id !== formateur.id))}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                            />
+                            <span className="text-xs text-primary-700 leading-tight">{formateur.fullName || 'Formateur sans nom'}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                     <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 rounded-lg p-2">
                       {filteredFormateurs.length === 0 ? (
                         <p className="text-sm text-gray-500 text-center py-2">Aucun formateur trouvé</p>
@@ -726,6 +868,163 @@ const InactiveManagement = () => {
                     {selectedFormateurs.length > 0 && (
                       <p className="text-xs text-gray-500">
                         {selectedFormateurs.length} formateur{selectedFormateurs.length > 1 ? 's' : ''} sélectionné{selectedFormateurs.length > 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <button
+                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Filter size={16} className="text-gray-600" />
+                  <span className="text-sm font-medium text-gray-900">{t('inactiveManagement.categoryFilter.title')}</span>
+                  {selectedCategories.length > 0 && (
+                    <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
+                      {selectedCategories.length}
+                    </span>
+                  )}
+                </div>
+                {showCategoryDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+
+              {showCategoryDropdown && data && (() => {
+                const uniqueCategories = new Map();
+
+                const participants = data.participants || [];
+                const courses = data.by_course || [];
+
+                participants.forEach(p => {
+                  if (p.category_name && !uniqueCategories.has(p.category_name)) {
+                    uniqueCategories.set(p.category_name, {
+                      name: p.category_name,
+                      color: p.category_color || ''
+                    });
+                  }
+                });
+
+                courses.forEach(c => {
+                  if (c.category_name && !uniqueCategories.has(c.category_name)) {
+                    uniqueCategories.set(c.category_name, {
+                      name: c.category_name,
+                      color: c.category_color || ''
+                    });
+                  }
+                  if (c.participants) {
+                    c.participants.forEach(p => {
+                      if (p.category_name && !uniqueCategories.has(p.category_name)) {
+                        uniqueCategories.set(p.category_name, {
+                          name: p.category_name,
+                          color: p.category_color || ''
+                        });
+                      }
+                    });
+                  }
+                });
+
+                const categoryList = Array.from(uniqueCategories.values()).sort((a, b) =>
+                  a.name.localeCompare(b.name)
+                );
+
+                const filteredCategories = categoryList.filter(cat =>
+                  cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
+                );
+
+                const selectedButHiddenCategories = categorySearchTerm
+                  ? categoryList.filter(cat => selectedCategories.includes(cat.name) && !cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+                  : [];
+
+                return (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      type="text"
+                      value={categorySearchTerm}
+                      onChange={(e) => setCategorySearchTerm(e.target.value)}
+                      placeholder={t('inactiveManagement.categoryFilter.searchPlaceholder')}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                    {selectedButHiddenCategories.length > 0 && (
+                      <div className="space-y-1 border border-primary-200 bg-primary-50/50 rounded-lg p-2">
+                        <p className="text-[10px] font-medium text-primary-600 uppercase tracking-wide px-2">Sélectionnées</p>
+                        {selectedButHiddenCategories.map((cat) => (
+                          <label key={cat.name} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-primary-100/50 cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={true}
+                              onChange={() => setSelectedCategories(selectedCategories.filter(name => name !== cat.name))}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                            />
+                            <span className="text-xs text-primary-700 leading-tight flex items-center gap-1.5">
+                              {cat.color && (
+                                <span
+                                  className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: `#${cat.color}` }}
+                                />
+                              )}
+                              {cat.name}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 rounded-lg p-2">
+                      {filteredCategories.length === 0 ? (
+                        <p className="text-sm text-gray-500 text-center py-2">{t('inactiveManagement.categoryFilter.noResults')}</p>
+                      ) : (
+                        <>
+                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
+                            <input
+                              type="checkbox"
+                              checked={selectedCategories.length === categoryList.length && categoryList.length > 0}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedCategories(categoryList.map(c => c.name));
+                                } else {
+                                  setSelectedCategories([]);
+                                }
+                              }}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
+                            />
+                            <span className="text-xs font-semibold text-gray-700">
+                              {selectedCategories.length === categoryList.length && categoryList.length > 0 ? t('inactiveManagement.categoryFilter.deselectAll') : t('inactiveManagement.categoryFilter.selectAll')}
+                            </span>
+                          </label>
+                          {filteredCategories.map((cat) => (
+                            <label key={cat.name} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={selectedCategories.includes(cat.name)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedCategories([...selectedCategories, cat.name]);
+                                  } else {
+                                    setSelectedCategories(selectedCategories.filter(name => name !== cat.name));
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                              />
+                              <span className="text-xs text-gray-700 leading-tight flex items-center gap-1.5">
+                                {cat.color && (
+                                  <span
+                                    className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: `#${cat.color}` }}
+                                  />
+                                )}
+                                {cat.name}
+                              </span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                    {selectedCategories.length > 0 && (
+                      <p className="text-xs text-gray-500">
+                        {selectedCategories.length} {t('inactiveManagement.categoryFilter.selectedCount')}
                       </p>
                     )}
                   </div>
@@ -913,6 +1212,23 @@ const InactiveManagement = () => {
                                           {participant.formateurs.length} formateur{participant.formateurs.length > 1 ? 's' : ''}
                                         </span>
                                       )}
+                                      {participant.category_name && (
+                                        <span
+                                          className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-default"
+                                          style={{
+                                            backgroundColor: participant.category_color ? `#${participant.category_color}20` : '#f3f4f6',
+                                            color: participant.category_color ? `#${participant.category_color}` : '#6b7280'
+                                          }}
+                                        >
+                                          {participant.category_color && (
+                                            <span
+                                              className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                                              style={{ backgroundColor: `#${participant.category_color}` }}
+                                            />
+                                          )}
+                                          {participant.category_name}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -997,6 +1313,23 @@ const InactiveManagement = () => {
                                 >
                                   <User size={12} />
                                   {participant.formateurs.length} formateur{participant.formateurs.length > 1 ? 's' : ''}
+                                </span>
+                              )}
+                              {participant.category_name && (
+                                <span
+                                  className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-default"
+                                  style={{
+                                    backgroundColor: participant.category_color ? `#${participant.category_color}20` : '#f3f4f6',
+                                    color: participant.category_color ? `#${participant.category_color}` : '#6b7280'
+                                  }}
+                                >
+                                  {participant.category_color && (
+                                    <span
+                                      className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                                      style={{ backgroundColor: `#${participant.category_color}` }}
+                                    />
+                                  )}
+                                  {participant.category_name}
                                 </span>
                               )}
                             </div>

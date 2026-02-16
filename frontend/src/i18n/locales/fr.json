@@ -393,6 +393,32 @@
     "activitySource": {
       "elearning": "E-learning",
       "classe_virtuelle": "Classe virtuelle"
+    },
+    "categoryFilter": {
+      "title": "Filtrer par catégorie",
+      "searchPlaceholder": "Rechercher une catégorie...",
+      "noResults": "Aucune catégorie trouvée",
+      "selectAll": "Tout sélectionner",
+      "deselectAll": "Tout désélectionner",
+      "selectedCount": "catégorie(s) sélectionnée(s)"
+    },
+    "removeFilters": "Réinitialiser les filtres",
+    "downloadPdf": "Télécharger PDF",
+    "pdf": {
+      "title": "Rapport de suivi des participants",
+      "subtitle": "Gestion de l'activité des participants",
+      "generatedOn": "Généré le",
+      "appliedFilters": "Filtres appliqués",
+      "filterADFs": "formation(s)",
+      "filterFormateurs": "formateur(s)",
+      "filterCategories": "catégorie(s)",
+      "filterExcluded": "Statuts exclus",
+      "colName": "Nom",
+      "colCourse": "Formation / ADF",
+      "colStatus": "Statut",
+      "colDaysInactive": "Jours d'inactivité",
+      "colProgression": "Progression %",
+      "colEmail": "Email"
     }
   },
   "settings": {

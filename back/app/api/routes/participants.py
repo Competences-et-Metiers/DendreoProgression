@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from typing import List, Optional
 from app.models.database import get_db
-from app.models.models import Participant, ParticipantCourse, Course
-from app.models.schemas import ParticipantWithProgress, ParticipantCourse as ParticipantCourseSchema, InactivitySummary
+from app.models.models import Participant, ParticipantCourse, Course, ModuleCategory
+from app.models.schemas import ParticipantWithProgress, ParticipantCourse as ParticipantCourseSchema, InactivitySummary, ModuleCategoryResponse
 from app.services.cache_service import cache_service
 from app.services.inactivity_service import InactivityService
 import logging
@@ -214,7 +214,7 @@ async def get_participants(
                     pc.activity_status = status  # Update the status
                     if status == 'completed':
                         completed_courses += 1
-                    elif status == 'active':
+                    elif status in ('active', 'not_started'):
                         active_courses += 1
 
                 participant_data.completed_courses = completed_courses
@@ -318,6 +318,18 @@ async def get_inactive_participants(
     except Exception as e:
         logger.error(f"Error fetching participants: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error fetching participants: {str(e)}")
+
+@router.get("/categories", response_model=List[ModuleCategoryResponse])
+async def get_module_categories(db: Session = Depends(get_db)):
+    """Get all active module categories for filtering"""
+    try:
+        categories = db.query(ModuleCategory).filter(
+            ModuleCategory.status == "1"
+        ).order_by(ModuleCategory.display_order).all()
+        return [ModuleCategoryResponse.model_validate(cat) for cat in categories]
+    except Exception as e:
+        logger.error(f"Error fetching categories: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching categories: {str(e)}")
 
 @router.get("/{participant_id}", response_model=ParticipantWithProgress)
 async def get_participant(participant_id: int, db: Session = Depends(get_db)):

@@ -124,6 +124,10 @@ class InactiveParticipantDetail(BaseModel):
     # Formateurs (from course)
     formateurs: Optional[List[dict]] = None
 
+    # Category (from ADF)
+    category_name: Optional[str] = None
+    category_color: Optional[str] = None
+
     class Config:
         from_attributes = True
 
@@ -132,6 +136,10 @@ class InactiveParticipantsByCourse(BaseModel):
     course_id: int
     course_title: Optional[str] = None
     id_action_formation: Optional[str] = None
+
+    # Category
+    category_name: Optional[str] = None
+    category_color: Optional[str] = None
 
     # Aggregated stats
     total_participants: int = 0
@@ -211,3 +219,15 @@ class ChangePasswordRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class ModuleCategoryResponse(BaseModel):
+    id: int
+    id_categorie_module: str
+    intitule: Optional[str] = None
+    color: Optional[str] = None
+    status: Optional[str] = None
+    display_order: int = 0
+
+    class Config:
+        from_attributes = True

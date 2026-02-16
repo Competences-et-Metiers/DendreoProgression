@@ -21,6 +21,20 @@ class Participant(Base):
     courses = relationship("ParticipantCourse", back_populates="participant")
     hubspot_data = relationship("ParticipantHubspotData", back_populates="participant")
 
+class ModuleCategory(Base):
+    """Module category from Dendreo categories_module API."""
+    __tablename__ = "module_categories"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    id_categorie_module = Column(String, unique=True, nullable=False)  # Dendreo category ID
+    intitule = Column(String, nullable=True)  # Category name
+    color = Column(String, nullable=True)  # Hex color code
+    status = Column(String, default="1")  # "1" = active
+    display_order = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
 class Course(Base):
     __tablename__ = "courses"
     __table_args__ = (UniqueConstraint('id_action_formation', 'id_lam', name='_adf_lam_uc'),)
@@ -30,6 +44,7 @@ class Course(Base):
     id_lam = Column(String)  # LAM ID that groups modules
     intitule = Column(String)  # Course name from ADF
     status = Column(String)  # Based on id_etape_process
+    categorie_module_id = Column(String, nullable=True)  # Dendreo category ID from ADF
     total_modules = Column(Integer, default=0)  # Total number of e-learning modules
     planned_duration_hours = Column(Float, default=0.0)  # Planned duration in hours from duree_heures
     formateurs = Column(JSON, nullable=True)  # Array of formateur data from ADF

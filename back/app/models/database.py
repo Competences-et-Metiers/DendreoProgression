@@ -100,12 +100,21 @@ def create_tables():
     """Create all database tables with proper error handling."""
     try:
         # Import all models to ensure they're registered
-        from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, SyncMetadata, User, Creneau, CreneauParticipant
-        
+        from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, SyncMetadata, User, Creneau, CreneauParticipant, ModuleCategory
+
         logger.info("Creating database tables...")
-        
+
         # Create tables
         Base.metadata.create_all(bind=engine)
+
+        # Safe migration: add new columns to existing tables
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS categorie_module_id VARCHAR"))
+                conn.commit()
+                logger.info("Ensured courses.categorie_module_id column exists")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
         
         # Verify tables were created using text() for SQLAlchemy 2.0+ compatibility
         with engine.connect() as conn:

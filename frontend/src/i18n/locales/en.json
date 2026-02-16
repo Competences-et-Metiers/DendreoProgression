@@ -344,6 +344,32 @@
     "activitySource": {
       "elearning": "E-learning",
       "classe_virtuelle": "Virtual classroom"
+    },
+    "categoryFilter": {
+      "title": "Filter by category",
+      "searchPlaceholder": "Search a category...",
+      "noResults": "No category found",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "selectedCount": "category(ies) selected"
+    },
+    "removeFilters": "Reset filters",
+    "downloadPdf": "Download PDF",
+    "pdf": {
+      "title": "Participant Activity Report",
+      "subtitle": "Participant activity management",
+      "generatedOn": "Generated on",
+      "appliedFilters": "Applied filters",
+      "filterADFs": "course(s)",
+      "filterFormateurs": "instructor(s)",
+      "filterCategories": "category(ies)",
+      "filterExcluded": "Excluded statuses",
+      "colName": "Name",
+      "colCourse": "Course / ADF",
+      "colStatus": "Status",
+      "colDaysInactive": "Days Inactive",
+      "colProgression": "Progression %",
+      "colEmail": "Email"
     }
   },
   "settings": {

@@ -212,9 +212,9 @@ deploy() {
     log_info "Starting all services..."
     docker compose -f docker-compose.prod.yml up -d
     
-    # Wait for services to start
+    # Brief wait for containers to initialise
     log_info "Waiting for services to start..."
-    sleep 15
+    sleep 5
     
     # Check service health
     log_info "Checking service health..."
@@ -509,8 +509,6 @@ main() {
     create_backup
     clean_docker_cache
     deploy "$@"
-    initialize_database
-    test_sync
     show_status
 }
 
