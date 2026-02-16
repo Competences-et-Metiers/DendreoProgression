@@ -635,7 +635,7 @@ const InactiveManagement = () => {
             </div>
 
             {/* Remove Filters */}
-            {(!statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm) && (
+            {(!statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0) && (
               <>
                 <div className="hidden lg:block w-px bg-gray-200" />
                 <button
@@ -645,6 +645,7 @@ const InactiveManagement = () => {
                     setSelectedFormateurs([]);
                     setSelectedCategories([]);
                     setSearchTerm('');
+                    setFilters(f => ({ ...f, atRiskThreshold: 14, inactivityThreshold: 30, excludeRecentDays: 0 }));
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100 transition-colors"
                 >
