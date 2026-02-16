@@ -353,6 +353,7 @@
       "deselectAll": "Deselect all",
       "selectedCount": "category(ies) selected"
     },
+    "searchPlaceholder": "Search by name, course or category...",
     "removeFilters": "Reset filters",
     "downloadPdf": "Download PDF",
     "pdf": {

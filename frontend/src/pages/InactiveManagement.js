@@ -20,7 +20,8 @@ import {
   ArrowDown,
   CheckCircle2,
   X,
-  Download
+  Download,
+  Search
 } from 'lucide-react';
 import api from '../services/api';
 import { generateInactivityReport } from '../utils/pdfExport';
@@ -42,7 +43,7 @@ const InactiveManagement = () => {
       return {
         atRiskThreshold: parsed.atRiskThreshold || 14,
         inactivityThreshold: parsed.inactivityThreshold || 30,
-        excludeRecentDays: parsed.excludeRecentDays || 7,
+        excludeRecentDays: parsed.excludeRecentDays ?? 0,
         minProgression: parsed.minProgression ?? null,
         maxProgression: parsed.maxProgression ?? null,
         courseId: parsed.courseId ?? null
@@ -51,7 +52,7 @@ const InactiveManagement = () => {
     return {
       atRiskThreshold: 14,
       inactivityThreshold: 30,
-      excludeRecentDays: 7,
+      excludeRecentDays: 0,
       minProgression: null,
       maxProgression: null,
       courseId: null
@@ -110,6 +111,9 @@ const InactiveManagement = () => {
 
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+
+  // Global search
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Persist state to localStorage
   useEffect(() => {
@@ -257,6 +261,17 @@ const InactiveManagement = () => {
       filtered = filtered.filter(p => p.category_name && selectedCategories.includes(p.category_name));
     }
 
+    // Apply global search
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter(p => {
+        const name = `${p.nom || ''} ${p.prenom || ''}`.toLowerCase();
+        const courseTitle = (p.course_title || '').toLowerCase();
+        const category = (p.category_name || '').toLowerCase();
+        return name.includes(term) || courseTitle.includes(term) || category.includes(term);
+      });
+    }
+
     // Apply status filter
     filtered = filtered.filter(p => statusFilter[p.inactivity_status]);
 
@@ -326,13 +341,24 @@ const InactiveManagement = () => {
       allParticipants = allParticipants.filter(p => p.category_name && selectedCategories.includes(p.category_name));
     }
 
+    // Apply global search
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase().trim();
+      allParticipants = allParticipants.filter(p => {
+        const name = `${p.nom || ''} ${p.prenom || ''}`.toLowerCase();
+        const courseTitle = (p.course_title || '').toLowerCase();
+        const category = (p.category_name || '').toLowerCase();
+        return name.includes(term) || courseTitle.includes(term) || category.includes(term);
+      });
+    }
+
     return {
       total: allParticipants.length,
       active: allParticipants.filter(p => p.inactivity_status === 'active').length,
       at_risk: allParticipants.filter(p => p.inactivity_status === 'at_risk').length,
       inactive: allParticipants.filter(p => p.inactivity_status === 'inactive').length,
     };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm]);
 
   const toggleSort = (field) => {
     if (sortBy === field) {
@@ -369,6 +395,9 @@ const InactiveManagement = () => {
 
     // Build active filter descriptions
     const activeFilterDescriptions = [];
+    if (searchTerm.trim()) {
+      activeFilterDescriptions.push(`${t('common.search')}: "${searchTerm.trim()}"`);
+    }
     if (selectedADFs.length > 0) {
       activeFilterDescriptions.push(`${selectedADFs.length} ${t('inactiveManagement.pdf.filterADFs')}`);
     }
@@ -524,6 +553,26 @@ const InactiveManagement = () => {
 
         {/* Sorting & Filters */}
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 space-y-4">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('inactiveManagement.searchPlaceholder')}
+              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
           {/* Row 1: Sorting + Status Filter */}
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Sorting - horizontal pills */}
@@ -586,7 +635,7 @@ const InactiveManagement = () => {
             </div>
 
             {/* Remove Filters */}
-            {(!statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0) && (
+            {(!statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm) && (
               <>
                 <div className="hidden lg:block w-px bg-gray-200" />
                 <button
@@ -595,6 +644,7 @@ const InactiveManagement = () => {
                     setSelectedADFs([]);
                     setSelectedFormateurs([]);
                     setSelectedCategories([]);
+                    setSearchTerm('');
                   }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100 transition-colors"
                 >

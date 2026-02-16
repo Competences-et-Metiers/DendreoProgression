@@ -402,6 +402,7 @@
       "deselectAll": "Tout désélectionner",
       "selectedCount": "catégorie(s) sélectionnée(s)"
     },
+    "searchPlaceholder": "Rechercher par nom, formation ou catégorie...",
     "removeFilters": "Réinitialiser les filtres",
     "downloadPdf": "Télécharger PDF",
     "pdf": {
