@@ -28,7 +28,7 @@ class InactivityService:
         db: Session,
         at_risk_threshold_days: int = 14,
         inactivity_threshold_days: int = 30,
-        exclude_recent_enrollments_days: int = 7
+        exclude_recent_enrollments_days: int = 0
     ):
         self.db = db
         self.at_risk_threshold = at_risk_threshold_days
