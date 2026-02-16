@@ -21,6 +21,8 @@ SYNC_CONTAINER="dendreo_sync_prod"
 DB_NAME="dendreo_prod_db"
 DB_USER="postgres"
 BACKUP_FILE="${1}"
+COMPOSE_FILE="docker-compose.prod.yml"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo -e "${GREEN}=== Dendreo Progression Database Restore ===${NC}"
 echo "Timestamp: $(date)"
@@ -74,8 +76,15 @@ echo ""
 echo -e "${BLUE}Starting database restore...${NC}"
 echo ""
 
-# Stop sync container to prevent syncs during restore
-echo -e "${YELLOW}[1/6] Stopping sync container...${NC}"
+# Stop backend and sync containers to release DB connections
+echo -e "${YELLOW}[1/7] Stopping backend and sync containers...${NC}"
+BACKEND_CONTAINER=$(docker ps --format '{{.Names}}' | grep -E 'backend' | grep -v 'grep' || true)
+if [ -n "${BACKEND_CONTAINER}" ]; then
+  docker stop "${BACKEND_CONTAINER}" || true
+  echo "  ✓ Backend container stopped (${BACKEND_CONTAINER})"
+else
+  echo "  ℹ Backend container not running"
+fi
 if docker ps | grep -q "${SYNC_CONTAINER}"; then
   docker stop "${SYNC_CONTAINER}" || true
   echo "  ✓ Sync container stopped"
@@ -83,23 +92,31 @@ else
   echo "  ℹ Sync container not running"
 fi
 
+# Terminate any remaining DB connections
+echo -e "${YELLOW}[2/7] Terminating remaining database connections...${NC}"
+docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c \
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${DB_NAME}' AND pid <> pg_backend_pid();" \
+  2>&1 | grep -v "^$" || true
+echo "  ✓ Connections terminated"
+
 # Copy backup to container
-echo -e "${YELLOW}[2/6] Copying backup to container...${NC}"
+echo -e "${YELLOW}[3/7] Copying backup to container...${NC}"
 docker cp "${BACKUP_FILE}" "${CONTAINER_NAME}:/tmp/dendreo_backup.dump"
 echo "  ✓ Backup copied"
 
 # Drop existing database
-echo -e "${YELLOW}[3/6] Dropping existing database...${NC}"
-docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c "DROP DATABASE IF EXISTS ${DB_NAME};" 2>&1 | grep -v "NOTICE" || true
+echo -e "${YELLOW}[4/7] Dropping existing database...${NC}"
+docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c "DROP DATABASE IF EXISTS ${DB_NAME};" 2>&1 | grep -v "NOTICE"
 echo "  ✓ Database dropped"
 
-# Create new database
-echo -e "${YELLOW}[4/6] Creating new database...${NC}"
+# Fix collation version mismatch on template1 (happens after OS glibc updates)
+echo -e "${YELLOW}[5/7] Creating new database...${NC}"
+docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c "ALTER DATABASE template1 REFRESH COLLATION VERSION;" 2>&1 || true
 docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c "CREATE DATABASE ${DB_NAME};"
 echo "  ✓ Database created"
 
 # Restore database
-echo -e "${YELLOW}[5/6] Restoring database from backup (this may take a few minutes)...${NC}"
+echo -e "${YELLOW}[6/7] Restoring database from backup (this may take a few minutes)...${NC}"
 docker exec "${CONTAINER_NAME}" pg_restore \
   -U "${DB_USER}" \
   -d "${DB_NAME}" \
@@ -111,9 +128,13 @@ docker exec "${CONTAINER_NAME}" pg_restore \
   /tmp/dendreo_backup.dump 2>&1 | grep -E "processing|creating|setting" || true
 echo "  ✓ Database restored"
 
-# Clean up
-echo -e "${YELLOW}[6/6] Cleaning up...${NC}"
+# Clean up and restart containers
+echo -e "${YELLOW}[7/7] Cleaning up and restarting services...${NC}"
 docker exec "${CONTAINER_NAME}" rm /tmp/dendreo_backup.dump
+if [ -n "${BACKEND_CONTAINER}" ]; then
+  docker start "${BACKEND_CONTAINER}"
+  echo "  ✓ Backend container restarted"
+fi
 echo "  ✓ Temporary files removed"
 
 # Verify restoration
@@ -156,4 +177,4 @@ echo "  3. Restart sync container if needed:"
 echo "     docker start ${SYNC_CONTAINER}"
 echo ""
 echo "  4. Monitor logs for any issues:"
-echo "     docker logs dendreoprogression-backend-1 -f"
+echo "     docker logs ${BACKEND_CONTAINER:-dendreoprogression-backend-1} -f"
