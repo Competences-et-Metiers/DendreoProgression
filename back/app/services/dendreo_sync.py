@@ -147,7 +147,7 @@ class DendreoSync:
                     for remaining_adf in adf_data[adf_idx - 1:]:
                         r_id = remaining_adf.get('id_action_de_formation')
                         r_status = remaining_adf.get('id_etape_process')
-                        if r_id and str(r_status) in ['5', '6']:
+                        if r_id and str(r_status) in ['5', '6', '7']:
                             skipped_adf_ids.append(str(r_id))
 
                     logger.warning(
@@ -159,10 +159,10 @@ class DendreoSync:
                     api_limit_reached = True
                     break
 
-                # Only process active ADFs (status 5 or 6)
+                # Only process active ADFs (status 5, 6, or 7)
                 id_etape_process = adf.get('id_etape_process')
                 # Convert to string to handle both string and integer types
-                if not id_etape_process or str(id_etape_process) not in ['5', '6']:
+                if not id_etape_process or str(id_etape_process) not in ['5', '6', '7']:
                     if adf_idx <= 10:  # Log first 10 skips to avoid spam
                         logger.info(f"⏭️  Skipping inactive ADF {id_adf} with status {id_etape_process} (type: {type(id_etape_process)})")
                     continue
@@ -622,9 +622,9 @@ class DendreoSync:
         active_courses = {}
 
         for adf in adf_batch:
-            # Only process active ADFs (status 5 or 6)
+            # Only process active ADFs (status 5, 6, or 7)
             id_etape_process = adf.get('id_etape_process')
-            if not id_etape_process or str(id_etape_process) not in ['5', '6']:
+            if not id_etape_process or str(id_etape_process) not in ['5', '6', '7']:
                 logger.debug(f"Skipping inactive ADF with status {id_etape_process}")
                 continue
 
@@ -696,9 +696,9 @@ class DendreoSync:
             if not id_adf:
                 continue
                 
-            # Only process active ADFs (status 5 or 6)
+            # Only process active ADFs (status 5, 6, or 7)
             id_etape_process = adf.get('id_etape_process')
-            if not id_etape_process or str(id_etape_process) not in ['5', '6']:
+            if not id_etape_process or str(id_etape_process) not in ['5', '6', '7']:
                 continue
             
             try:

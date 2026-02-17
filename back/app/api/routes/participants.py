@@ -289,11 +289,11 @@ async def get_inactive_participants(
     - active: Last activity within at_risk_threshold_days
     - at_risk: Between at_risk_threshold_days and inactivity_threshold_days
     - inactive: Beyond inactivity_threshold_days
+    - never_started: No activity data at all
 
     Exclusions:
     - Participants enrolled less than exclude_recent_enrollments_days ago
     - Participants with 100% completion
-    - Participants with no activity data
     """
     try:
         logger.info(f"Fetching participants (group_by_course={group_by_course}, course_id={course_id})")
@@ -312,7 +312,7 @@ async def get_inactive_participants(
             max_progression=max_progression
         )
 
-        logger.info(f"Found {result.total_participants} participants ({result.active_count} active, {result.at_risk_count} at risk, {result.inactive_count} inactive)")
+        logger.info(f"Found {result.total_participants} participants ({result.active_count} active, {result.at_risk_count} at risk, {result.inactive_count} inactive, {result.never_started_count} never started)")
         return result
 
     except Exception as e:

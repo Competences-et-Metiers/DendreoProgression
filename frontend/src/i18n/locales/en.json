@@ -340,6 +340,19 @@
     "title": "Inactive Management",
     "subtitle": "Track and manage inactive participants",
     "placeholder": "Inactive participant management will be available soon. You will be able to identify and re-engage participants who have been inactive.",
+    "stats": {
+      "total": "Total participants",
+      "active": "Active",
+      "atRisk": "At Risk",
+      "inactive": "Inactive",
+      "neverStarted": "Never Started"
+    },
+    "status": {
+      "active": "Active",
+      "atRisk": "At Risk",
+      "inactive": "Inactive",
+      "neverStarted": "Never Started"
+    },
     "lastActivitySource": "Last activity source",
     "activitySource": {
       "elearning": "E-learning",

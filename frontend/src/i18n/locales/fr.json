@@ -366,12 +366,14 @@
       "total": "Total participants",
       "active": "Actifs",
       "atRisk": "À risque",
-      "inactive": "Inactifs"
+      "inactive": "Inactifs",
+      "neverStarted": "Jamais commencé"
     },
     "status": {
       "active": "Actif",
       "atRisk": "À risque",
-      "inactive": "Inactif"
+      "inactive": "Inactif",
+      "neverStarted": "Jamais"
     },
     "filters": {
       "title": "Filtres et seuils",

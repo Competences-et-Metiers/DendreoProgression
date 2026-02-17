@@ -78,11 +78,15 @@ const InactiveManagement = () => {
       const parsed = JSON.parse(cached);
       // Migrate old format if needed
       if ('stalled' in parsed || 'long_inactive' in parsed) {
-        return { active: true, at_risk: true, inactive: true };
+        return { active: true, at_risk: true, inactive: true, never_started: true };
+      }
+      // Migrate: add never_started if missing
+      if (!('never_started' in parsed)) {
+        parsed.never_started = true;
       }
       return parsed;
     }
-    return { active: true, at_risk: true, inactive: true };
+    return { active: true, at_risk: true, inactive: true, never_started: true };
   });
 
   // ADF filter state
@@ -204,6 +208,8 @@ const InactiveManagement = () => {
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'inactive':
         return 'bg-red-100 text-red-800 border-red-200';
+      case 'never_started':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -217,6 +223,8 @@ const InactiveManagement = () => {
         return <AlertTriangle size={16} className="text-yellow-600" />;
       case 'inactive':
         return <UserX size={16} className="text-red-600" />;
+      case 'never_started':
+        return <Clock size={16} className="text-purple-600" />;
       default:
         return <Clock size={16} className="text-gray-600" />;
     }
@@ -230,6 +238,8 @@ const InactiveManagement = () => {
         return t('inactiveManagement.status.atRisk');
       case 'inactive':
         return t('inactiveManagement.status.inactive');
+      case 'never_started':
+        return t('inactiveManagement.status.neverStarted');
       default:
         return status;
     }
@@ -294,7 +304,7 @@ const InactiveManagement = () => {
           comparison = progressionA - progressionB;
           break;
         case 'status':
-          const statusOrder = { 'inactive': 3, 'at_risk': 2, 'active': 1 };
+          const statusOrder = { 'never_started': 4, 'inactive': 3, 'at_risk': 2, 'active': 1 };
           comparison = (statusOrder[a.inactivity_status] || 0) - (statusOrder[b.inactivity_status] || 0);
           break;
         default:
@@ -309,7 +319,7 @@ const InactiveManagement = () => {
 
   // Compute stats from client-side filtered data (ADF + formateur filters, ignoring status filter)
   const filteredStats = useMemo(() => {
-    if (!data) return { total: 0, active: 0, at_risk: 0, inactive: 0 };
+    if (!data) return { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0 };
 
     // Collect all participants from either view mode
     let allParticipants = [];
@@ -357,6 +367,7 @@ const InactiveManagement = () => {
       active: allParticipants.filter(p => p.inactivity_status === 'active').length,
       at_risk: allParticipants.filter(p => p.inactivity_status === 'at_risk').length,
       inactive: allParticipants.filter(p => p.inactivity_status === 'inactive').length,
+      never_started: allParticipants.filter(p => p.inactivity_status === 'never_started').length,
     };
   }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm]);
 
@@ -412,6 +423,7 @@ const InactiveManagement = () => {
     if (!statusFilter.active) disabledStatuses.push(t('inactiveManagement.status.active'));
     if (!statusFilter.at_risk) disabledStatuses.push(t('inactiveManagement.status.atRisk'));
     if (!statusFilter.inactive) disabledStatuses.push(t('inactiveManagement.status.inactive'));
+    if (!statusFilter.never_started) disabledStatuses.push(t('inactiveManagement.status.neverStarted'));
     if (disabledStatuses.length > 0) {
       activeFilterDescriptions.push(`${t('inactiveManagement.pdf.filterExcluded')}: ${disabledStatuses.join(', ')}`);
     }
@@ -632,15 +644,22 @@ const InactiveManagement = () => {
                 <UserX size={12} />
                 {t('inactiveManagement.status.inactive')}
               </label>
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                statusFilter.never_started ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-white border-gray-200 text-gray-400'
+              }`}>
+                <input type="checkbox" checked={statusFilter.never_started} onChange={() => toggleStatusFilter('never_started')} className="sr-only" />
+                <Clock size={12} />
+                {t('inactiveManagement.status.neverStarted')}
+              </label>
             </div>
 
             {/* Remove Filters */}
-            {(!statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0) && (
+            {(!statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0) && (
               <>
                 <div className="hidden lg:block w-px bg-gray-200" />
                 <button
                   onClick={() => {
-                    setStatusFilter({ active: true, at_risk: true, inactive: true });
+                    setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true });
                     setSelectedADFs([]);
                     setSelectedFormateurs([]);
                     setSelectedCategories([]);
@@ -1104,7 +1123,7 @@ const InactiveManagement = () => {
         {/* Statistics Cards */}
         {data && !isLoading && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6">
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1152,6 +1171,18 @@ const InactiveManagement = () => {
                   </div>
                 </div>
               </div>
+
+              <div className="bg-white rounded-lg border border-purple-200 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-purple-700">{t('inactiveManagement.stats.neverStarted')}</p>
+                    <p className="text-3xl font-bold text-purple-900 mt-2">{filteredStats.never_started}</p>
+                  </div>
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <Clock size={24} className="text-purple-600" />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Grouped by Course View */}
@@ -1190,6 +1221,11 @@ const InactiveManagement = () => {
                             <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
                               {course.inactive_count} {t('inactiveManagement.status.inactive')}
                             </span>
+                            {course.never_started_count > 0 && (
+                              <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                                {course.never_started_count} {t('inactiveManagement.status.neverStarted')}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <button

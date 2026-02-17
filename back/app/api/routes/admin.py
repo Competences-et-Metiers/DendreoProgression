@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 SYNC_LOG_PATH = "/tmp/sync_live.log"
+_sync_process = None  # Track the running subprocess
 
 
 # Schemas
@@ -95,6 +96,7 @@ def get_or_create_sync_config(db: Session) -> AdminSyncConfig:
 
 def start_sync_process(command: List[str]) -> Dict[str, Any]:
     """Start sync subprocess in background, redirect output to log file."""
+    global _sync_process
     try:
         with open(SYNC_LOG_PATH, "w") as f:
             f.write("")
@@ -106,6 +108,7 @@ def start_sync_process(command: List[str]) -> Dict[str, Any]:
             stderr=subprocess.STDOUT,
             cwd="/app"
         )
+        _sync_process = process
         return {
             "status": "started",
             "message": f"Sync started (PID: {process.pid})",
@@ -200,7 +203,8 @@ async def trigger_dry_run(
     in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first()
-    if in_progress:
+    process_running = _sync_process is not None and _sync_process.poll() is None
+    if in_progress or process_running:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A sync is already running. Wait for it to finish."
@@ -227,7 +231,8 @@ async def force_sync(
     in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first()
-    if in_progress:
+    process_running = _sync_process is not None and _sync_process.poll() is None
+    if in_progress or process_running:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A sync is already running. Wait for it to finish."
@@ -255,7 +260,8 @@ async def sync_specific_adf(
     in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first()
-    if in_progress:
+    process_running = _sync_process is not None and _sync_process.poll() is None
+    if in_progress or process_running:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A sync is already running. Wait for it to finish."
@@ -395,8 +401,10 @@ async def get_sync_status(
     # Get config
     config = get_or_create_sync_config(db)
 
+    process_running = _sync_process is not None and _sync_process.poll() is None
+
     return SyncStatusResponse(
-        is_running=in_progress is not None,
+        is_running=(in_progress is not None) or process_running,
         last_sync=last_sync_data,
         config=config,
         skipped_adf_count=skipped_adf_count
@@ -431,7 +439,8 @@ async def resume_sync(
     in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first()
-    if in_progress:
+    process_running = _sync_process is not None and _sync_process.poll() is None
+    if in_progress or process_running:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A sync is already running. Wait for it to finish."
@@ -497,12 +506,15 @@ async def get_live_log(
                 content = f.read()
                 new_offset = f.tell()
 
-    is_running = db.query(SyncMetadata).filter(
+    db_in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first() is not None
+
+    # Also check if the subprocess is still alive (covers single-ADF sync which has no SyncMetadata)
+    process_running = _sync_process is not None and _sync_process.poll() is None
 
     return {
         "content": content,
         "offset": new_offset,
-        "is_running": is_running
+        "is_running": db_in_progress or process_running
     }

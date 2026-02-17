@@ -103,6 +103,7 @@ class InactivityService:
             'active': 0,
             'at_risk': 0,
             'inactive': 0,
+            'never_started': 0,
             'newly_enrolled_excluded': 0
         }
 
@@ -118,10 +119,7 @@ class InactivityService:
                              if e['participant_course'].last_activity]
             last_elearning = max(elearning_last_activities) if elearning_last_activities else None
 
-            # Skip early if no elearning activity and no liveroom attendance
             has_liveroom = (participant_id, adf_id) in liveroom_pairs
-            if not last_elearning and not has_liveroom:
-                continue
 
             # Liveroom last attended (only sessions where participant was present)
             last_liveroom = self._get_last_liveroom_date(participant_id, adf_id) if has_liveroom else None
@@ -143,9 +141,6 @@ class InactivityService:
             elif last_liveroom:
                 last_activity = last_liveroom
                 last_activity_source = "classe_virtuelle"
-
-            if not last_activity:
-                continue
 
             # Get earliest enrollment date (prefer date_add from Dendreo, fallback to created_at)
             enrollment_dates = []
@@ -189,7 +184,7 @@ class InactivityService:
             if max_progression is not None and avg_progression > max_progression:
                 continue
 
-            days_since_activity = (now - last_activity).days if last_activity else 999
+            days_since_activity = (now - last_activity).days if last_activity else 0
             days_since_enrollment = (now - enrollment_date).days if enrollment_date else 0
 
             # Exclude recently enrolled participants
@@ -197,7 +192,12 @@ class InactivityService:
                 stats['newly_enrolled_excluded'] += 1
                 continue
 
-            inactivity_status, inactivity_reason = self._classify(days_since_activity)
+            # Classify: never_started if no activity at all, otherwise use thresholds
+            if not last_activity:
+                inactivity_status = 'never_started'
+                inactivity_reason = 'Never started'
+            else:
+                inactivity_status, inactivity_reason = self._classify(days_since_activity)
 
             stats[inactivity_status] += 1
 
@@ -239,7 +239,7 @@ class InactivityService:
                     by_course_map[adf_id] = []
                 by_course_map[adf_id].append(detail)
 
-        total_participants = stats['active'] + stats['at_risk'] + stats['inactive']
+        total_participants = stats['active'] + stats['at_risk'] + stats['inactive'] + stats['never_started']
 
         summary_kwargs = dict(
             total_participants_checked=stats['total_checked'],
@@ -247,6 +247,7 @@ class InactivityService:
             active_count=stats['active'],
             at_risk_count=stats['at_risk'],
             inactive_count=stats['inactive'],
+            never_started_count=stats['never_started'],
             newly_enrolled_excluded=stats['newly_enrolled_excluded'],
             at_risk_threshold_days=self.at_risk_threshold,
             inactivity_threshold_days=self.inactivity_threshold,
@@ -312,6 +313,7 @@ class InactivityService:
             active = sum(1 for p in participants if p.inactivity_status == 'active')
             at_risk = sum(1 for p in participants if p.inactivity_status == 'at_risk')
             inactive = sum(1 for p in participants if p.inactivity_status == 'inactive')
+            never_started = sum(1 for p in participants if p.inactivity_status == 'never_started')
 
             participants.sort(key=lambda x: x.days_inactive, reverse=True)
 
@@ -325,6 +327,7 @@ class InactivityService:
                 active_count=active,
                 at_risk_count=at_risk,
                 inactive_count=inactive,
+                never_started_count=never_started,
                 participants=participants
             ))
 
