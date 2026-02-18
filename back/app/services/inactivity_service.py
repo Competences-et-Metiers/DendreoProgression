@@ -69,6 +69,25 @@ class InactivityService:
         for pid, adf in liveroom_results:
             liveroom_pairs.add((pid, adf))
 
+        # Pre-build liveroom duration maps for time tracking
+        # Map: adf_id -> total planned duration (seconds) from all creneaux
+        liveroom_total_durations: Dict[str, int] = {}
+        for creneau in self.db.query(Creneau.id_action_formation, Creneau.duration).all():
+            adf = creneau.id_action_formation
+            liveroom_total_durations[adf] = liveroom_total_durations.get(adf, 0) + (creneau.duration or 0)
+
+        # Map: (participant_id, adf_id) -> time spent (seconds) from attended creneaux
+        liveroom_time_spent_map: Dict[tuple, int] = {}
+        attended_rows = (
+            self.db.query(CreneauParticipant.participant_id, Creneau.id_action_formation, Creneau.duration)
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(CreneauParticipant.presence == "1")
+            .all()
+        )
+        for pid, adf, duration in attended_rows:
+            key = (pid, adf)
+            liveroom_time_spent_map[key] = liveroom_time_spent_map.get(key, 0) + (duration or 0)
+
         query = (
             self.db.query(ParticipantCourse, Participant, Course)
             .join(Participant, ParticipantCourse.participant_id == Participant.id)
@@ -151,7 +170,15 @@ class InactivityService:
                     enrollment_dates.append(date)
             enrollment_date = min(enrollment_dates) if enrollment_dates else None
 
-            total_duration = sum(e['course'].planned_duration_hours or 0.0 for e in enrollments)
+            elearning_duration = sum(e['course'].planned_duration_hours or 0.0 for e in enrollments)
+
+            # Liveroom time tracking
+            lr_total_seconds = liveroom_total_durations.get(adf_id, 0)
+            lr_spent_seconds = liveroom_time_spent_map.get((participant_id, adf_id), 0)
+            lr_planned_hours = lr_total_seconds / 3600.0
+            lr_spent_hours = lr_spent_seconds / 3600.0
+
+            total_duration = elearning_duration + lr_planned_hours
 
             # Query all LAMs for this ADF (same as course detail page)
             adf_lam_rows = self.db.query(Course.id_lam).filter(
@@ -166,8 +193,8 @@ class InactivityService:
             else:
                 all_modules = []
 
-            total_time_spent_seconds = sum(m.lms_time_spent or 0 for m in all_modules)
-            total_time_spent_hours = total_time_spent_seconds / 3600.0
+            elearning_time_spent_seconds = sum(m.lms_time_spent or 0 for m in all_modules)
+            total_time_spent_hours = (elearning_time_spent_seconds / 3600.0) + lr_spent_hours
 
             # Compute progression from all module data (same as course detail page)
             if all_modules:
@@ -219,6 +246,8 @@ class InactivityService:
                 total_modules=len(enrollments),
                 total_planned_duration_hours=total_duration,
                 total_time_spent_hours=total_time_spent_hours,
+                liveroom_planned_duration_hours=lr_planned_hours,
+                liveroom_time_spent_hours=lr_spent_hours,
                 current_progression=avg_progression,
                 last_activity=last_activity,
                 last_activity_source=last_activity_source,

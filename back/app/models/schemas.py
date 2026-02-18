@@ -106,8 +106,12 @@ class InactiveParticipantDetail(BaseModel):
 
     # Aggregated fields (across all LAMs in the ADF)
     total_modules: int = 0  # Number of LAMs in this ADF
-    total_planned_duration_hours: float = 0.0  # Sum of all LAM durations
-    total_time_spent_hours: float = 0.0  # Sum of actual time spent across all modules
+    total_planned_duration_hours: float = 0.0  # E-learning + liveroom planned duration
+    total_time_spent_hours: float = 0.0  # E-learning + liveroom time spent
+
+    # Liveroom-specific time tracking
+    liveroom_planned_duration_hours: float = 0.0  # Sum of all creneau durations for the ADF
+    liveroom_time_spent_hours: float = 0.0  # Sum of creneau durations where participant was present
 
     # Progression tracking (aggregated)
     current_progression: float = 0.0  # Average progression across all LAMs

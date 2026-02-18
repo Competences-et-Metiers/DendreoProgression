@@ -405,6 +405,7 @@
       "selectedCount": "catégorie(s) sélectionnée(s)"
     },
     "searchPlaceholder": "Rechercher par nom, formation ou catégorie...",
+    "modifyThreshold": "Modifier le seuil",
     "removeFilters": "Réinitialiser les filtres",
     "downloadPdf": "Télécharger PDF",
     "pdf": {

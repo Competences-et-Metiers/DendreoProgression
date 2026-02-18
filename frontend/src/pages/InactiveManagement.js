@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -185,15 +185,17 @@ const InactiveManagement = () => {
     staleTime: 60000,
   });
 
-  const toggleCourse = (courseId) => {
-    const newExpanded = new Set(expandedCourses);
-    if (newExpanded.has(courseId)) {
-      newExpanded.delete(courseId);
-    } else {
-      newExpanded.add(courseId);
-    }
-    setExpandedCourses(newExpanded);
-  };
+  const toggleCourse = useCallback((courseId) => {
+    setExpandedCourses(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(courseId)) {
+        newExpanded.delete(courseId);
+      } else {
+        newExpanded.add(courseId);
+      }
+      return newExpanded;
+    });
+  }, []);
 
   const formatDate = (dateString) => {
     if (!dateString) return t('common.never');
@@ -371,21 +373,109 @@ const InactiveManagement = () => {
     };
   }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm]);
 
-  const toggleSort = (field) => {
-    if (sortBy === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
+  const toggleSort = useCallback((field) => {
+    setSortBy(prev => {
+      if (prev === field) {
+        setSortDirection(d => d === 'asc' ? 'desc' : 'asc');
+        return prev;
+      }
       setSortDirection('desc');
-    }
-  };
-
-  const toggleStatusFilter = (status) => {
-    setStatusFilter({
-      ...statusFilter,
-      [status]: !statusFilter[status]
+      return field;
     });
-  };
+  }, []);
+
+  const toggleStatusFilter = useCallback((status) => {
+    setStatusFilter(prev => ({
+      ...prev,
+      [status]: !prev[status]
+    }));
+  }, []);
+
+  // Memoized dropdown data - extracted from render to avoid recomputing on every state change
+  const adfList = useMemo(() => {
+    if (!data) return [];
+    const uniqueADFs = new Set();
+    const list = [];
+    (data.participants || []).forEach(p => {
+      if (p.id_action_formation && !uniqueADFs.has(p.id_action_formation)) {
+        uniqueADFs.add(p.id_action_formation);
+        list.push({ id: p.id_action_formation, title: p.course_title });
+      }
+    });
+    (data.by_course || []).forEach(c => {
+      if (c.id_action_formation && !uniqueADFs.has(c.id_action_formation)) {
+        uniqueADFs.add(c.id_action_formation);
+        list.push({ id: c.id_action_formation, title: c.course_title });
+      }
+    });
+    return list;
+  }, [data]);
+
+  const formateurList = useMemo(() => {
+    if (!data) return [];
+    const uniqueFormateurs = new Map();
+    const processFormateurs = (formateurs) => {
+      if (!formateurs || !Array.isArray(formateurs)) return;
+      formateurs.forEach(f => {
+        if (f.id_formateur && !uniqueFormateurs.has(f.id_formateur)) {
+          uniqueFormateurs.set(f.id_formateur, {
+            id: f.id_formateur,
+            nom: f.nom || '',
+            prenom: f.prenom || '',
+            fullName: `${f.prenom || ''} ${f.nom || ''}`.trim()
+          });
+        }
+      });
+    };
+    (data.participants || []).forEach(p => processFormateurs(p.formateurs));
+    (data.by_course || []).forEach(c => {
+      (c.participants || []).forEach(p => processFormateurs(p.formateurs));
+    });
+    return Array.from(uniqueFormateurs.values());
+  }, [data]);
+
+  const categoryList = useMemo(() => {
+    if (!data) return [];
+    const uniqueCategories = new Map();
+    const addCategory = (name, color) => {
+      if (name && !uniqueCategories.has(name)) {
+        uniqueCategories.set(name, { name, color: color || '' });
+      }
+    };
+    (data.participants || []).forEach(p => addCategory(p.category_name, p.category_color));
+    (data.by_course || []).forEach(c => {
+      addCategory(c.category_name, c.category_color);
+      (c.participants || []).forEach(p => addCategory(p.category_name, p.category_color));
+    });
+    return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [data]);
+
+  // Memoized filtered results to avoid re-filtering on unrelated state changes
+  const filteredParticipantsFlat = useMemo(() => {
+    if (!data?.participants) return [];
+    return filterAndSortParticipants(data.participants);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection]);
+
+  const filteredCourseGroups = useMemo(() => {
+    if (!data?.by_course) return [];
+    return data.by_course
+      .map(course => ({
+        ...course,
+        filteredParticipants: filterAndSortParticipants(course.participants)
+      }))
+      .filter(course => course.filteredParticipants.length > 0);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection]);
+
+  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0;
+
+  const resetAllFilters = useCallback(() => {
+    setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true });
+    setSelectedADFs([]);
+    setSelectedFormateurs([]);
+    setSelectedCategories([]);
+    setSearchTerm('');
+    setFilters(f => ({ ...f, atRiskThreshold: 14, inactivityThreshold: 30, excludeRecentDays: 0 }));
+  }, []);
 
   const handleDownloadPDF = async () => {
     if (!data) return;
@@ -461,6 +551,16 @@ const InactiveManagement = () => {
 
             {/* View Toggle */}
             <div className="flex items-center gap-3">
+              {hasActiveFilters && (
+                <button
+                  onClick={resetAllFilters}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                >
+                  <X size={18} />
+                  <span className="font-medium">{t('inactiveManagement.removeFilters')}</span>
+                </button>
+              )}
+
               <button
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
@@ -469,8 +569,8 @@ const InactiveManagement = () => {
                     : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <Filter size={18} />
-                <span className="font-medium">{t('common.filters')}</span>
+                <Settings size={18} />
+                <span className="font-medium">{t('inactiveManagement.modifyThreshold')}</span>
               </button>
 
               <button
@@ -653,26 +753,6 @@ const InactiveManagement = () => {
               </label>
             </div>
 
-            {/* Remove Filters */}
-            {(!statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0) && (
-              <>
-                <div className="hidden lg:block w-px bg-gray-200" />
-                <button
-                  onClick={() => {
-                    setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true });
-                    setSelectedADFs([]);
-                    setSelectedFormateurs([]);
-                    setSelectedCategories([]);
-                    setSearchTerm('');
-                    setFilters(f => ({ ...f, atRiskThreshold: 14, inactivityThreshold: 30, excludeRecentDays: 0 }));
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-red-200 bg-red-50 text-red-700 text-xs font-medium hover:bg-red-100 transition-colors"
-                >
-                  <X size={12} />
-                  {t('inactiveManagement.removeFilters')}
-                </button>
-              </>
-            )}
           </div>
 
           {/* Row 2: ADF + Formateur + Category Filters side by side */}
@@ -696,26 +776,6 @@ const InactiveManagement = () => {
               </button>
 
               {showAdfDropdown && data && (() => {
-                const uniqueADFs = new Set();
-                const adfList = [];
-
-                const participants = data.participants || [];
-                const courses = data.by_course || [];
-
-                participants.forEach(p => {
-                  if (p.id_action_formation && !uniqueADFs.has(p.id_action_formation)) {
-                    uniqueADFs.add(p.id_action_formation);
-                    adfList.push({ id: p.id_action_formation, title: p.course_title });
-                  }
-                });
-
-                courses.forEach(c => {
-                  if (c.id_action_formation && !uniqueADFs.has(c.id_action_formation)) {
-                    uniqueADFs.add(c.id_action_formation);
-                    adfList.push({ id: c.id_action_formation, title: c.course_title });
-                  }
-                });
-
                 const filteredADFs = adfList.filter(adf =>
                   adf.title.toLowerCase().includes(adfSearchTerm.toLowerCase())
                 );
@@ -757,18 +817,19 @@ const InactiveManagement = () => {
                           <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
                             <input
                               type="checkbox"
-                              checked={selectedADFs.length === adfList.length}
+                              checked={filteredADFs.length > 0 && filteredADFs.every(adf => selectedADFs.includes(adf.id))}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedADFs(adfList.map(a => a.id));
+                                  setSelectedADFs(prev => [...new Set([...prev, ...filteredADFs.map(a => a.id)])]);
                                 } else {
-                                  setSelectedADFs([]);
+                                  const filteredIds = new Set(filteredADFs.map(a => a.id));
+                                  setSelectedADFs(prev => prev.filter(id => !filteredIds.has(id)));
                                 }
                               }}
                               className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                             />
                             <span className="text-xs font-semibold text-gray-700">
-                              {selectedADFs.length === adfList.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                              {filteredADFs.length > 0 && filteredADFs.every(adf => selectedADFs.includes(adf.id)) ? 'Tout désélectionner' : 'Tout sélectionner'}
                             </span>
                           </label>
                           {filteredADFs.map((adf) => (
@@ -820,46 +881,6 @@ const InactiveManagement = () => {
               </button>
 
               {showFormateurDropdown && data && (() => {
-                const uniqueFormateurs = new Map();
-
-                const participants = data.participants || [];
-                const courses = data.by_course || [];
-
-                participants.forEach(p => {
-                  if (p.formateurs && Array.isArray(p.formateurs)) {
-                    p.formateurs.forEach(formateur => {
-                      if (formateur.id_formateur && !uniqueFormateurs.has(formateur.id_formateur)) {
-                        uniqueFormateurs.set(formateur.id_formateur, {
-                          id: formateur.id_formateur,
-                          nom: formateur.nom || '',
-                          prenom: formateur.prenom || '',
-                          fullName: `${formateur.prenom || ''} ${formateur.nom || ''}`.trim()
-                        });
-                      }
-                    });
-                  }
-                });
-
-                courses.forEach(c => {
-                  if (c.participants && Array.isArray(c.participants)) {
-                    c.participants.forEach(p => {
-                      if (p.formateurs && Array.isArray(p.formateurs)) {
-                        p.formateurs.forEach(formateur => {
-                          if (formateur.id_formateur && !uniqueFormateurs.has(formateur.id_formateur)) {
-                            uniqueFormateurs.set(formateur.id_formateur, {
-                              id: formateur.id_formateur,
-                              nom: formateur.nom || '',
-                              prenom: formateur.prenom || '',
-                              fullName: `${formateur.prenom || ''} ${formateur.nom || ''}`.trim()
-                            });
-                          }
-                        });
-                      }
-                    });
-                  }
-                });
-
-                const formateurList = Array.from(uniqueFormateurs.values());
                 const filteredFormateurs = formateurList.filter(formateur =>
                   formateur.fullName.toLowerCase().includes(formateurSearchTerm.toLowerCase())
                 );
@@ -901,18 +922,19 @@ const InactiveManagement = () => {
                           <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
                             <input
                               type="checkbox"
-                              checked={selectedFormateurs.length === formateurList.length}
+                              checked={filteredFormateurs.length > 0 && filteredFormateurs.every(f => selectedFormateurs.includes(f.id))}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedFormateurs(formateurList.map(f => f.id));
+                                  setSelectedFormateurs(prev => [...new Set([...prev, ...filteredFormateurs.map(f => f.id)])]);
                                 } else {
-                                  setSelectedFormateurs([]);
+                                  const filteredIds = new Set(filteredFormateurs.map(f => f.id));
+                                  setSelectedFormateurs(prev => prev.filter(id => !filteredIds.has(id)));
                                 }
                               }}
                               className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                             />
                             <span className="text-xs font-semibold text-gray-700">
-                              {selectedFormateurs.length === formateurList.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                              {filteredFormateurs.length > 0 && filteredFormateurs.every(f => selectedFormateurs.includes(f.id)) ? 'Tout désélectionner' : 'Tout sélectionner'}
                             </span>
                           </label>
                           {filteredFormateurs.map((formateur) => (
@@ -964,43 +986,6 @@ const InactiveManagement = () => {
               </button>
 
               {showCategoryDropdown && data && (() => {
-                const uniqueCategories = new Map();
-
-                const participants = data.participants || [];
-                const courses = data.by_course || [];
-
-                participants.forEach(p => {
-                  if (p.category_name && !uniqueCategories.has(p.category_name)) {
-                    uniqueCategories.set(p.category_name, {
-                      name: p.category_name,
-                      color: p.category_color || ''
-                    });
-                  }
-                });
-
-                courses.forEach(c => {
-                  if (c.category_name && !uniqueCategories.has(c.category_name)) {
-                    uniqueCategories.set(c.category_name, {
-                      name: c.category_name,
-                      color: c.category_color || ''
-                    });
-                  }
-                  if (c.participants) {
-                    c.participants.forEach(p => {
-                      if (p.category_name && !uniqueCategories.has(p.category_name)) {
-                        uniqueCategories.set(p.category_name, {
-                          name: p.category_name,
-                          color: p.category_color || ''
-                        });
-                      }
-                    });
-                  }
-                });
-
-                const categoryList = Array.from(uniqueCategories.values()).sort((a, b) =>
-                  a.name.localeCompare(b.name)
-                );
-
                 const filteredCategories = categoryList.filter(cat =>
                   cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
                 );
@@ -1050,18 +1035,19 @@ const InactiveManagement = () => {
                           <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
                             <input
                               type="checkbox"
-                              checked={selectedCategories.length === categoryList.length && categoryList.length > 0}
+                              checked={filteredCategories.length > 0 && filteredCategories.every(cat => selectedCategories.includes(cat.name))}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedCategories(categoryList.map(c => c.name));
+                                  setSelectedCategories(prev => [...new Set([...prev, ...filteredCategories.map(c => c.name)])]);
                                 } else {
-                                  setSelectedCategories([]);
+                                  const filteredNames = new Set(filteredCategories.map(c => c.name));
+                                  setSelectedCategories(prev => prev.filter(name => !filteredNames.has(name)));
                                 }
                               }}
                               className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                             />
                             <span className="text-xs font-semibold text-gray-700">
-                              {selectedCategories.length === categoryList.length && categoryList.length > 0 ? t('inactiveManagement.categoryFilter.deselectAll') : t('inactiveManagement.categoryFilter.selectAll')}
+                              {filteredCategories.length > 0 && filteredCategories.every(cat => selectedCategories.includes(cat.name)) ? t('inactiveManagement.categoryFilter.deselectAll') : t('inactiveManagement.categoryFilter.selectAll')}
                             </span>
                           </label>
                           {filteredCategories.map((cat) => (
@@ -1188,11 +1174,7 @@ const InactiveManagement = () => {
             {/* Grouped by Course View */}
             {groupByCourse && data.by_course && (
               <div className="space-y-4">
-                {data.by_course.map((course) => {
-                  const filteredParticipants = filterAndSortParticipants(course.participants);
-                  if (filteredParticipants.length === 0) return null;
-
-                  return (
+                {filteredCourseGroups.map((course) => (
                     <div key={course.course_id} className="bg-white rounded-lg border border-gray-200">
                       {/* Course Header */}
                       <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
@@ -1208,7 +1190,7 @@ const InactiveManagement = () => {
                               {course.course_title}
                             </Link>
                             <p className="text-sm text-gray-500 mt-1">
-                              {t('inactiveManagement.showing')}: {filteredParticipants.length} / {course.total_participants}
+                              {t('inactiveManagement.showing')}: {course.filteredParticipants.length} / {course.total_participants}
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
@@ -1243,7 +1225,7 @@ const InactiveManagement = () => {
                       {/* Participants List */}
                       {expandedCourses.has(course.course_id) && (
                         <div className="divide-y divide-gray-200">
-                          {filteredParticipants.map((participant) => (
+                          {course.filteredParticipants.map((participant) => (
                             <div key={participant.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4 flex-1">
@@ -1285,7 +1267,12 @@ const InactiveManagement = () => {
                                         )}
                                       </span>
                                       {participant.total_planned_duration_hours > 0 && (
-                                        <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                                        <span
+                                          className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full cursor-default"
+                                          title={participant.liveroom_planned_duration_hours > 0
+                                            ? `E-learning: ${Math.round(participant.total_time_spent_hours - (participant.liveroom_time_spent_hours || 0))}h / ${Math.round(participant.total_planned_duration_hours - (participant.liveroom_planned_duration_hours || 0))}h\nClasse virtuelle: ${Math.round(participant.liveroom_time_spent_hours || 0)}h / ${Math.round(participant.liveroom_planned_duration_hours || 0)}h`
+                                            : ''}
+                                        >
                                           <Clock size={12} />
                                           {participant.total_time_spent_hours?.toFixed(0) || 0}h / {participant.total_planned_duration_hours.toFixed(0)}h
                                         </span>
@@ -1325,8 +1312,7 @@ const InactiveManagement = () => {
                         </div>
                       )}
                     </div>
-                  );
-                })}
+                ))}
               </div>
             )}
 
@@ -1334,7 +1320,7 @@ const InactiveManagement = () => {
             {!groupByCourse && data.participants && (
               <div className="bg-white rounded-lg border border-gray-200">
                 <div className="divide-y divide-gray-200">
-                  {filterAndSortParticipants(data.participants).map((participant) => (
+                  {filteredParticipantsFlat.map((participant) => (
                     <div key={`${participant.id}-${participant.course_id}`} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
@@ -1388,7 +1374,12 @@ const InactiveManagement = () => {
                                 )}
                               </span>
                               {participant.total_planned_duration_hours > 0 && (
-                                <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                                <span
+                                  className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full cursor-default"
+                                  title={participant.liveroom_planned_duration_hours > 0
+                                    ? `E-learning: ${Math.round(participant.total_time_spent_hours - (participant.liveroom_time_spent_hours || 0))}h / ${Math.round(participant.total_planned_duration_hours - (participant.liveroom_planned_duration_hours || 0))}h\nClasse virtuelle: ${Math.round(participant.liveroom_time_spent_hours || 0)}h / ${Math.round(participant.liveroom_planned_duration_hours || 0)}h`
+                                    : ''}
+                                >
                                   <Clock size={12} />
                                   {participant.total_time_spent_hours?.toFixed(0) || 0}h / {participant.total_planned_duration_hours.toFixed(0)}h
                                 </span>

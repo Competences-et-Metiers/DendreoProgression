@@ -12,7 +12,8 @@
       "Bash(docker compose -f docker-compose.prod.yml up -d backend frontend)",
       "Bash(docker compose:*)",
       "Bash(curl:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(python3:*)"
     ]
   }
 }

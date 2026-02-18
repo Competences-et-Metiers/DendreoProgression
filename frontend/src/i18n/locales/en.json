@@ -367,6 +367,7 @@
       "selectedCount": "category(ies) selected"
     },
     "searchPlaceholder": "Search by name, course or category...",
+    "modifyThreshold": "Modify threshold",
     "removeFilters": "Reset filters",
     "downloadPdf": "Download PDF",
     "pdf": {
