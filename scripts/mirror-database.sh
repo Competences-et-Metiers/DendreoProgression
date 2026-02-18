@@ -30,10 +30,8 @@ REMOTE_RESTORE_DUMP="/tmp/dendreo_backup_${TIMESTAMP}.dump"
 LOCAL_IP=$(hostname -I | awk '{print $1}')
 if [ "$LOCAL_IP" = "192.168.254.200" ]; then
   REMOTE_HOST="cm@192.168.254.170"
-  REMOTE_PROJECT_DIR="/home/cm-dev/DendreoProgression"
 elif [ "$LOCAL_IP" = "192.168.254.170" ]; then
   REMOTE_HOST="cm@192.168.254.200"
-  REMOTE_PROJECT_DIR="/home/cm/DendreoProgression"
 else
   echo -e "${RED}Error: Unrecognized local IP (${LOCAL_IP}), cannot determine remote target${NC}"
   exit 1
@@ -136,9 +134,67 @@ echo ""
 
 # --- Step 4: Restore on remote ---
 echo -e "${BLUE}[4/4] Restoring database on remote...${NC}"
-ssh "${REMOTE_HOST}" "cd ${REMOTE_PROJECT_DIR} && echo yes | ./scripts/restore-database.sh ${REMOTE_RESTORE_DUMP}"
-# Clean up the uploaded dump on the remote
-ssh "${REMOTE_HOST}" "rm -f ${REMOTE_RESTORE_DUMP}"
+SYNC_CONTAINER="dendreo_sync_prod"
+
+ssh "${REMOTE_HOST}" bash <<REMOTE_SCRIPT
+  set -e
+
+  echo "  [4a] Stopping backend and sync containers..."
+  BACKEND_CONTAINER=\$(docker ps --format '{{.Names}}' | grep -E 'backend' | grep -v 'grep' || true)
+  if [ -n "\${BACKEND_CONTAINER}" ]; then
+    docker stop "\${BACKEND_CONTAINER}" || true
+    echo "    Backend stopped (\${BACKEND_CONTAINER})"
+  fi
+  if docker ps | grep -q "${SYNC_CONTAINER}"; then
+    docker stop "${SYNC_CONTAINER}" || true
+    echo "    Sync stopped"
+  fi
+
+  echo "  [4b] Terminating DB connections..."
+  docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c \
+    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${DB_NAME}' AND pid <> pg_backend_pid();" \
+    2>&1 | grep -v "^\$" || true
+
+  echo "  [4c] Copying dump into container..."
+  docker cp "${REMOTE_RESTORE_DUMP}" "${CONTAINER_NAME}:/tmp/dendreo_restore.dump"
+
+  echo "  [4d] Dropping existing database..."
+  docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c "DROP DATABASE IF EXISTS ${DB_NAME};" 2>&1 | grep -v "NOTICE"
+
+  echo "  [4e] Creating new database..."
+  docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c "ALTER DATABASE template1 REFRESH COLLATION VERSION;" 2>&1 || true
+  docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c "CREATE DATABASE ${DB_NAME};"
+
+  echo "  [4f] Restoring database..."
+  docker exec "${CONTAINER_NAME}" pg_restore \
+    -U "${DB_USER}" \
+    -d "${DB_NAME}" \
+    --clean \
+    --if-exists \
+    --no-owner \
+    --no-privileges \
+    --verbose \
+    /tmp/dendreo_restore.dump 2>&1 | grep -E "processing|creating|setting" || true
+
+  echo "  [4g] Cleaning up and restarting services..."
+  docker exec "${CONTAINER_NAME}" rm /tmp/dendreo_restore.dump
+  rm -f "${REMOTE_RESTORE_DUMP}"
+  if [ -n "\${BACKEND_CONTAINER}" ]; then
+    docker start "\${BACKEND_CONTAINER}"
+    echo "    Backend restarted"
+  fi
+
+  echo "  [4h] Verifying restoration..."
+  TABLES=\$(docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d "${DB_NAME}" -t -c "\dt" | grep -c "public" || echo "0")
+  echo "    Tables found: \${TABLES}"
+  docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -d "${DB_NAME}" -t -c \
+    "SELECT 'Participants: ' || COUNT(*) FROM participants
+     UNION ALL SELECT 'Courses: ' || COUNT(*) FROM courses
+     UNION ALL SELECT 'Modules: ' || COUNT(*) FROM modules
+     UNION ALL SELECT 'Enrollments: ' || COUNT(*) FROM participant_courses;"
+REMOTE_SCRIPT
+
+echo -e "${GREEN}  Remote restore complete${NC}"
 echo ""
 
 # Done
@@ -146,6 +202,3 @@ echo -e "${GREEN}=== Mirror complete ===${NC}"
 echo ""
 echo "Local dump:          ${LOCAL_DUMP}"
 echo "Remote safety backup: ${REMOTE_HOST}:${REMOTE_SAFETY_DUMP}"
-echo ""
-echo -e "${BLUE}To rollback the remote, SSH in and run:${NC}"
-echo "  cd ${REMOTE_PROJECT_DIR} && ./scripts/restore-database.sh ${REMOTE_SAFETY_DUMP}"
