@@ -4,9 +4,17 @@
 # Restores a PostgreSQL dump to the production database
 #
 # Usage: ./restore-database.sh /path/to/backup.dump
+#        ./restore-database.sh --yes /path/to/backup.dump  (skip confirmation)
 #
 
 set -e
+
+# Parse --yes flag
+SKIP_CONFIRM=false
+if [ "$1" = "--yes" ]; then
+  SKIP_CONFIRM=true
+  shift
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -62,14 +70,16 @@ if ! docker ps | grep -q "${CONTAINER_NAME}"; then
 fi
 
 # Warning prompt
-echo -e "${YELLOW}WARNING: This will delete the current database and restore from backup!${NC}"
-echo -e "${YELLOW}All current data will be lost!${NC}"
-echo ""
-read -p "Are you sure you want to continue? (yes/no): " CONFIRM
+if [ "$SKIP_CONFIRM" = false ]; then
+  echo -e "${YELLOW}WARNING: This will delete the current database and restore from backup!${NC}"
+  echo -e "${YELLOW}All current data will be lost!${NC}"
+  echo ""
+  read -p "Are you sure you want to continue? (yes/no): " CONFIRM
 
-if [ "${CONFIRM}" != "yes" ]; then
-  echo "Restore cancelled."
-  exit 0
+  if [ "${CONFIRM}" != "yes" ]; then
+    echo "Restore cancelled."
+    exit 0
+  fi
 fi
 
 echo ""

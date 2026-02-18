@@ -17,7 +17,15 @@ NC='\033[0m'
 CONTAINER_NAME="dendreo_postgres_prod"
 DB_NAME="dendreo_prod_db"
 DB_USER="postgres"
-REMOTE_HOST="cm@dendreo.cm"
+LOCAL_IP=$(hostname -I | awk '{print $1}')
+if [ "$LOCAL_IP" = "192.168.254.200" ]; then
+  REMOTE_HOST="cm@192.168.254.170"
+elif [ "$LOCAL_IP" = "192.168.254.170" ]; then
+  REMOTE_HOST="cm@192.168.254.200"
+else
+  echo -e "${RED}Error: Unrecognized local IP (${LOCAL_IP}), cannot determine remote target${NC}"
+  exit 1
+fi
 REMOTE_DIR="/tmp"
 BACKUP_DIR="./backups"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
