@@ -109,3 +109,9 @@ dump.rdb
 
 # Backups (created by deploy-prod.sh)
 backups/
+
+# SSL certificates
+ssl/
+
+# Generated nginx config (created by deploy-prod.sh)
+nginx/prod.active.conf
