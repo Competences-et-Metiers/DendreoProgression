@@ -29,7 +29,7 @@ REMOTE_RESTORE_DUMP="/tmp/dendreo_backup_${TIMESTAMP}.dump"
 # Determine remote host based on local IP
 LOCAL_IP=$(hostname -I | awk '{print $1}')
 if [ "$LOCAL_IP" = "192.168.254.200" ]; then
-  REMOTE_HOST="cm@192.168.254.170"
+  REMOTE_HOST="cm-dev@192.168.254.170"
 elif [ "$LOCAL_IP" = "192.168.254.170" ]; then
   REMOTE_HOST="cm@192.168.254.200"
 else
