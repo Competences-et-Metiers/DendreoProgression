@@ -84,6 +84,14 @@ export const adminService = {
     const response = await api.get(`/admin/sync/live-log?offset=${offset}`);
     return response.data;
   },
+
+  /**
+   * Stop a currently running sync process
+   */
+  stopSync: async () => {
+    const response = await api.post('/admin/sync/stop');
+    return response.data;
+  },
 };
 
 export default adminService;

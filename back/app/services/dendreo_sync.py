@@ -5,7 +5,8 @@ from app.services.data_processor import DataProcessor
 from app.models.database import get_db
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, Creneau, CreneauParticipant, ModuleCategory, AdminSyncConfig
+from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, Creneau, CreneauParticipant, ModuleCategory, AdminSyncConfig, SyncMetadata
+from sqlalchemy import func
 import os
 import asyncio
 
@@ -59,6 +60,37 @@ class DendreoSync:
             "hubspot_api_limit": None
         }
 
+    def _apply_period_budget(self, admin_config, per_sync_limit, daily_field, weekly_field, monthly_field, count_column_name, label):
+        """Compute effective per-sync limit by capping with remaining period budgets."""
+        from datetime import timedelta
+        now = datetime.now()
+        sync_types = ['sync_all', 'sync_adf']
+        count_col = getattr(SyncMetadata, count_column_name)
+
+        periods = [
+            (daily_field, now.replace(hour=0, minute=0, second=0, microsecond=0), 'daily'),
+            (weekly_field, now - timedelta(days=7), 'weekly'),
+            (monthly_field, now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), 'monthly'),
+        ]
+
+        effective = per_sync_limit
+        for field, period_start, period_label in periods:
+            limit_val = getattr(admin_config, field, None)
+            if not limit_val or limit_val <= 0:
+                continue
+            usage = self.db.query(func.sum(count_col)).filter(
+                SyncMetadata.sync_type.in_(sync_types),
+                SyncMetadata.last_sync_at >= period_start
+            ).scalar() or 0
+            remaining = max(0, limit_val - usage)
+            logger.info(f"🔒 {label} {period_label} budget: {usage}/{limit_val} used, {remaining} remaining")
+            if effective is None:
+                effective = remaining
+            else:
+                effective = min(effective, remaining)
+
+        return effective
+
     async def sync_all(self, only_adf_ids: List[str] = None) -> Dict[str, Any]:
         """Synchronize all data from Dendreo using chunked LAP-based approach
 
@@ -80,11 +112,24 @@ class DendreoSync:
             if admin_config:
                 dendreo_api_limit = admin_config.dendreo_api_limit if admin_config.dendreo_api_limit and admin_config.dendreo_api_limit > 0 else None
                 hubspot_api_limit = admin_config.hubspot_api_limit if admin_config.hubspot_api_limit and admin_config.hubspot_api_limit > 0 else None
-            if dendreo_api_limit:
-                logger.info(f"🔒 Dendreo API limit: {dendreo_api_limit} calls")
+
+                # Compute remaining period budgets and cap per-sync limits
+                dendreo_api_limit = self._apply_period_budget(
+                    admin_config, dendreo_api_limit,
+                    'dendreo_daily_limit', 'dendreo_weekly_limit', 'dendreo_monthly_limit',
+                    'api_calls_count', 'Dendreo'
+                )
+                hubspot_api_limit = self._apply_period_budget(
+                    admin_config, hubspot_api_limit,
+                    'hubspot_daily_limit', 'hubspot_weekly_limit', 'hubspot_monthly_limit',
+                    'hubspot_api_calls_count', 'HubSpot'
+                )
+
+            if dendreo_api_limit is not None:
+                logger.info(f"🔒 Dendreo API limit: {dendreo_api_limit} calls (effective)")
                 self.stats["dendreo_api_limit"] = dendreo_api_limit
-            if hubspot_api_limit:
-                logger.info(f"🔒 HubSpot API limit: {hubspot_api_limit} calls")
+            if hubspot_api_limit is not None:
+                logger.info(f"🔒 HubSpot API limit: {hubspot_api_limit} calls (effective)")
                 self.stats["hubspot_api_limit"] = hubspot_api_limit
 
             # Fetch ADFs (lightweight - no 70MB monster!)
@@ -141,7 +186,7 @@ class DendreoSync:
                     continue
 
                 # Check Dendreo API limit before processing each ADF
-                if dendreo_api_limit and self.client.total_requests >= dendreo_api_limit:
+                if dendreo_api_limit is not None and self.client.total_requests >= dendreo_api_limit:
                     # Collect skipped active ADF IDs for resume capability
                     skipped_adf_ids = []
                     for remaining_adf in adf_data[adf_idx - 1:]:

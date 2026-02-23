@@ -129,7 +129,8 @@ class SyncMetadata(Base):
     status = Column(String, nullable=False)  # 'success', 'error', 'in_progress'
     stats = Column(Text, nullable=True)  # JSON string of sync statistics
     error_message = Column(Text, nullable=True)
-    api_calls_count = Column(Integer, default=0, nullable=False)  # Total API calls during this sync
+    api_calls_count = Column(Integer, default=0, nullable=False)  # Total Dendreo API calls during this sync
+    hubspot_api_calls_count = Column(Integer, default=0, nullable=False)  # Total HubSpot API calls during this sync
     duration_seconds = Column(Float, nullable=True)  # How long the sync took
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
@@ -202,6 +203,12 @@ class AdminSyncConfig(Base):
     schedule_time = Column(String(5), default='08:00', nullable=False)  # HH:MM when sync should run
     dendreo_api_limit = Column(Integer, nullable=True)  # Max Dendreo API calls per sync (NULL = unlimited)
     hubspot_api_limit = Column(Integer, nullable=True)  # Max HubSpot API calls per sync (NULL = unlimited)
+    dendreo_daily_limit = Column(Integer, nullable=True)  # Max Dendreo API calls per day (NULL = unlimited)
+    dendreo_weekly_limit = Column(Integer, nullable=True)  # Max Dendreo API calls per week (NULL = unlimited)
+    dendreo_monthly_limit = Column(Integer, nullable=True)  # Max Dendreo API calls per month (NULL = unlimited)
+    hubspot_daily_limit = Column(Integer, nullable=True)  # Max HubSpot API calls per day (NULL = unlimited)
+    hubspot_weekly_limit = Column(Integer, nullable=True)  # Max HubSpot API calls per week (NULL = unlimited)
+    hubspot_monthly_limit = Column(Integer, nullable=True)  # Max HubSpot API calls per month (NULL = unlimited)
     last_updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     updated_by_user_id = Column(Integer, ForeignKey('users.id'), nullable=True)  # Who last updated this config
 

@@ -10,6 +10,8 @@ from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
+SYNC_API_COUNTERS_PATH = "/tmp/sync_api_counters.json"
+
 class DendreoAPIError(Exception):
     """Custom exception for Dendreo API errors"""
     pass
@@ -64,6 +66,18 @@ class DendreoClient:
                 while self.request_timestamps and self.request_timestamps[0] < cutoff_time:
                     self.request_timestamps.popleft()
 
+    def _write_api_counter(self):
+        """Write current API counter to shared file for live monitoring."""
+        import tempfile
+        try:
+            counter_data = json.dumps({"dendreo": self.total_requests, "hubspot": 0})
+            fd, tmp_path = tempfile.mkstemp(dir="/tmp", prefix="sync_api_")
+            with os.fdopen(fd, 'w') as f:
+                f.write(counter_data)
+            os.replace(tmp_path, SYNC_API_COUNTERS_PATH)
+        except Exception:
+            pass  # Non-critical, don't fail the sync
+
     async def _make_request(self, endpoint: str, params: Dict[str, Any] = None) -> Any:
         """Make a request to the Dendreo API with rate limiting"""
         # Wait if we're at the rate limit
@@ -76,6 +90,7 @@ class DendreoClient:
         # Record this request timestamp
         self.request_timestamps.append(datetime.now())
         self.total_requests += 1
+        self._write_api_counter()
 
         # Log progress every 50 requests
         if self.total_requests % 50 == 0:
@@ -188,6 +203,12 @@ class DendreoClient:
         """Reset rate limiting statistics (useful at start of new sync)"""
         self.request_timestamps.clear()
         self.total_requests = 0
+        # Clear counter file at sync start
+        try:
+            with open(SYNC_API_COUNTERS_PATH, 'w') as f:
+                json.dump({"dendreo": 0, "hubspot": 0}, f)
+        except Exception:
+            pass
         logger.info("🔄 Rate limiting statistics reset")
 
 # Create client instance

@@ -144,23 +144,73 @@ def should_run_sync_on_deployment() -> bool:
 async def run_sync_single_adf(id_action_formation: str) -> dict:
     """
     Run sync for a single ADF by its id_action_formation.
-    Always forced (no recent-sync check), no sync metadata tracking.
+    Always forced (no recent-sync check). Creates SyncMetadata for history tracking.
     """
     logger = logging.getLogger(__name__)
 
+    sync_start_time = datetime.now(timezone.utc)
+    sync_metadata_id = None
+
     try:
         logger.info(f"🎯 Starting single-ADF sync for ADF {id_action_formation}...")
+
+        # Create sync metadata record for tracking
+        with get_db_session() as db:
+            sync_metadata = SyncMetadata(
+                sync_type='sync_adf',
+                last_sync_at=sync_start_time,
+                status='in_progress',
+                stats=str({"adf_id": id_action_formation})
+            )
+            db.add(sync_metadata)
+            db.commit()
+            sync_metadata_id = sync_metadata.id
+            logger.info(f"📝 Created sync metadata record (ID: {sync_metadata_id}) for ADF {id_action_formation}")
 
         with get_db_session() as db:
             client = DendreoClient()
             sync_service = DendreoSync(db, client)
             result = await sync_service.sync_single_adf(id_action_formation)
 
+        # Update sync metadata with success
+        if sync_metadata_id:
+            with get_db_session() as db:
+                record = db.query(SyncMetadata).get(sync_metadata_id)
+                if record:
+                    sync_end_time = datetime.now(timezone.utc)
+                    duration = (sync_end_time - sync_start_time).total_seconds()
+                    record.status = 'success'
+                    stats = {"adf_id": id_action_formation}
+                    stats.update(result.get('stats', {}))
+                    record.stats = str(stats)
+                    record.api_calls_count = result.get('rate_limiting', {}).get('total_requests', 0)
+                    record.hubspot_api_calls_count = result.get('stats', {}).get('hubspot_updates_total', 0)
+                    record.duration_seconds = duration
+                    record.updated_at = sync_end_time
+                    db.commit()
+                    logger.info(f"✅ Sync metadata updated with success (Dendreo: {record.api_calls_count}, HubSpot: {record.hubspot_api_calls_count}, duration: {duration:.1f}s)")
+
         logger.info("✅ Single-ADF sync completed")
         return result
 
     except Exception as e:
         logger.error(f"❌ Single-ADF sync failed: {str(e)}")
+
+        # Update sync metadata with error
+        if sync_metadata_id:
+            try:
+                with get_db_session() as db:
+                    record = db.query(SyncMetadata).get(sync_metadata_id)
+                    if record:
+                        record.status = 'error'
+                        record.error_message = str(e)
+                        record.duration_seconds = (datetime.now(timezone.utc) - sync_start_time).total_seconds()
+                        record.updated_at = datetime.now(timezone.utc)
+                        db.commit()
+                        logger.info("📝 Sync metadata updated with error")
+            except Exception as metadata_error:
+                logger.error(f"Failed to update sync metadata: {metadata_error}")
+
         return {"status": "error", "message": f"Single-ADF sync failed: {str(e)}"}
 
 
@@ -309,10 +359,13 @@ async def run_sync(force: bool = False, dry_run: bool = False, only_adf_ids: lis
                     record.status = 'success'
                     record.stats = str(result.get('stats', {}))
                     record.api_calls_count = result.get('rate_limiting', {}).get('total_requests', 0)
+                    # Store HubSpot API call count from sync stats
+                    sync_stats = result.get('stats', {})
+                    record.hubspot_api_calls_count = sync_stats.get('hubspot_updates_total', 0)
                     record.duration_seconds = duration
                     record.updated_at = sync_end_time
                     db.commit()
-                    logger.info(f"✅ Sync metadata updated with success (API calls: {record.api_calls_count}, duration: {duration:.1f}s)")
+                    logger.info(f"✅ Sync metadata updated with success (Dendreo: {record.api_calls_count}, HubSpot: {record.hubspot_api_calls_count}, duration: {duration:.1f}s)")
                 else:
                     logger.error(f"Could not find sync metadata record ID {sync_metadata_id} to update")
         

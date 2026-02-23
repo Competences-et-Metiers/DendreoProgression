@@ -11,6 +11,8 @@ import sys
 import logging
 import asyncio
 import httpx
+import json
+import tempfile
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from pathlib import Path
@@ -195,14 +197,15 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
             "failed_updates": 0
         }
         
-        if max_api_calls:
+        if max_api_calls is not None:
             logger.info(f"🔒 HubSpot API limit: {max_api_calls} calls")
 
         # Process in batches to respect rate limits
         api_calls_made = 0
+        counters_path = "/tmp/sync_api_counters.json"
         for i in range(0, len(participants_data), batch_size):
             # Check API limit before each batch
-            if max_api_calls and api_calls_made >= max_api_calls:
+            if max_api_calls is not None and api_calls_made >= max_api_calls:
                 remaining = len(participants_data) - i
                 logger.warning(f"🔒 HubSpot API limit reached ({api_calls_made}/{max_api_calls} calls). Skipping remaining {remaining} participants.")
                 break
@@ -210,14 +213,14 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
             batch = participants_data[i:i + batch_size]
 
             # Trim batch if it would exceed the limit
-            if max_api_calls and api_calls_made + len(batch) > max_api_calls:
+            if max_api_calls is not None and api_calls_made + len(batch) > max_api_calls:
                 batch = batch[:max_api_calls - api_calls_made]
 
             batch_num = (i // batch_size) + 1
             total_batches = (len(participants_data) + batch_size - 1) // batch_size
 
             logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} participants)")
-            
+
             # Create tasks for this batch
             tasks = []
             for participant in batch:
@@ -227,10 +230,10 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
                     participant_email=participant["participant_email"]
                 )
                 tasks.append(task)
-            
+
             # Execute batch in parallel
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             # Process results
             for j, result in enumerate(results):
                 stats["total_processed"] += 1
@@ -243,7 +246,21 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
                     stats["successful_updates"] += 1
                 else:
                     stats["failed_updates"] += 1
-            
+
+            # Update shared counter file for live monitoring
+            try:
+                current = {"dendreo": 0, "hubspot": 0}
+                if os.path.exists(counters_path):
+                    with open(counters_path, 'r') as f:
+                        current = json.load(f)
+                current["hubspot"] = api_calls_made
+                fd, tmp_path = tempfile.mkstemp(dir="/tmp", prefix="sync_api_")
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(current, f)
+                os.replace(tmp_path, counters_path)
+            except Exception:
+                pass
+
             # Delay between batches to respect rate limits
             if i + batch_size < len(participants_data):
                 logger.info(f"Waiting {delay_seconds} seconds before next batch...")

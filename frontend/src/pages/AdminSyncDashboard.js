@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Terminal,
   FastForward,
+  StopCircle,
 } from 'lucide-react';
 
 const AdminSyncDashboard = () => {
@@ -33,10 +34,17 @@ const AdminSyncDashboard = () => {
   const [scheduleTime, setScheduleTime] = useState('08:00');
   const [dendreoApiLimit, setDendreoApiLimit] = useState('');
   const [hubspotApiLimit, setHubspotApiLimit] = useState('');
+  const [dendreoDailyLimit, setDendreoDailyLimit] = useState('');
+  const [dendreoWeeklyLimit, setDendreoWeeklyLimit] = useState('');
+  const [dendreoMonthlyLimit, setDendreoMonthlyLimit] = useState('');
+  const [hubspotDailyLimit, setHubspotDailyLimit] = useState('');
+  const [hubspotWeeklyLimit, setHubspotWeeklyLimit] = useState('');
+  const [hubspotMonthlyLimit, setHubspotMonthlyLimit] = useState('');
 
   // Live log state
   const [liveLog, setLiveLog] = useState('');
   const [isPollingLog, setIsPollingLog] = useState(false);
+  const [apiCounters, setApiCounters] = useState({ dendreo: 0, hubspot: 0 });
   const pollingRef = useRef(null);
   const logEndRef = useRef(null);
   const logOffsetRef = useRef(0);
@@ -63,6 +71,9 @@ const AdminSyncDashboard = () => {
         logOffsetRef.current = data.offset;
         setTimeout(scrollToLogBottom, 50);
       }
+      if (data.api_counters) {
+        setApiCounters(data.api_counters);
+      }
       if (!data.is_running) {
         stopPolling();
         loadDashboardData();
@@ -77,6 +88,7 @@ const AdminSyncDashboard = () => {
     if (resetLog) {
       setLiveLog('');
       logOffsetRef.current = 0;
+      setApiCounters({ dendreo: 0, hubspot: 0 });
     }
     setIsPollingLog(true);
     pollLog();
@@ -108,6 +120,12 @@ const AdminSyncDashboard = () => {
       setScheduleTime(config.schedule_time || '08:00');
       setDendreoApiLimit(config.dendreo_api_limit || '');
       setHubspotApiLimit(config.hubspot_api_limit || '');
+      setDendreoDailyLimit(config.dendreo_daily_limit || '');
+      setDendreoWeeklyLimit(config.dendreo_weekly_limit || '');
+      setDendreoMonthlyLimit(config.dendreo_monthly_limit || '');
+      setHubspotDailyLimit(config.hubspot_daily_limit || '');
+      setHubspotWeeklyLimit(config.hubspot_weekly_limit || '');
+      setHubspotMonthlyLimit(config.hubspot_monthly_limit || '');
       setSyncHistory(history);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
@@ -193,6 +211,18 @@ const AdminSyncDashboard = () => {
     }
   };
 
+  const handleStopSync = async () => {
+    if (!window.confirm('Are you sure you want to stop the running sync? This will terminate the process immediately.')) return;
+    setActionOutput(null);
+    try {
+      const result = await adminService.stopSync();
+      setActionOutput(result);
+    } catch (error) {
+      const msg = error.response?.data?.detail || error.message;
+      setActionOutput({ status: 'error', message: msg });
+    }
+  };
+
   const handleToggleCron = async () => {
     const newState = !syncConfig.cron_enabled;
     if (!window.confirm(`${newState ? 'ENABLE' : 'DISABLE'} scheduled cron syncs?`)) return;
@@ -226,6 +256,12 @@ const AdminSyncDashboard = () => {
         cooldown_hours: parseFloat(cooldownHours),
         dendreo_api_limit: dendreoApiLimit ? parseInt(dendreoApiLimit, 10) : 0,
         hubspot_api_limit: hubspotApiLimit ? parseInt(hubspotApiLimit, 10) : 0,
+        dendreo_daily_limit: dendreoDailyLimit ? parseInt(dendreoDailyLimit, 10) : 0,
+        dendreo_weekly_limit: dendreoWeeklyLimit ? parseInt(dendreoWeeklyLimit, 10) : 0,
+        dendreo_monthly_limit: dendreoMonthlyLimit ? parseInt(dendreoMonthlyLimit, 10) : 0,
+        hubspot_daily_limit: hubspotDailyLimit ? parseInt(hubspotDailyLimit, 10) : 0,
+        hubspot_weekly_limit: hubspotWeeklyLimit ? parseInt(hubspotWeeklyLimit, 10) : 0,
+        hubspot_monthly_limit: hubspotMonthlyLimit ? parseInt(hubspotMonthlyLimit, 10) : 0,
       });
       await loadDashboardData();
     } catch (error) {
@@ -254,6 +290,14 @@ const AdminSyncDashboard = () => {
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const formatSyncType = (syncType) => {
+    switch (syncType) {
+      case 'sync_all': return 'Full Sync';
+      case 'sync_adf': return 'Single ADF';
+      default: return syncType;
     }
   };
 
@@ -344,7 +388,13 @@ const AdminSyncDashboard = () => {
               <div>
                 <p className="text-sm text-blue-700">Today</p>
                 <p className="text-3xl font-bold text-blue-900 mt-2">{apiUsage?.today?.api_calls || 0}</p>
-                <p className="text-xs text-blue-600 mt-1">{apiUsage?.today?.sync_count || 0} syncs</p>
+                <div className="text-xs mt-1 space-y-0.5">
+                  <p className="text-blue-600">
+                    D: {apiUsage?.today?.dendreo_calls || 0}{apiUsage?.today?.dendreo_limit ? ` / ${apiUsage.today.dendreo_limit}` : ''}
+                    {' '} H: {apiUsage?.today?.hubspot_calls || 0}{apiUsage?.today?.hubspot_limit ? ` / ${apiUsage.today.hubspot_limit}` : ''}
+                  </p>
+                  <p className="text-blue-500">{apiUsage?.today?.sync_count || 0} syncs</p>
+                </div>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
                 <Zap size={24} className="text-blue-600" />
@@ -357,7 +407,13 @@ const AdminSyncDashboard = () => {
               <div>
                 <p className="text-sm text-purple-700">This Week</p>
                 <p className="text-3xl font-bold text-purple-900 mt-2">{apiUsage?.this_week?.api_calls || 0}</p>
-                <p className="text-xs text-purple-600 mt-1">{apiUsage?.this_week?.sync_count || 0} syncs</p>
+                <div className="text-xs mt-1 space-y-0.5">
+                  <p className="text-purple-600">
+                    D: {apiUsage?.this_week?.dendreo_calls || 0}{apiUsage?.this_week?.dendreo_limit ? ` / ${apiUsage.this_week.dendreo_limit}` : ''}
+                    {' '} H: {apiUsage?.this_week?.hubspot_calls || 0}{apiUsage?.this_week?.hubspot_limit ? ` / ${apiUsage.this_week.hubspot_limit}` : ''}
+                  </p>
+                  <p className="text-purple-500">{apiUsage?.this_week?.sync_count || 0} syncs</p>
+                </div>
               </div>
               <div className="p-3 bg-purple-100 rounded-lg">
                 <Activity size={24} className="text-purple-600" />
@@ -370,7 +426,13 @@ const AdminSyncDashboard = () => {
               <div>
                 <p className="text-sm text-indigo-700">This Month</p>
                 <p className="text-3xl font-bold text-indigo-900 mt-2">{apiUsage?.this_month?.api_calls || 0}</p>
-                <p className="text-xs text-indigo-600 mt-1">{apiUsage?.this_month?.sync_count || 0} syncs</p>
+                <div className="text-xs mt-1 space-y-0.5">
+                  <p className="text-indigo-600">
+                    D: {apiUsage?.this_month?.dendreo_calls || 0}{apiUsage?.this_month?.dendreo_limit ? ` / ${apiUsage.this_month.dendreo_limit}` : ''}
+                    {' '} H: {apiUsage?.this_month?.hubspot_calls || 0}{apiUsage?.this_month?.hubspot_limit ? ` / ${apiUsage.this_month.hubspot_limit}` : ''}
+                  </p>
+                  <p className="text-indigo-500">{apiUsage?.this_month?.sync_count || 0} syncs</p>
+                </div>
               </div>
               <div className="p-3 bg-indigo-100 rounded-lg">
                 <Activity size={24} className="text-indigo-600" />
@@ -511,11 +573,14 @@ const AdminSyncDashboard = () => {
               {/* API Limits */}
               <div className="border-t border-gray-200 pt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  API Call Limits per Sync
+                  API Call Limits
                 </label>
-                <div className="grid grid-cols-2 gap-4">
+
+                {/* Per-Sync Limits */}
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Per Sync</p>
+                <div className="grid grid-cols-2 gap-4 mb-3">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Dendreo API</label>
+                    <label className="block text-xs text-gray-500 mb-1">Dendreo</label>
                     <input
                       type="number"
                       min="0"
@@ -527,7 +592,7 @@ const AdminSyncDashboard = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">HubSpot API</label>
+                    <label className="block text-xs text-gray-500 mb-1">HubSpot</label>
                     <input
                       type="number"
                       min="0"
@@ -539,8 +604,94 @@ const AdminSyncDashboard = () => {
                     />
                   </div>
                 </div>
+
+                {/* Period Limits */}
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Daily</p>
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Dendreo</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      placeholder="Unlimited"
+                      value={dendreoDailyLimit}
+                      onChange={(e) => setDendreoDailyLimit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">HubSpot</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      placeholder="Unlimited"
+                      value={hubspotDailyLimit}
+                      onChange={(e) => setHubspotDailyLimit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Weekly</p>
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Dendreo</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      placeholder="Unlimited"
+                      value={dendreoWeeklyLimit}
+                      onChange={(e) => setDendreoWeeklyLimit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">HubSpot</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      placeholder="Unlimited"
+                      value={hubspotWeeklyLimit}
+                      onChange={(e) => setHubspotWeeklyLimit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                </div>
+
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Monthly</p>
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Dendreo</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="500"
+                      placeholder="Unlimited"
+                      value={dendreoMonthlyLimit}
+                      onChange={(e) => setDendreoMonthlyLimit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">HubSpot</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="500"
+                      placeholder="Unlimited"
+                      value={hubspotMonthlyLimit}
+                      onChange={(e) => setHubspotMonthlyLimit(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                    />
+                  </div>
+                </div>
+
                 <p className="text-sm text-gray-500 mt-1">
-                  Max API calls per sync run. 0 or empty = unlimited. Remaining ADFs are skipped when the limit is reached.
+                  0 or empty = unlimited. Per-sync limits skip remaining ADFs. Period limits block new syncs from starting.
                 </p>
               </div>
 
@@ -579,6 +730,15 @@ const AdminSyncDashboard = () => {
               <Zap size={18} />
               Force Sync
             </button>
+            {isPollingLog && (
+              <button
+                onClick={handleStopSync}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                <StopCircle size={18} />
+                Stop Sync
+              </button>
+            )}
             {syncStatus?.skipped_adf_count > 0 && (
               <button
                 onClick={handleResumeSync}
@@ -639,10 +799,17 @@ const AdminSyncDashboard = () => {
                 <Terminal size={16} className="text-green-400" />
                 <span className="text-sm font-medium text-gray-200">Sync Log</span>
                 {isPollingLog && (
-                  <span className="flex items-center gap-1 px-2 py-0.5 bg-green-900 text-green-300 rounded-full text-xs font-medium">
-                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                    Live
-                  </span>
+                  <>
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-green-900 text-green-300 rounded-full text-xs font-medium">
+                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                      Live
+                    </span>
+                    <span className="text-xs text-gray-400 ml-2">
+                      Dendreo: <span className="text-blue-400 font-mono">{apiCounters.dendreo}</span>
+                      {' | '}
+                      HubSpot: <span className="text-orange-400 font-mono">{apiCounters.hubspot}</span>
+                    </span>
+                  </>
                 )}
               </div>
               {!isPollingLog && liveLog && (
@@ -676,7 +843,7 @@ const AdminSyncDashboard = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Timestamp</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">API Calls</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">API Calls (D/H)</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Duration</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Error</th>
                 </tr>
@@ -692,14 +859,16 @@ const AdminSyncDashboard = () => {
                   syncHistory.map((sync) => (
                     <tr key={sync.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3 text-sm text-gray-700">{formatDateTime(sync.last_sync_at)}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">{sync.sync_type}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700">{formatSyncType(sync.sync_type)}</td>
                       <td className="px-6 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusStyle(sync.status)}`}>
                           {getStatusIcon(sync.status)}
                           {sync.status}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-sm text-gray-700">{sync.api_calls_count}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700">
+                        {sync.api_calls_count}{sync.hubspot_api_calls_count > 0 ? ` / ${sync.hubspot_api_calls_count}` : ''}
+                      </td>
                       <td className="px-6 py-3 text-sm text-gray-700">{formatDuration(sync.duration_seconds)}</td>
                       <td className="px-6 py-3 text-sm text-red-600 max-w-[200px] truncate">{sync.error_message || '-'}</td>
                     </tr>

@@ -5,6 +5,7 @@
 *.swp
 *.swo
 .cursorignore
+.claude
 
 # Python
 __pycache__/
