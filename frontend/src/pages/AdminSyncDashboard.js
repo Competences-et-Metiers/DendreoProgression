@@ -20,7 +20,51 @@ import {
   FastForward,
   StopCircle,
   FolderSync,
+  AlertTriangle,
 } from 'lucide-react';
+
+// Confirmation Modal Component
+const ConfirmModal = ({ isOpen, title, message, variant = 'primary', confirmLabel = 'Confirm', onConfirm, onCancel }) => {
+  if (!isOpen) return null;
+
+  const variantStyles = {
+    primary: { button: 'bg-primary-600 hover:bg-primary-700', icon: <Zap size={24} className="text-primary-600" /> },
+    danger: { button: 'bg-red-600 hover:bg-red-700', icon: <XCircle size={24} className="text-red-600" /> },
+    warning: { button: 'bg-amber-600 hover:bg-amber-700', icon: <Activity size={24} className="text-amber-600" /> },
+    info: { button: 'bg-indigo-600 hover:bg-indigo-700', icon: <Target size={24} className="text-indigo-600" /> },
+    teal: { button: 'bg-teal-600 hover:bg-teal-700', icon: <FolderSync size={24} className="text-teal-600" /> },
+  };
+  const style = variantStyles[variant] || variantStyles.primary;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
+      <div className="relative bg-white rounded-xl shadow-xl border border-gray-200 max-w-md w-full mx-4 p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 p-2 bg-gray-50 rounded-lg">{style.icon}</div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">{message}</p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${style.button}`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const AdminSyncDashboard = () => {
   const [apiUsage, setApiUsage] = useState(null);
@@ -30,6 +74,9 @@ const AdminSyncDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [actionOutput, setActionOutput] = useState(null);
   const [adfId, setAdfId] = useState('');
+
+  // Confirmation modal state
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', variant: 'primary', confirmLabel: 'Confirm', onConfirm: () => {} });
   const [cooldownHours, setCooldownHours] = useState(12.0);
   const [scheduleDays, setScheduleDays] = useState('0,1,2,3,4');
   const [scheduleTime, setScheduleTime] = useState('08:00');
@@ -78,6 +125,14 @@ const AdminSyncDashboard = () => {
       if (!data.is_running) {
         stopPolling();
         loadDashboardData();
+        // Update actionOutput with final sync result
+        if (data.final_status === 'error') {
+          setActionOutput({ status: 'error', message: data.final_message || 'Sync failed.' });
+        } else if (data.final_status === 'warning') {
+          setActionOutput({ status: 'warning', message: data.final_message || 'Sync completed with warnings.' });
+        } else if (data.final_status) {
+          setActionOutput({ status: 'success', message: data.final_message || 'Sync completed successfully.' });
+        }
       }
     } catch (err) {
       console.error('Log poll error:', err);
@@ -151,100 +206,117 @@ const AdminSyncDashboard = () => {
     }
   }, [syncStatus?.is_running, startPolling]);
 
-  const handleDryRun = async () => {
-    if (!window.confirm('Run a dry-run sync? This will test the sync without making changes.')) return;
-    setActionOutput(null);
-    try {
-      const result = await adminService.triggerDryRun();
-      setActionOutput(result);
-      if (result.status === 'started') {
-        startPolling(true);
+  const showConfirm = (title, message, variant, confirmLabel, onConfirm) => {
+    setConfirmModal({ isOpen: true, title, message, variant, confirmLabel, onConfirm });
+  };
+  const closeConfirm = () => setConfirmModal(prev => ({ ...prev, isOpen: false }));
+
+  const handleDryRun = () => {
+    showConfirm('Dry Run Sync', 'Run a dry-run sync? This will test the sync without making changes.', 'primary', 'Run Dry Run', async () => {
+      closeConfirm();
+      setActionOutput(null);
+      try {
+        const result = await adminService.triggerDryRun();
+        setActionOutput(result);
+        if (result.status === 'started') startPolling(true);
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message;
+        setActionOutput({ status: 'error', message: msg });
       }
-    } catch (error) {
-      const msg = error.response?.data?.detail || error.message;
-      setActionOutput({ status: 'error', message: msg });
-    }
+    });
   };
 
-  const handleForceSync = async () => {
-    if (!window.confirm('Force a full sync NOW? This will make API calls immediately.')) return;
-    setActionOutput(null);
-    try {
-      const result = await adminService.forceSync();
-      setActionOutput(result);
-      if (result.status === 'started') {
-        startPolling(true);
+  const handleForceSync = () => {
+    showConfirm('Force Full Sync', 'Force a full sync now? This will make API calls to Dendreo and HubSpot immediately.', 'warning', 'Force Sync', async () => {
+      closeConfirm();
+      setActionOutput(null);
+      try {
+        const result = await adminService.forceSync();
+        setActionOutput(result);
+        if (result.status === 'started') startPolling(true);
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message;
+        setActionOutput({ status: 'error', message: msg });
       }
-    } catch (error) {
-      const msg = error.response?.data?.detail || error.message;
-      setActionOutput({ status: 'error', message: msg });
-    }
+    });
   };
 
-  const handleSyncAdf = async () => {
+  const handleSyncAdf = () => {
     if (!adfId.trim()) return;
-    if (!window.confirm(`Sync ADF ${adfId}?`)) return;
-    setActionOutput(null);
-    try {
-      const result = await adminService.syncSpecificAdf(adfId);
-      setActionOutput(result);
-      if (result.status === 'started') {
-        startPolling(true);
+    showConfirm('Sync Single ADF', `Sync ADF ${adfId}?\n\nThis will fetch the ADF from Dendreo and update its data. If the ADF is not in an active etape (5, 6 or 7), its status will be updated but no participant data will be synced.`, 'info', 'Sync ADF', async () => {
+      closeConfirm();
+      setActionOutput(null);
+      try {
+        const result = await adminService.syncSpecificAdf(adfId);
+        setActionOutput(result);
+        if (result.status === 'started') startPolling(true);
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message;
+        setActionOutput({ status: 'error', message: msg });
       }
-    } catch (error) {
-      const msg = error.response?.data?.detail || error.message;
-      setActionOutput({ status: 'error', message: msg });
-    }
+    });
   };
 
-  const handleResumeSync = async () => {
-    if (!window.confirm(`Resume sync for ${syncStatus?.skipped_adf_count} remaining ADFs?`)) return;
-    setActionOutput(null);
-    try {
-      const result = await adminService.resumeSync();
-      setActionOutput(result);
-      if (result.status === 'started') {
-        startPolling(true);
+  const handleResumeSync = () => {
+    showConfirm('Resume Sync', `Resume sync for ${syncStatus?.skipped_adf_count} remaining ADFs that were skipped due to API limits?`, 'warning', 'Resume Sync', async () => {
+      closeConfirm();
+      setActionOutput(null);
+      try {
+        const result = await adminService.resumeSync();
+        setActionOutput(result);
+        if (result.status === 'started') startPolling(true);
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message;
+        setActionOutput({ status: 'error', message: msg });
       }
-    } catch (error) {
-      const msg = error.response?.data?.detail || error.message;
-      setActionOutput({ status: 'error', message: msg });
-    }
+    });
   };
 
-  const handleSyncCategories = async () => {
-    if (!window.confirm('Sync module categories from Dendreo? (1 API call)')) return;
-    setActionOutput(null);
-    try {
-      const result = await adminService.syncCategories();
-      setActionOutput(result);
-    } catch (error) {
-      const msg = error.response?.data?.detail || error.message;
-      setActionOutput({ status: 'error', message: msg });
-    }
+  const handleSyncCategories = () => {
+    showConfirm('Sync Categories', 'Sync module categories from Dendreo?\n\nThis is a lightweight operation (1 API call).', 'teal', 'Sync Categories', async () => {
+      closeConfirm();
+      setActionOutput(null);
+      try {
+        const result = await adminService.syncCategories();
+        setActionOutput(result);
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message;
+        setActionOutput({ status: 'error', message: msg });
+      }
+    });
   };
 
-  const handleStopSync = async () => {
-    if (!window.confirm('Are you sure you want to stop the running sync? This will terminate the process immediately.')) return;
-    setActionOutput(null);
-    try {
-      const result = await adminService.stopSync();
-      setActionOutput(result);
-    } catch (error) {
-      const msg = error.response?.data?.detail || error.message;
-      setActionOutput({ status: 'error', message: msg });
-    }
+  const handleStopSync = () => {
+    showConfirm('Stop Sync', 'Are you sure you want to stop the running sync?\n\nThis will terminate the process immediately. The sync record will be marked as an error.', 'danger', 'Stop Sync', async () => {
+      closeConfirm();
+      setActionOutput(null);
+      try {
+        const result = await adminService.stopSync();
+        setActionOutput(result);
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message;
+        setActionOutput({ status: 'error', message: msg });
+      }
+    });
   };
 
-  const handleToggleCron = async () => {
+  const handleToggleCron = () => {
     const newState = !syncConfig.cron_enabled;
-    if (!window.confirm(`${newState ? 'ENABLE' : 'DISABLE'} scheduled cron syncs?`)) return;
-    try {
-      await adminService.updateSyncConfig({ cron_enabled: newState });
-      await loadDashboardData();
-    } catch (error) {
-      console.error('Failed to update config:', error);
-    }
+    showConfirm(
+      newState ? 'Enable Scheduled Syncs' : 'Disable Scheduled Syncs',
+      newState ? 'Enable scheduled cron syncs? Syncs will run automatically on the configured schedule.' : 'Disable scheduled cron syncs? Only manual syncs will be available.',
+      newState ? 'primary' : 'danger',
+      newState ? 'Enable' : 'Disable',
+      async () => {
+        closeConfirm();
+        try {
+          await adminService.updateSyncConfig({ cron_enabled: newState });
+          await loadDashboardData();
+        } catch (error) {
+          console.error('Failed to update config:', error);
+        }
+      }
+    );
   };
 
   const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -796,6 +868,8 @@ const AdminSyncDashboard = () => {
                 ? 'bg-blue-50 border-blue-200'
                 : actionOutput.status === 'error'
                 ? 'bg-red-50 border-red-200'
+                : actionOutput.status === 'warning'
+                ? 'bg-amber-50 border-amber-200'
                 : 'bg-green-50 border-green-200'
             }`}>
               <div className="flex items-center gap-2">
@@ -803,6 +877,8 @@ const AdminSyncDashboard = () => {
                   <Loader2 size={16} className="text-blue-600 animate-spin" />
                 ) : actionOutput.status === 'error' ? (
                   <XCircle size={16} className="text-red-600" />
+                ) : actionOutput.status === 'warning' ? (
+                  <AlertTriangle size={16} className="text-amber-600" />
                 ) : (
                   <CheckCircle2 size={16} className="text-green-600" />
                 )}
@@ -900,6 +976,17 @@ const AdminSyncDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant}
+        confirmLabel={confirmModal.confirmLabel}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={closeConfirm}
+      />
     </div>
   );
 };

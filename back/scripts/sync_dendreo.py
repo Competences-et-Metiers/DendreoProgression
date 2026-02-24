@@ -172,7 +172,7 @@ async def run_sync_single_adf(id_action_formation: str) -> dict:
             sync_service = DendreoSync(db, client)
             result = await sync_service.sync_single_adf(id_action_formation)
 
-        # Update sync metadata with success
+        # Update sync metadata with result
         if sync_metadata_id:
             with get_db_session() as db:
                 record = db.query(SyncMetadata).get(sync_metadata_id)
@@ -182,13 +182,16 @@ async def run_sync_single_adf(id_action_formation: str) -> dict:
                     record.status = 'success'
                     stats = {"adf_id": id_action_formation}
                     stats.update(result.get('stats', {}))
+                    if result.get('etape'):
+                        stats['etape'] = result['etape']
                     record.stats = str(stats)
                     record.api_calls_count = result.get('rate_limiting', {}).get('total_requests', 0)
                     record.hubspot_api_calls_count = result.get('stats', {}).get('hubspot_updates_total', 0)
                     record.duration_seconds = duration
+                    record.error_message = result.get('message') if result.get('status') == 'warning' else None
                     record.updated_at = sync_end_time
                     db.commit()
-                    logger.info(f"✅ Sync metadata updated with success (Dendreo: {record.api_calls_count}, HubSpot: {record.hubspot_api_calls_count}, duration: {duration:.1f}s)")
+                    logger.info(f"✅ Sync metadata updated (Dendreo: {record.api_calls_count}, HubSpot: {record.hubspot_api_calls_count}, duration: {duration:.1f}s)")
 
         logger.info("✅ Single-ADF sync completed")
         return result
@@ -514,7 +517,7 @@ Examples:
                     logger.info(f"  {key}: {value}")
         
         # Exit with appropriate code
-        sys.exit(0 if result['status'] in ['success', 'skipped'] else 1)
+        sys.exit(0 if result['status'] in ['success', 'skipped', 'warning'] else 1)
         
     except KeyboardInterrupt:
         logger.warning("🛑 Sync interrupted by user")

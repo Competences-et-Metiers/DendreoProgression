@@ -18,6 +18,7 @@ router = APIRouter()
 SYNC_LOG_PATH = "/tmp/sync_live.log"
 SYNC_API_COUNTERS_PATH = "/tmp/sync_api_counters.json"
 _sync_process = None  # Track the running subprocess
+_sync_log_file = None  # Track the log file handle
 
 
 # Schemas
@@ -141,9 +142,32 @@ def check_period_limits(db: Session) -> Optional[str]:
     return None
 
 
+def _cleanup_finished_process():
+    """Clean up resources when the sync subprocess has exited."""
+    global _sync_process, _sync_log_file
+    if _sync_log_file:
+        try:
+            _sync_log_file.close()
+        except Exception:
+            pass
+        _sync_log_file = None
+    _sync_process = None
+
+
+def _is_process_running() -> bool:
+    """Check if the sync subprocess is still running. Auto-cleans up if finished."""
+    if _sync_process is None:
+        return False
+    if _sync_process.poll() is None:
+        return True
+    # Process has exited — clean up
+    _cleanup_finished_process()
+    return False
+
+
 def start_sync_process(command: List[str]) -> Dict[str, Any]:
     """Start sync subprocess in background, redirect output to log file."""
-    global _sync_process
+    global _sync_process, _sync_log_file
     try:
         with open(SYNC_LOG_PATH, "w") as f:
             f.write("")
@@ -163,6 +187,7 @@ def start_sync_process(command: List[str]) -> Dict[str, Any]:
             cwd="/app"
         )
         _sync_process = process
+        _sync_log_file = log_file
         return {
             "status": "started",
             "message": f"Sync started (PID: {process.pid})",
@@ -288,7 +313,7 @@ async def trigger_dry_run(
     in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first()
-    process_running = _sync_process is not None and _sync_process.poll() is None
+    process_running = _is_process_running()
     if in_progress or process_running:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -316,7 +341,7 @@ async def force_sync(
     in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first()
-    process_running = _sync_process is not None and _sync_process.poll() is None
+    process_running = _is_process_running()
     if in_progress or process_running:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -353,7 +378,7 @@ async def sync_specific_adf(
     in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first()
-    process_running = _sync_process is not None and _sync_process.poll() is None
+    process_running = _is_process_running()
     if in_progress or process_running:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -476,6 +501,20 @@ async def get_sync_status(
     Check if a sync is currently running (status='in_progress')
     Return last sync info + current config
     """
+    # If process has exited, clean up stale in_progress records
+    if not _is_process_running():
+        stale_records = db.query(SyncMetadata).filter(
+            SyncMetadata.status == 'in_progress'
+        ).all()
+        if stale_records:
+            for record in stale_records:
+                record.status = 'error'
+                record.error_message = 'Process exited without updating status'
+                record.updated_at = datetime.now(timezone.utc)
+                if record.last_sync_at:
+                    record.duration_seconds = (datetime.now(timezone.utc) - record.last_sync_at).total_seconds()
+            db.commit()
+
     # Check for in-progress sync
     in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
@@ -511,7 +550,7 @@ async def get_sync_status(
     # Get config
     config = get_or_create_sync_config(db)
 
-    process_running = _sync_process is not None and _sync_process.poll() is None
+    process_running = _is_process_running()
 
     return SyncStatusResponse(
         is_running=(in_progress is not None) or process_running,
@@ -549,7 +588,7 @@ async def resume_sync(
     in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first()
-    process_running = _sync_process is not None and _sync_process.poll() is None
+    process_running = _is_process_running()
     if in_progress or process_running:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -612,10 +651,8 @@ async def stop_sync(
     Stop a currently running sync process.
     Sends SIGTERM, waits briefly, then SIGKILL if needed.
     """
-    global _sync_process
-
     # Check if there's a running subprocess
-    if _sync_process is None or _sync_process.poll() is not None:
+    if not _is_process_running():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="No sync process is currently running."
@@ -651,7 +688,7 @@ async def stop_sync(
 
         db.commit()
 
-        _sync_process = None
+        _cleanup_finished_process()
 
         return SyncCommandResponse(
             status="success",
@@ -749,12 +786,27 @@ async def get_live_log(
                 content = f.read()
                 new_offset = f.tell()
 
+    # Check if the subprocess is still alive (auto-cleans up if exited)
+    process_running = _is_process_running()
+
+    # If process is no longer running, clean up any stale in_progress metadata
+    if not process_running:
+        stale_records = db.query(SyncMetadata).filter(
+            SyncMetadata.status == 'in_progress'
+        ).all()
+        if stale_records:
+            for record in stale_records:
+                record.status = 'error'
+                record.error_message = 'Process exited without updating status'
+                record.updated_at = datetime.now(timezone.utc)
+                if record.last_sync_at:
+                    record.duration_seconds = (datetime.now(timezone.utc) - record.last_sync_at).total_seconds()
+            db.commit()
+            logger.info(f"Cleaned up {len(stale_records)} stale in_progress record(s)")
+
     db_in_progress = db.query(SyncMetadata).filter(
         SyncMetadata.status == 'in_progress'
     ).first() is not None
-
-    # Also check if the subprocess is still alive (covers single-ADF sync which has no SyncMetadata)
-    process_running = _sync_process is not None and _sync_process.poll() is None
 
     # Read API counters from shared file
     api_counters = {"dendreo": 0, "hubspot": 0}
@@ -765,9 +817,35 @@ async def get_live_log(
     except (json.JSONDecodeError, IOError):
         pass
 
+    is_running = db_in_progress or process_running
+
+    # When sync just finished, include the final result for the frontend
+    final_status = None
+    final_message = None
+    if not is_running and offset > 0:
+        # offset > 0 means we were polling, so the sync just ended
+        latest = db.query(SyncMetadata).order_by(
+            SyncMetadata.updated_at.desc()
+        ).first()
+        if latest:
+            if latest.status == 'error':
+                final_status = 'error'
+                final_message = latest.error_message or 'Sync failed.'
+            elif latest.status == 'success' and latest.error_message:
+                # warning: success with an error_message means etape warning
+                final_status = 'warning'
+                final_message = latest.error_message
+            elif latest.status == 'success':
+                api_count = latest.api_calls_count or 0
+                duration = int(latest.duration_seconds) if latest.duration_seconds else 0
+                final_status = 'success'
+                final_message = f'Sync completed successfully. {api_count} API calls in {duration}s.'
+
     return {
         "content": content,
         "offset": new_offset,
-        "is_running": db_in_progress or process_running,
-        "api_counters": api_counters
+        "is_running": is_running,
+        "api_counters": api_counters,
+        "final_status": final_status,
+        "final_message": final_message
     }

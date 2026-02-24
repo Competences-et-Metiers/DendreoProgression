@@ -466,22 +466,37 @@ class DendreoSync:
             if not target_adf:
                 return {"status": "error", "message": f"ADF {id_action_formation} not found in Dendreo API"}
 
-            # Process the ADF to create/update courses
-            active_courses = await self._process_adfs([target_adf])
-
-            # Always update Course.status for this ADF (even if _process_adfs skipped it as inactive)
+            id_adf = str(id_action_formation)
             current_etape = str(target_adf.get('id_etape_process', ''))
+
+            # Check etape FIRST before making further API calls
+            is_active = current_etape in ['5', '6', '7']
+
+            # Always update Course.status for this ADF regardless of etape
             if current_etape:
                 existing_courses = self.db.query(Course).filter(
-                    Course.id_action_formation == str(id_action_formation)
+                    Course.id_action_formation == id_adf
                 ).all()
                 for c in existing_courses:
                     if c.status != current_etape:
                         c.status = current_etape
 
-            self.db.commit()
+            if not is_active:
+                self.db.commit()
+                duration = (datetime.now() - start_time).total_seconds()
+                rate_limit_stats = self.client.get_rate_limit_stats()
+                logger.info(f"⚠️ ADF {id_adf} has etape {current_etape} (not active). Status updated, skipping further sync.")
+                return {
+                    "status": "warning",
+                    "message": f"ADF {id_adf} has etape {current_etape} (not active: only 5, 6, 7 are synced). Course status updated but no participant data was synced.",
+                    "etape": current_etape,
+                    "stats": self.stats,
+                    "rate_limiting": rate_limit_stats
+                }
 
-            id_adf = str(id_action_formation)
+            # Process the ADF to create/update courses
+            active_courses = await self._process_adfs([target_adf])
+            self.db.commit()
 
             # Fetch and process LAPs → LMPs (same logic as sync_all per-ADF block)
             laps_data = await self.client.get_laps(id_adf)
