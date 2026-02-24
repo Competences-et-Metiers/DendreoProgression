@@ -92,6 +92,7 @@ class InactivityService:
             self.db.query(ParticipantCourse, Participant, Course)
             .join(Participant, ParticipantCourse.participant_id == Participant.id)
             .join(Course, ParticipantCourse.course_id == Course.id)
+            .filter(Course.status.in_(['5', '6', '7']))
         )
 
         if course_id:

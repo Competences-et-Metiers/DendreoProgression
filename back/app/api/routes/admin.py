@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from app.models.database import get_db
-from app.models.models import User, SyncMetadata, AdminSyncConfig
+from app.models.models import User, SyncMetadata, AdminSyncConfig, ModuleCategory
 from app.auth.dependencies import require_admin
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -664,6 +664,68 @@ async def stop_sync(
             status="error",
             message=f"Failed to stop sync: {str(e)}"
         )
+
+
+@router.post("/sync/categories", response_model=SyncCommandResponse)
+async def sync_categories(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Manually sync module categories from Dendreo API.
+    Lightweight operation (1 API call).
+    """
+    from app.services.dendreo_client import DendreoClient
+
+    logger.info(f"Admin user '{current_user.username}' triggered category sync")
+
+    try:
+        client = DendreoClient()
+        categories_data = await client.get_module_categories()
+
+        if not categories_data:
+            return SyncCommandResponse(status="success", message="No categories found in Dendreo API.")
+
+        count = 0
+        for cat in categories_data:
+            id_cat = cat.get('id_categorie_module')
+            if not id_cat:
+                continue
+
+            display_order = 0
+            try:
+                display_order = int(cat.get('order', 0))
+            except (ValueError, TypeError):
+                pass
+
+            existing = db.query(ModuleCategory).filter(
+                ModuleCategory.id_categorie_module == str(id_cat)
+            ).first()
+
+            if existing:
+                existing.intitule = cat.get('intitule', '')
+                existing.color = cat.get('color', '')
+                existing.status = cat.get('status', '1')
+                existing.display_order = display_order
+                existing.updated_at = datetime.now(timezone.utc)
+            else:
+                new_cat = ModuleCategory(
+                    id_categorie_module=str(id_cat),
+                    intitule=cat.get('intitule', ''),
+                    color=cat.get('color', ''),
+                    status=cat.get('status', '1'),
+                    display_order=display_order
+                )
+                db.add(new_cat)
+
+            count += 1
+
+        db.commit()
+        return SyncCommandResponse(status="success", message=f"Synced {count} module categories.")
+
+    except Exception as e:
+        logger.error(f"Category sync failed: {e}")
+        return SyncCommandResponse(status="error", message=f"Category sync failed: {str(e)}")
 
 
 @router.get("/sync/live-log")

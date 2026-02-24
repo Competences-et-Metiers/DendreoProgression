@@ -92,6 +92,14 @@ export const adminService = {
     const response = await api.post('/admin/sync/stop');
     return response.data;
   },
+
+  /**
+   * Sync module categories from Dendreo
+   */
+  syncCategories: async () => {
+    const response = await api.post('/admin/sync/categories');
+    return response.data;
+  },
 };
 
 export default adminService;

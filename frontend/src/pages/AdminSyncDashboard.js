@@ -19,6 +19,7 @@ import {
   Terminal,
   FastForward,
   StopCircle,
+  FolderSync,
 } from 'lucide-react';
 
 const AdminSyncDashboard = () => {
@@ -205,6 +206,18 @@ const AdminSyncDashboard = () => {
       if (result.status === 'started') {
         startPolling(true);
       }
+    } catch (error) {
+      const msg = error.response?.data?.detail || error.message;
+      setActionOutput({ status: 'error', message: msg });
+    }
+  };
+
+  const handleSyncCategories = async () => {
+    if (!window.confirm('Sync module categories from Dendreo? (1 API call)')) return;
+    setActionOutput(null);
+    try {
+      const result = await adminService.syncCategories();
+      setActionOutput(result);
     } catch (error) {
       const msg = error.response?.data?.detail || error.message;
       setActionOutput({ status: 'error', message: msg });
@@ -767,6 +780,14 @@ const AdminSyncDashboard = () => {
                 Sync ADF
               </button>
             </div>
+            <button
+              onClick={handleSyncCategories}
+              disabled={isPollingLog}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FolderSync size={18} />
+              Sync Categories
+            </button>
           </div>
 
           {actionOutput && (

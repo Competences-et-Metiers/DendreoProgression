@@ -468,6 +468,17 @@ class DendreoSync:
 
             # Process the ADF to create/update courses
             active_courses = await self._process_adfs([target_adf])
+
+            # Always update Course.status for this ADF (even if _process_adfs skipped it as inactive)
+            current_etape = str(target_adf.get('id_etape_process', ''))
+            if current_etape:
+                existing_courses = self.db.query(Course).filter(
+                    Course.id_action_formation == str(id_action_formation)
+                ).all()
+                for c in existing_courses:
+                    if c.status != current_etape:
+                        c.status = current_etape
+
             self.db.commit()
 
             id_adf = str(id_action_formation)
