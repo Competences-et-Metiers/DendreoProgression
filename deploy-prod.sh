@@ -49,11 +49,26 @@ check_dependencies() {
 # Create necessary directories
 create_directories() {
     log_info "Creating necessary directories..."
-    
+
     mkdir -p logs/nginx
     mkdir -p ssl
-    
+
     log_success "Directories created"
+}
+
+# Auto-detect SSL certificates and select the appropriate nginx config
+configure_nginx_ssl() {
+    log_info "Detecting SSL configuration..."
+
+    if [ -f "./ssl/fullchain.pem" ] && [ -f "./ssl/privkey.pem" ]; then
+        log_success "SSL certificates found - enabling HTTPS"
+        cp ./nginx/prod.conf ./nginx/prod.active.conf
+        NGINX_SSL_ENABLED=true
+    else
+        log_warning "SSL certificates not found in ./ssl/ - using HTTP-only mode"
+        cp ./nginx/prod.http-only.conf ./nginx/prod.active.conf
+        NGINX_SSL_ENABLED=false
+    fi
 }
 
 # Check if .env.prod exists
@@ -168,6 +183,13 @@ prepare_sync_scripts() {
 deploy() {
     log_info "Starting production deployment with optimized frontend architecture..."
     
+    # Check for force rebuild flag
+    local build_args=""
+    if [[ "$FORCE_REBUILD" == "true" ]] || [[ "$1" == "--force-rebuild" ]]; then
+        build_args="--no-cache"
+        log_info "Force rebuild requested - building without cache"
+    fi
+    
     # Ensure environment variables are available to docker-compose
     log_info "Verifying environment variables for Docker Compose..."
     if [ -z "$DATABASE_URL" ]; then
@@ -192,17 +214,22 @@ deploy() {
     log_info "Build date: $BUILD_DATE"
     log_info "Build version: $BUILD_VERSION"
     
-    # Build services with no cache to ensure fresh builds
-    log_info "Building services with no cache..."
-    docker compose -f docker-compose.prod.yml build --no-cache
+    # Build services with cache for faster builds
+    if [[ -n "$build_args" ]]; then
+        log_info "Building services with $build_args..."
+        docker compose -f docker-compose.prod.yml build $build_args
+    else
+        log_info "Building services (using cache for performance)..."
+        docker compose -f docker-compose.prod.yml build
+    fi
     
     # Start all services (dependencies will handle order)
     log_info "Starting all services..."
     docker compose -f docker-compose.prod.yml up -d
     
-    # Wait for services to start
+    # Brief wait for containers to initialise
     log_info "Waiting for services to start..."
-    sleep 15
+    sleep 5
     
     # Check service health
     log_info "Checking service health..."
@@ -257,16 +284,25 @@ deploy() {
     
     # Test the new frontend architecture
     log_info "Testing frontend architecture..."
-    
+
+    # Use the right protocol based on SSL detection
+    if [ "$NGINX_SSL_ENABLED" = true ]; then
+        local test_url="https://localhost"
+        local curl_opts="-fk"  # -k to accept self-signed/local certs
+    else
+        local test_url="http://localhost"
+        local curl_opts="-f"
+    fi
+
     # Test frontend serving
-    if curl -f http://localhost >/dev/null 2>&1; then
+    if curl $curl_opts "$test_url" >/dev/null 2>&1; then
         log_success "Frontend is accessible via nginx"
     else
         log_warning "Frontend not accessible via nginx (may take a moment to start)"
     fi
-    
+
     # Test API routing through nginx
-    if curl -f http://localhost/api/courses/stats >/dev/null 2>&1; then
+    if curl $curl_opts "$test_url/api/courses/stats" >/dev/null 2>&1; then
         log_success "API routing through nginx is working"
     else
         log_warning "API routing may still be starting (check logs if issues persist)"
@@ -321,6 +357,14 @@ test_sync() {
     else
         log_warning "Sync status check found issues - run manual checks"
     fi
+    
+    # Test new sync deployment logic
+    log_info "Testing sync deployment logic..."
+    if docker compose -f docker-compose.prod.yml exec -T sync python3 test_sync_deployment_logic.py 2>/dev/null; then
+        log_success "Sync deployment logic test passed"
+    else
+        log_warning "Sync deployment logic test found issues - check logs for details"
+    fi
 }
 
 # Show status and URLs
@@ -331,9 +375,15 @@ show_status() {
     docker compose -f docker-compose.prod.yml ps
     echo
     echo "🌐 Application URLs:"
-    echo "   Frontend: http://localhost (nginx serves React app directly)"
-    echo "   API: http://localhost/api (nginx proxy to backend)"
-    echo "   Health Check: http://localhost/health"
+    if [ "$NGINX_SSL_ENABLED" = true ]; then
+        echo "   Frontend: https://localhost (nginx serves React app with HTTPS)"
+        echo "   API: https://localhost/api (nginx proxy to backend)"
+        echo "   Health Check: https://localhost/health"
+    else
+        echo "   Frontend: http://localhost (nginx serves React app directly)"
+        echo "   API: http://localhost/api (nginx proxy to backend)"
+        echo "   Health Check: http://localhost/health"
+    fi
     echo
     echo "📁 Frontend Architecture:"
     echo "   ✅ Optimized: Nginx serves static files directly"
@@ -356,14 +406,24 @@ show_status() {
     echo "🔄 Sync Management:"
     echo "   Check sync status: docker compose -f docker-compose.prod.yml exec sync python3 scripts/check_sync_status.py"
     echo "   Manual sync test: docker compose -f docker-compose.prod.yml exec sync python3 scripts/sync_dendreo.py"
+    echo "   Test sync logic: docker compose -f docker-compose.prod.yml exec sync python3 test_sync_deployment_logic.py"
     echo "   View sync logs: docker compose -f docker-compose.prod.yml exec sync cat /app/logs/cron.log"
     echo "   Sync diagnostic: docker compose -f docker-compose.prod.yml exec sync python3 scripts/diagnose_cron.py"
     echo "   Monitor database: docker compose -f docker-compose.prod.yml exec postgres psql -U postgres -d dendreo_prod_db -c \"SELECT * FROM sync_metadata ORDER BY last_sync_at DESC LIMIT 5;\""
     echo
-    echo "🔧 For SSL setup:"
-    echo "   1. Place SSL certificates in ./ssl/ directory"
-    echo "   2. Update nginx/prod.conf to enable HTTPS server block"
-    echo "   3. Restart nginx: docker compose -f docker-compose.prod.yml restart nginx"
+    echo "🧠 Smart Sync Logic:"
+    echo "   • Sync only runs on deployment if no sync in last 24 hours"
+    echo "   • Database persistence prevents unnecessary syncs"
+    echo "   • Daily scheduled syncs at 8 AM continue as normal"
+    echo "   • Manual syncs can still be forced with --force flag"
+    echo
+    echo "🔒 SSL Configuration:"
+    if [ "$NGINX_SSL_ENABLED" = true ]; then
+        echo "   ✅ HTTPS enabled (certificates found in ./ssl/)"
+    else
+        echo "   ⚠️  HTTP-only mode (no certificates in ./ssl/)"
+        echo "   To enable HTTPS: place fullchain.pem and privkey.pem in ./ssl/ and redeploy"
+    fi
 }
 
 # Usage information
@@ -397,8 +457,10 @@ show_usage() {
     echo "  • Required API keys set in environment file"
     echo ""
     echo "Examples:"
-    echo "  ./deploy-prod.sh                    # Normal production deployment"
+    echo "  ./deploy-prod.sh                    # Normal production deployment (with cache)"
+    echo "  ./deploy-prod.sh --force-rebuild    # Force complete rebuild (no cache)"
     echo "  DEBUG=true ./deploy-prod.sh         # Debug deployment"
+    echo "  FORCE_REBUILD=true ./deploy-prod.sh # Force rebuild via environment"
     echo ""
     echo "After deployment, the sync service will automatically:"
     echo "  • Run daily at 8 AM (configurable via SYNC_SCHEDULE)"
@@ -477,11 +539,10 @@ main() {
     source_env_variables
     validate_env
     prepare_sync_scripts
+    configure_nginx_ssl
     create_backup
     clean_docker_cache
-    deploy
-    initialize_database
-    test_sync
+    deploy "$@"
     show_status
 }
 

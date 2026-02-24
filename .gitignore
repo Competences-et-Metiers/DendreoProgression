@@ -5,6 +5,7 @@
 *.swp
 *.swo
 .cursorignore
+.claude
 
 # Python
 __pycache__/
@@ -106,3 +107,12 @@ coverage.xml
 
 # Redis dump file
 dump.rdb
+
+# Backups (created by deploy-prod.sh)
+backups/
+
+# SSL certificates
+ssl/
+
+# Generated nginx config (created by deploy-prod.sh)
+nginx/prod.active.conf

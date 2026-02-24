@@ -10,6 +10,24 @@ class HubSpotClient:
         self.base_url = settings.hubspot_base_url
         self.api_key = settings.hubspot_api_key
 
+    async def get_contact_by_email(self, email: str) -> Optional[Dict[str, Any]]:
+        """Look up a HubSpot contact by email, including deal associations."""
+        if not self.api_key:
+            logger.warning("HubSpot API key not configured")
+            return None
+
+        url = f"{self.base_url}/crm/v3/objects/contacts/{email}"
+        params = {"idProperty": "email", "associations": "deals"}
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            return response.json()
+
     async def update_transaction_progress(self, transaction_id: str, progression: float, status: str) -> bool:
         """Update progress in HubSpot transaction"""
         if not self.api_key:

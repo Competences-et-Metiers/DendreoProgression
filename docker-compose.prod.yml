@@ -7,7 +7,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/prod.active.conf:/etc/nginx/nginx.conf:ro
       - ./logs/nginx:/var/log/nginx
       - frontend_build:/usr/share/nginx/html
       # SSL certificates
@@ -35,7 +35,7 @@ services:
   backend:
     build:
       context: ./back
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile.backend.prod
     env_file:
       - .env.prod
     environment:
@@ -43,6 +43,9 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+      # Security Configuration
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      SECRET_KEY: ${SECRET_KEY}
       # API Configuration
       DENDREO_API_KEY: ${DENDREO_API_KEY}
       DENDREO_BASE_URL: ${DENDREO_BASE_URL}
@@ -80,7 +83,7 @@ services:
   sync:
     build:
       context: ./back
-      dockerfile: Dockerfile.sync
+      dockerfile: Dockerfile.sync.prod
     container_name: dendreo_sync_prod
     env_file:
       - .env.prod
@@ -99,9 +102,13 @@ services:
       # Timezone configuration
       POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
       TZ: ${TZ:-Europe/Paris}
-      # Sync Configuration - Production schedule (8 AM daily)
-      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 8 * * *}
+      # Sync Configuration - Hourly cron check (DB config controls actual schedule)
+      SYNC_SCHEDULE: ${SYNC_SCHEDULE:-0 * * * *}
       DENDREO_ADF_LIMIT: ${DENDREO_ADF_LIMIT:-}
+      SKIP_STARTUP_SYNC: ${SKIP_STARTUP_SYNC:-true}
+      DISABLE_CRON_SCHEDULE: ${DISABLE_CRON_SCHEDULE:-false}
+    # Auto-migrate DB schema before starting cron/entrypoint
+    command: ["bash", "-lc", "echo '⏳ Waiting for database...'; until pg_isready -h postgres -p 5432 -U '$POSTGRES_USER' -d '$POSTGRES_DB' -t 3 >/dev/null 2>&1; do echo '...still waiting'; sleep 2; done; echo '✅ Database is ready'; python3 scripts/migrate_database.py || echo '⚠️  Migration failed or skipped'; exec /app/entrypoint.sh"]
     volumes:
       - ./logs:/app/logs:rw
       - sync_logs:/app/logs/sync
@@ -138,7 +145,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile.frontend.prod
       args:
         BRANCH: ${PROD_BRANCH:-main}
         REACT_APP_API_URL: /api
@@ -232,6 +239,33 @@ services:
     env_file:
       - .env.prod
 
+  # Netdata - Real-time Resource Monitoring
+  netdata:
+    image: netdata/netdata:stable
+    container_name: dendreo_netdata_prod
+    hostname: dendreo-prod
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    ports:
+      - "${NETDATA_PORT:-19999}:19999"
+    volumes:
+      - netdata_lib:/var/lib/netdata
+      - netdata_cache:/var/cache/netdata
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    networks:
+      - dendreo_network
+    restart: unless-stopped
+    env_file:
+      - .env.prod
+
 volumes:
   postgres_prod_data:
     driver: local
@@ -242,6 +276,10 @@ volumes:
   sync_logs:
     driver: local
   redis_prod_data:
+    driver: local
+  netdata_lib:
+    driver: local
+  netdata_cache:
     driver: local
 
 networks:

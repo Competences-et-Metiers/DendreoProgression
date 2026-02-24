@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Dict, Any
 from app.models.database import get_db
-from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData
+from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData, Creneau, CreneauParticipant
+from datetime import datetime, timezone
 from app.models.schemas import CourseWithParticipants, ParticipantCourse as ParticipantCourseSchema
 from app.schemas.course import CourseResponse, ModuleResponse
 from app.services.cache_service import cache_service
@@ -11,6 +12,35 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+def _get_last_liveroom_date(db: Session, participant_id: int, adf_id: str):
+    """Get the most recent attended liveroom date_fin for a participant in an ADF."""
+    now = datetime.now(timezone.utc)
+    result = (
+        db.query(Creneau.date_fin)
+        .join(CreneauParticipant, CreneauParticipant.creneau_id == Creneau.id)
+        .filter(
+            Creneau.id_action_formation == adf_id,
+            CreneauParticipant.participant_id == participant_id,
+            CreneauParticipant.presence == "1",
+            Creneau.date_fin <= now
+        )
+        .order_by(Creneau.date_fin.desc())
+        .first()
+    )
+    return result[0] if result else None
+
+def _resolve_last_activity(last_elearning, last_liveroom):
+    """Return (last_activity_datetime, source_string) from the most recent of both."""
+    if last_elearning and last_liveroom:
+        if last_elearning >= last_liveroom:
+            return last_elearning, "elearning"
+        return last_liveroom, "classe_virtuelle"
+    if last_elearning:
+        return last_elearning, "elearning"
+    if last_liveroom:
+        return last_liveroom, "classe_virtuelle"
+    return None, None
 
 @router.get("/stats")
 async def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
@@ -85,42 +115,21 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
             # Use the deduplicated participant count
             participant_count = len(participants_query)
             
-            # Check if this ADF has e-learning modules (based on module mode_organisation)
-            # Get all id_lam values for this ADF first
-            adf_lam_ids_check = db.query(Course.id_lam).filter(
-                Course.id_action_formation == id_adf
-            ).distinct().all()
-            
-            has_elearning_modules = False
-            if adf_lam_ids_check:
-                lam_ids_check = [lam_id[0] for lam_id in adf_lam_ids_check if lam_id[0]]
-                has_elearning_modules = db.query(Module).filter(
-                    Module.id_lam.in_(lam_ids_check),
-                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
-                ).first() is not None
-            
-            # Skip ADFs without e-learning modules (like "Bilan de compétences") 
-            # These courses can't have meaningful progression tracking
-            if not has_elearning_modules:
-                continue
-                
             # Count all modules for this ADF by matching id_lam (since course_id FK may not be set)
-            # Get all id_lam values for this ADF first
             adf_lam_ids = db.query(Course.id_lam).filter(
                 Course.id_action_formation == id_adf
             ).distinct().all()
-            
+
             if adf_lam_ids:
                 lam_ids_list = [lam_id[0] for lam_id in adf_lam_ids if lam_id[0]]
-                elearning_module_count = db.query(Module.id_lam).filter(
-                    Module.id_lam.in_(lam_ids_list),
-                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                module_count = db.query(Module.id_lam).filter(
+                    Module.id_lam.in_(lam_ids_list)
                 ).distinct().count()
             else:
-                elearning_module_count = 0
-            
-            # Also skip if no modules at all (empty courses)
-            if elearning_module_count == 0:
+                module_count = 0
+
+            # Skip if no modules at all (empty courses)
+            if module_count == 0:
                 continue
             
             participants_data = []
@@ -137,8 +146,7 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                     lam_ids_for_participant = [lam_id[0] for lam_id in adf_lam_ids_for_participant if lam_id[0]]
                     participant_modules = db.query(Module).filter(
                         Module.id_lam.in_(lam_ids_for_participant),
-                        Module.participant_id == participant.id,
-                        Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                        Module.participant_id == participant.id
                     ).all()
                 else:
                     participant_modules = []
@@ -165,6 +173,7 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                     "id_entreprise": participant.id_entreprise,
                     "overall_progression": round(calculated_progression, 2),
                     "activity_status": pc.activity_status,
+                    "total_time_spent": sum(module.lms_time_spent for module in participant_modules if module.lms_time_spent),
                     "hubspot_data": {
                         "c_url_transaction_hubspot": hubspot_data.c_url_transaction_hubspot if hubspot_data else None,
                         "c_id_transaction_hubspot": hubspot_data.c_id_transaction_hubspot if hubspot_data else None,
@@ -184,7 +193,8 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                 "id_action_formation": id_adf,
                 "intitule": adf_course.intitule,
                 "status": adf_course.status,
-                "total_modules": elearning_module_count,  # Count of unique e-learning modules by id_lam
+                "total_modules": module_count,
+                "planned_duration_hours": adf_course.planned_duration_hours,
                 "participant_count": participant_count,
                 "participants": participants_data,
                 "average_progression": round(float(avg_progression), 2),
@@ -200,6 +210,107 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
     except Exception as e:
         logger.error(f"Error fetching courses: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch courses: {str(e)}")
+
+@router.get("/courses/{course_id}/time-stats")
+async def get_course_time_stats(course_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Get time spent statistics for a specific course"""
+    try:
+        # Get course info
+        course = db.query(Course).filter(Course.id == course_id).first()
+        if not course:
+            raise HTTPException(status_code=404, detail="Course not found")
+        
+        # Get all modules for this course with time data
+        modules = db.query(Module).filter(
+            Module.course_id == course_id
+        ).all()
+        
+        # Calculate time statistics
+        total_time_spent = sum(module.lms_time_spent for module in modules if module.lms_time_spent)
+        avg_time_spent = total_time_spent / len(modules) if modules else 0
+        
+        # Get participant time data - aggregate by participant
+        participant_data = {}
+        for module in modules:
+            if module.participant:
+                participant_id = module.participant.id
+                if participant_id not in participant_data:
+                    participant_data[participant_id] = {
+                        "participant_id": participant_id,
+                        "participant_name": f"{module.participant.prenom} {module.participant.nom}",
+                        "participant_email": module.participant.email,
+                        "total_time_spent": 0,
+                        "total_progression": 0,
+                        "modules_count": 0,
+                        "earliest_started_at": None,
+                        "latest_completed_at": None,
+                        "modules": []
+                    }
+                
+                # Add module time to participant total
+                participant_data[participant_id]["total_time_spent"] += module.lms_time_spent or 0
+                participant_data[participant_id]["total_progression"] += module.lms_progression or 0
+                participant_data[participant_id]["modules_count"] += 1
+                
+                # Track earliest start and latest completion
+                if module.lms_started_at:
+                    if not participant_data[participant_id]["earliest_started_at"] or module.lms_started_at < participant_data[participant_id]["earliest_started_at"]:
+                        participant_data[participant_id]["earliest_started_at"] = module.lms_started_at
+                
+                if module.lms_completed_at:
+                    if not participant_data[participant_id]["latest_completed_at"] or module.lms_completed_at > participant_data[participant_id]["latest_completed_at"]:
+                        participant_data[participant_id]["latest_completed_at"] = module.lms_completed_at
+                
+                # Add module details
+                participant_data[participant_id]["modules"].append({
+                    "module_id": module.id,
+                    "module_title": module.intitule,
+                    "time_spent": module.lms_time_spent or 0,
+                    "progression": module.lms_progression or 0,
+                    "started_at": module.lms_started_at.isoformat() if module.lms_started_at else None,
+                    "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None
+                })
+        
+        # Convert to list and calculate averages
+        participant_time_data = []
+        for data in participant_data.values():
+            avg_progression = data["total_progression"] / data["modules_count"] if data["modules_count"] > 0 else 0
+            participant_time_data.append({
+                "participant_id": data["participant_id"],
+                "participant_name": data["participant_name"],
+                "participant_email": data["participant_email"],
+                "total_time_spent": data["total_time_spent"],
+                "average_progression": round(avg_progression, 2),
+                "modules_count": data["modules_count"],
+                "started_at": data["earliest_started_at"].isoformat() if data["earliest_started_at"] else None,
+                "completed_at": data["latest_completed_at"].isoformat() if data["latest_completed_at"] else None,
+                "modules": data["modules"]
+            })
+        
+        # Sort by total time spent (descending)
+        participant_time_data.sort(key=lambda x: x["total_time_spent"], reverse=True)
+        
+        return {
+            "course": {
+                "id": course.id,
+                "id_action_formation": course.id_action_formation,
+                "intitule": course.intitule,
+                "status": course.status
+            },
+            "time_statistics": {
+                "total_modules": len(modules),
+                "total_time_spent": total_time_spent,
+                "average_time_spent": round(avg_time_spent, 2),
+                "participants_with_time_data": len([m for m in modules if m.lms_time_spent > 0])
+            },
+            "participant_time_data": participant_time_data
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching course time stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch course time stats: {str(e)}")
 
 @router.get("/courses/{course_id}/participants")
 async def get_course_participants(course_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
@@ -239,36 +350,53 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 lam_ids_modules = [lam_id[0] for lam_id in adf_lam_ids_modules if lam_id[0]]
                 modules = db.query(Module).filter(
                     Module.id_lam.in_(lam_ids_modules),
-                    Module.participant_id == participant.id,
-                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                    Module.participant_id == participant.id
                 ).all()
             else:
                 modules = []
             
-            # Calculate progression properly: average of all module progressions
+            # Calculate progression: average of all module progressions
             if modules:
                 total_progression = sum(module.lms_progression for module in modules)
                 calculated_progression = total_progression / len(modules)
             else:
                 calculated_progression = 0.0
-            
+
             # Calculate completed modules (progression >= 100)
             completed_modules = sum(1 for module in modules if module.lms_progression >= 100)
             total_modules = len(modules)
             
-            # Get last activity from modules
-            last_activity = None
-            if modules:
-                last_activities = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
-                if last_activities:
-                    last_activity = max(last_activities).isoformat()
+            # Calculate total time spent across all modules
+            total_time_spent = sum(module.lms_time_spent or 0 for module in modules)
             
+            # Get earliest start and latest completion dates
+            earliest_started_at = None
+            latest_completed_at = None
+            if modules:
+                start_dates = [m.lms_started_at for m in modules if m.lms_started_at]
+                completion_dates = [m.lms_completed_at for m in modules if m.lms_completed_at]
+                if start_dates:
+                    earliest_started_at = min(start_dates).isoformat()
+                if completion_dates:
+                    latest_completed_at = max(completion_dates).isoformat()
+            
+            # Get last activity from e-learning modules
+            last_elearning = None
+            if modules:
+                elearning_dates = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
+                if elearning_dates:
+                    last_elearning = max(elearning_dates)
+
+            # Get last liveroom attendance
+            last_liveroom = _get_last_liveroom_date(db, participant.id, course.id_action_formation)
+            last_activity, last_activity_source = _resolve_last_activity(last_elearning, last_liveroom)
+
             # Get HubSpot data for this participant and ADF
             hubspot_data = db.query(ParticipantHubspotData).filter(
                 ParticipantHubspotData.participant_id == participant.id,
                 ParticipantHubspotData.id_action_formation == course.id_action_formation
             ).first()
-            
+
             participants_data.append({
                 "id": participant.id,
                 "id_participant": participant.id_participant,
@@ -278,9 +406,14 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "id_entreprise": participant.id_entreprise,
                 "overall_progression": round(calculated_progression, 2),  # Use calculated progression
                 "activity_status": pc.activity_status,
-                "last_activity": last_activity,
+                "date_add": pc.date_add.isoformat() if pc.date_add else None,
+                "last_activity": last_activity.isoformat() if last_activity else None,
+                "last_activity_source": last_activity_source,
                 "completed_modules": completed_modules,
                 "total_modules": total_modules,
+                "total_time_spent": total_time_spent,
+                "started_at": earliest_started_at,
+                "completed_at": latest_completed_at,
                 "hubspot_data": {
                     "c_url_transaction_hubspot": hubspot_data.c_url_transaction_hubspot if hubspot_data else None,
                     "c_id_transaction_hubspot": hubspot_data.c_id_transaction_hubspot if hubspot_data else None,
@@ -294,7 +427,10 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                         "intitule": module.intitule,
                         "progression": module.lms_progression,
                         "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
-                        "mode_organisation": module.mode_organisation
+                        "mode_organisation": module.mode_organisation,
+                        "time_spent": module.lms_time_spent,
+                        "started_at": module.lms_started_at.isoformat() if module.lms_started_at else None,
+                        "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None
                     } for module in modules
                 ]
             })
@@ -309,20 +445,21 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "id_lam": course.id_lam,
                 "intitule": course.intitule,
                 "status": course.status,
+                "planned_duration_hours": course.planned_duration_hours,
                 "total_modules": db.query(Module.id_lam).filter(
                     Module.id_lam.in_([lam_id[0] for lam_id in db.query(Course.id_lam).filter(
                         Course.id_action_formation == course.id_action_formation
-                    ).distinct().all() if lam_id[0]]),
-                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                    ).distinct().all() if lam_id[0]])
                 ).distinct().count() if db.query(Course.id_lam).filter(
                     Course.id_action_formation == course.id_action_formation
-                ).distinct().all() else 0  # Count unique e-learning modules by id_lam for the entire ADF
+                ).distinct().all() else 0
             },
             "participants": participants_data,
             "summary": {
                 "total_participants": len(participants_data),
                 "completed_participants": sum(1 for p in participants_data if p["overall_progression"] >= 100),
-                "average_progression": sum(p["overall_progression"] for p in participants_data) / len(participants_data) if participants_data else 0
+                "average_progression": sum(p["overall_progression"] for p in participants_data) / len(participants_data) if participants_data else 0,
+                "total_time_spent": sum(p["total_time_spent"] for p in participants_data)
             }
         }
         
@@ -379,8 +516,7 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                 lam_ids_details = [lam_id[0] for lam_id in adf_lam_ids_details if lam_id[0]]
                 modules = db.query(Module).filter(
                     Module.id_lam.in_(lam_ids_details),
-                    Module.participant_id == participant.id,
-                    Module.mode_organisation == 'elearning_async'  # Now all modules have proper values
+                    Module.participant_id == participant.id
                 ).all()
             else:
                 modules = []
@@ -394,21 +530,35 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
             else:
                 calculated_progression = 0.0
             
-            # Get last activity from modules
-            last_activity = None
+            # Get last activity from e-learning modules
+            last_elearning = None
             if modules:
-                last_activities = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
-                if last_activities:
-                    last_activity = max(last_activities).isoformat()
-            
+                elearning_dates = [m.lms_last_access_at for m in modules if m.lms_last_access_at]
+                if elearning_dates:
+                    last_elearning = max(elearning_dates)
+
+            # Get last liveroom attendance
+            last_liveroom = _get_last_liveroom_date(db, participant.id, adf_id)
+            last_activity, last_activity_source = _resolve_last_activity(last_elearning, last_liveroom)
+
+            # Calculate total time spent across all modules for this participant in this course
+            total_time_spent = sum(module.lms_time_spent or 0 for module in modules)
+
+            # Get planned duration from the course
+            planned_duration_hours = course.planned_duration_hours or 0
+
             courses_data.append({
                 "course_id": course.id,
                 "course_title": course.intitule,
                 "progression": calculated_progression,
                 "activity_status": pc.activity_status,
-                "last_activity": last_activity,
+                "date_add": pc.date_add.isoformat() if pc.date_add else None,
+                "last_activity": last_activity.isoformat() if last_activity else None,
+                "last_activity_source": last_activity_source,
                 "completed_modules": completed_modules,
                 "total_modules": len(modules),
+                "total_time_spent": total_time_spent,
+                "planned_duration_hours": planned_duration_hours,
                 "modules": [
                     {
                         "id": module.id,
@@ -417,7 +567,10 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                         "intitule": module.intitule,
                         "progression": module.lms_progression,
                         "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
-                        "mode_organisation": module.mode_organisation
+                        "mode_organisation": module.mode_organisation,
+                        "time_spent": module.lms_time_spent,
+                        "started_at": module.lms_started_at.isoformat() if module.lms_started_at else None,
+                        "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None
                     } for module in modules
                 ]
             })

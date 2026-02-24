@@ -1,0 +1,394 @@
+# Dendreo Sync Deployment Guide
+
+This guide covers the best practices for deploying the Dendreo sync process on your remote server.
+
+## 📋 Overview
+
+The sync process has been separated from the main API into standalone scripts for better security and reliability. You have two main options for scheduling the sync:
+
+1. **Cron Jobs** (Traditional Unix scheduling)
+2. **Systemd Timer** (Modern Linux service scheduling)
+
+## 🚀 Quick Setup
+
+### 1. Make Scripts Executable
+
+```bash
+chmod +x back/scripts/sync_dendreo.py
+chmod +x back/scripts/setup_sync_cron.sh
+chmod +x back/scripts/sync_health_check.py
+```
+
+### 2. Test the Sync Script
+
+```bash
+# Test with dry run (no database changes)
+python3 back/scripts/sync_dendreo.py --dry-run
+
+# Test actual sync
+python3 back/scripts/sync_dendreo.py --force
+
+# Sync a single ADF (by id_action_formation)
+python3 back/scripts/sync_dendreo.py --adf 124
+```
+
+### 3. Set Up Automated Scheduling
+
+Choose one of the following methods:
+
+## 🕐 Option 1: Cron Jobs (Recommended)
+
+### Setup
+
+```bash
+# Run the setup script (creates wrapper script and shows instructions)
+cd back/scripts
+./setup_sync_cron.sh
+
+# Follow the instructions to install the cron job
+# Example: Run every 6 hours
+echo "0 */6 * * * /home/cm/DendreoProgression/back/scripts/sync_wrapper.sh" | crontab -
+```
+
+### Verify Cron Job
+
+```bash
+# Check installed cron jobs
+crontab -l
+
+# Check cron service status
+sudo systemctl status cron
+```
+
+## ⚙️ Option 2: Systemd Timer (Advanced)
+
+### Setup
+
+```bash
+# Copy service files to systemd directory
+sudo cp back/scripts/dendreo-sync.service /etc/systemd/system/
+sudo cp back/scripts/dendreo-sync.timer /etc/systemd/system/
+
+# Edit service file to match your paths
+sudo nano /etc/systemd/system/dendreo-sync.service
+# Update paths to match your installation
+
+# Reload systemd and enable timer
+sudo systemctl daemon-reload
+sudo systemctl enable dendreo-sync.timer
+sudo systemctl start dendreo-sync.timer
+```
+
+### Verify Systemd Timer
+
+```bash
+# Check timer status
+sudo systemctl status dendreo-sync.timer
+
+# List all timers
+sudo systemctl list-timers
+
+# View logs
+sudo journalctl -u dendreo-sync.service -f
+```
+
+## 🔒 Security Configuration
+
+### 1. API Key Protection
+
+Add to your `.env.prod` file:
+
+```bash
+# Optional: Protect sync API endpoints
+SYNC_API_KEY=your-super-secret-sync-key-here
+```
+
+### 2. Firewall Rules
+
+If you want to keep the API endpoints accessible (not recommended for production):
+
+```bash
+# Allow access only from specific IP ranges
+sudo ufw allow from 192.168.254.0/24 to any port 8000
+
+# Or create a more restrictive rule
+sudo ufw allow from 192.168.254.24 to any port 8000
+```
+
+### 3. Disable API Endpoints (Recommended)
+
+Comment out or remove the sync endpoints from `back/app/api/routes/sync.py`:
+
+```python
+# @router.post("/sync-all")
+# async def sync_all(...):
+#     ...
+```
+
+## 📊 Monitoring and Health Checks
+
+### 1. Manual Health Check
+
+```bash
+# Human-readable format
+python3 back/scripts/sync_health_check.py
+
+# JSON format
+python3 back/scripts/sync_health_check.py --format json
+
+# Nagios/monitoring format
+python3 back/scripts/sync_health_check.py --nagios --exit-code
+```
+
+### 2. Automated Monitoring
+
+Add to your monitoring system (e.g., Nagios, Zabbix):
+
+```bash
+# Check every 30 minutes
+*/30 * * * * /usr/bin/python3 /home/cm/DendreoProgression/back/scripts/sync_health_check.py --nagios --exit-code
+```
+
+## 📝 Log Management
+
+### Log Files Locations
+
+```bash
+# Sync logs (daily rotation)
+back/logs/sync_YYYYMMDD.log
+
+# Cron logs
+back/logs/cron_sync.log
+
+# Systemd logs
+sudo journalctl -u dendreo-sync.service
+```
+
+### Log Rotation
+
+Create `/etc/logrotate.d/dendreo-sync`:
+
+```bash
+/home/cm/DendreoProgression/back/logs/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 cm cm
+}
+```
+
+## 🛠️ Troubleshooting
+
+### 1. Check Sync Status
+
+```bash
+# Check last sync status
+python3 back/scripts/sync_health_check.py
+
+# Check database directly
+psql -h localhost -U your_user -d your_db -c "SELECT * FROM sync_metadata ORDER BY last_sync_at DESC LIMIT 1;"
+```
+
+### 2. Debug Mode
+
+```bash
+# Run sync with debug logging
+python3 back/scripts/sync_dendreo.py --log-level DEBUG
+
+# Force sync (ignore recent syncs)
+python3 back/scripts/sync_dendreo.py --force
+
+# Sync a single ADF without triggering full sync or metadata tracking
+python3 back/scripts/sync_dendreo.py --adf 124
+```
+
+### 3. Common Issues
+
+**Environment Variables Not Loaded**
+```bash
+# Check if environment file exists
+ls -la /home/cm/DendreoProgression/.env.prod
+
+# Test environment loading
+cd /home/cm/DendreoProgression/back
+python3 -c "from app.config.settings import settings; print(settings.database_url)"
+```
+
+**Permission Issues**
+```bash
+# Fix log directory permissions
+sudo chown -R cm:cm /home/cm/DendreoProgression/back/logs
+chmod 755 /home/cm/DendreoProgression/back/logs
+```
+
+**Database Connection Issues**
+```bash
+# Test database connectivity
+python3 -c "from app.models.database import engine; from sqlalchemy import text; engine.connect().execute(text('SELECT 1'))"
+```
+
+## 🔄 Sync Schedule Recommendations
+
+### Production Environment
+
+- **Every 6 hours**: `0 */6 * * *` (00:00, 06:00, 12:00, 18:00)
+- **Every 4 hours**: `0 */4 * * *` (00:00, 04:00, 08:00, 12:00, 16:00, 20:00)
+
+### Development Environment
+
+- **Every 2 hours**: `0 */2 * * *`
+- **Every 30 minutes**: `*/30 * * * *`
+
+## 📈 Performance Optimization
+
+### 1. Database Optimization
+
+```sql
+-- Create indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_sync_metadata_type_date ON sync_metadata(sync_type, last_sync_at);
+CREATE INDEX IF NOT EXISTS idx_participant_courses_participant ON participant_courses(participant_id);
+CREATE INDEX IF NOT EXISTS idx_modules_participant_lam ON modules(participant_id, id_lam);
+```
+
+### 2. Environment Variables
+
+**Sync Control Options:**
+
+| Variable | Default | Effect | Use Case |
+|----------|---------|--------|----------|
+| `SKIP_STARTUP_SYNC` | `false` | Skips sync when container starts | Testing, manual control |
+| `DISABLE_CRON_SCHEDULE` | `false` | Disables scheduled cron syncs entirely | Emergency, API quota issues, manual-only mode |
+| `DENDREO_ADF_LIMIT` | unlimited | Limits number of ADFs processed | Testing, gradual rollout |
+| `SYNC_SCHEDULE` | `0 8 * * *` | Cron schedule for automatic syncs | Change sync timing |
+
+**Common Combinations:**
+
+```bash
+# Normal production (syncs on boot + daily at 8 AM)
+SKIP_STARTUP_SYNC=false
+DISABLE_CRON_SCHEDULE=false
+
+# Manual-only mode (no automatic syncs at all)
+SKIP_STARTUP_SYNC=true
+DISABLE_CRON_SCHEDULE=true
+
+# Boot once, then scheduled (skip initial sync, but cron runs daily)
+SKIP_STARTUP_SYNC=true
+DISABLE_CRON_SCHEDULE=false
+
+# Emergency restart (when API quota exhausted)
+SKIP_STARTUP_SYNC=true
+DISABLE_CRON_SCHEDULE=true
+```
+
+**Full Configuration Example** (add to `.env.prod`):
+
+```bash
+# Sync timing and control
+SYNC_SCHEDULE="0 8 * * 1-5"           # 8 AM Monday-Friday
+SKIP_STARTUP_SYNC=false               # Run sync on container startup
+DISABLE_CRON_SCHEDULE=false           # Enable scheduled syncs
+
+# Sync limits
+DENDREO_ADF_LIMIT=                    # Unlimited (leave empty for production)
+
+# Redis configuration
+REDIS_ENABLED=true
+REDIS_URL=redis://localhost:6379/0
+```
+
+## 🚨 Emergency Procedures
+
+### 1. Restart Production Without Syncing (API Quota Exhausted)
+
+If you've hit API limits and need to restart prod infrastructure without triggering any syncs:
+
+```bash
+# Set both skip flags in .env.prod or inline
+SKIP_STARTUP_SYNC=true DISABLE_CRON_SCHEDULE=true ./deploy-prod.sh
+
+# Or add to .env.prod:
+# SKIP_STARTUP_SYNC=true
+# DISABLE_CRON_SCHEDULE=true
+# Then run: ./deploy-prod.sh
+```
+
+This will:
+- ✅ Start all services (nginx, backend, postgres, redis, sync container)
+- ✅ Keep sync container alive for manual commands
+- ❌ Skip startup sync
+- ❌ Skip setting up cron schedule
+
+**To manually sync later:**
+```bash
+# Enter sync container
+docker compose -f docker-compose.prod.yml exec sync bash
+
+# Run manual sync
+python3 scripts/sync_dendreo.py --force
+```
+
+### 2. Stop Sync Process (Old Method - Not Recommended)
+
+```bash
+# If using cron
+crontab -r  # Remove all cron jobs (or edit with crontab -e)
+
+# If using systemd
+sudo systemctl stop dendreo-sync.timer
+sudo systemctl disable dendreo-sync.timer
+```
+
+### 4. Reset Stuck Sync
+
+```bash
+# Method 1: From host (postgres must be running)
+docker compose -f docker-compose.prod.yml exec postgres \
+  psql -U postgres -d dendreo_prod_db -c \
+  "UPDATE sync_metadata SET status='error', error_message='Manually cleared - interrupted sync' WHERE status='in_progress';"
+
+# Method 2: Using provided script
+docker compose -f docker-compose.prod.yml exec sync \
+  python3 scripts/sync_dendreo.py --cleanup-stuck
+```
+
+### 5. Manual Sync Commands
+
+```bash
+# Dry run (no changes, test API connectivity)
+docker compose -f docker-compose.prod.yml exec sync \
+  python3 scripts/sync_dendreo.py --dry-run
+
+# Force immediate sync
+docker compose -f docker-compose.prod.yml exec sync \
+  python3 scripts/sync_dendreo.py --force --log-level DEBUG
+
+# Sync specific ADF only
+docker compose -f docker-compose.prod.yml exec sync \
+  python3 scripts/sync_dendreo.py --adf 124
+```
+
+## 📋 Deployment Checklist
+
+- [ ] Scripts are executable
+- [ ] Environment variables configured
+- [ ] Database connectivity tested
+- [ ] Sync script tested with `--dry-run`
+- [ ] Cron job or systemd timer configured
+- [ ] Log rotation configured
+- [ ] Monitoring/health checks set up
+- [ ] API endpoints secured or disabled
+- [ ] Firewall rules configured
+- [ ] Documentation updated
+
+## 🎯 Next Steps
+
+1. **Test the setup** with a dry run
+2. **Monitor the first few sync cycles** to ensure everything works
+3. **Set up alerting** for failed syncs
+4. **Document your specific configuration** for your team
+
+For questions or issues, check the logs first, then refer to the troubleshooting section above. 

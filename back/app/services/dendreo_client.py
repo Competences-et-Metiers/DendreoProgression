@@ -1,10 +1,16 @@
 import httpx
 import logging
 import json
+import asyncio
+import os
 from typing import Dict, Any, List, Optional
+from collections import deque
+from datetime import datetime, timedelta
 from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+SYNC_API_COUNTERS_PATH = "/tmp/sync_api_counters.json"
 
 class DendreoAPIError(Exception):
     """Custom exception for Dendreo API errors"""
@@ -20,27 +26,88 @@ class DendreoClient:
 
         self.base_url = settings.dendreo_base_url.rstrip('/')  # Remove trailing slash if present
         self.api_key = settings.dendreo_api_key
-        
+
+        # Rate limiting configuration (100 requests per 10 seconds as per Dendreo's limit)
+        # Default to 90 to leave headroom for other third-party services sharing the API quota
+        self.rate_limit_requests = int(os.getenv('DENDREO_RATE_LIMIT_REQUESTS', '90'))
+        self.rate_limit_window = int(os.getenv('DENDREO_RATE_LIMIT_WINDOW', '10'))  # 10 seconds
+        self.request_timestamps = deque()  # Track request timestamps for rate limiting
+        self.total_requests = 0  # Track total requests made during sync
+
         logger.info(f"Initialized DendreoClient with base URL: {self.base_url}")
+        logger.info(f"Rate limiting: {self.rate_limit_requests} requests per {self.rate_limit_window} seconds")
+
+    async def _wait_for_rate_limit(self):
+        """Wait if we're at the rate limit to comply with API constraints"""
+        now = datetime.now()
+        cutoff_time = now - timedelta(seconds=self.rate_limit_window)
+
+        # Remove timestamps older than the rate limit window
+        while self.request_timestamps and self.request_timestamps[0] < cutoff_time:
+            self.request_timestamps.popleft()
+
+        # If we're at or over the limit, wait until we can make another request
+        if len(self.request_timestamps) >= self.rate_limit_requests:
+            # Calculate how long to wait (time until oldest timestamp expires + small buffer)
+            oldest_timestamp = self.request_timestamps[0]
+            wait_until = oldest_timestamp + timedelta(seconds=self.rate_limit_window + 0.1)
+            wait_seconds = (wait_until - now).total_seconds()
+
+            if wait_seconds > 0:
+                logger.warning(
+                    f"⏳ Rate limit reached ({len(self.request_timestamps)}/{self.rate_limit_requests} "
+                    f"requests in {self.rate_limit_window}s). Waiting {wait_seconds:.2f}s..."
+                )
+                await asyncio.sleep(wait_seconds)
+
+                # Clean up old timestamps again after waiting
+                now = datetime.now()
+                cutoff_time = now - timedelta(seconds=self.rate_limit_window)
+                while self.request_timestamps and self.request_timestamps[0] < cutoff_time:
+                    self.request_timestamps.popleft()
+
+    def _write_api_counter(self):
+        """Write current API counter to shared file for live monitoring."""
+        import tempfile
+        try:
+            counter_data = json.dumps({"dendreo": self.total_requests, "hubspot": 0})
+            fd, tmp_path = tempfile.mkstemp(dir="/tmp", prefix="sync_api_")
+            with os.fdopen(fd, 'w') as f:
+                f.write(counter_data)
+            os.replace(tmp_path, SYNC_API_COUNTERS_PATH)
+        except Exception:
+            pass  # Non-critical, don't fail the sync
 
     async def _make_request(self, endpoint: str, params: Dict[str, Any] = None) -> Any:
-        """Make a request to the Dendreo API"""
+        """Make a request to the Dendreo API with rate limiting"""
+        # Wait if we're at the rate limit
+        await self._wait_for_rate_limit()
+
         url = f"{self.base_url}/{endpoint}"
         params = params or {}
         params['key'] = self.api_key
 
-        logger.info(f"Making request to Dendreo API: {url}")
+        # Record this request timestamp
+        self.request_timestamps.append(datetime.now())
+        self.total_requests += 1
+        self._write_api_counter()
+
+        # Log progress every 50 requests
+        if self.total_requests % 50 == 0:
+            logger.info(f"📊 API requests: {self.total_requests} total, {len(self.request_timestamps)} in last {self.rate_limit_window}s")
+        else:
+            logger.debug(f"Making request to Dendreo API: {url}")
 
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(url, params=params, timeout=30.0)
-                
+                response = await client.get(url, params=params, timeout=120.0)
+
                 if response.status_code == 401:
                     raise DendreoAPIError("Invalid API key or unauthorized access")
-                
+
                 if response.status_code == 404:
                     raise DendreoAPIError(f"API endpoint not found: {url}")
-                
+
                 response.raise_for_status()
                 return response.json()
 
@@ -57,8 +124,8 @@ class DendreoClient:
         return await self._make_request("lmps.php", params)
 
     async def get_actions_de_formation(self) -> List[Dict[str, Any]]:
-        """Get all Actions de Formation (ADFs) with modules and participant data"""
-        params = {"include": "modules,participant,etapeProcess,mode_organisation"}
+        """Get all Actions de Formation (ADFs) with modules, participant, and formateur data"""
+        params = {"include": "modules,participant,etapeProcess,mode_organisation,formateurs"}
         return await self._make_request("actions_de_formation.php", params)
 
     async def get_laps(self, id_action_formation: str) -> List[Dict[str, Any]]:
@@ -73,6 +140,41 @@ class DendreoClient:
             logger.warning(f"No LAPS data found for ADF {id_action_formation}")
             return []
 
+    async def get_creneaux(self, id_action_formation: str) -> List[Dict[str, Any]]:
+        """Get all creneaux (liveroom sessions) for a specific ADF, including LCPs (attendance)"""
+        params = {
+            "id_action_de_formation": id_action_formation,
+            "include": "lcps"
+        }
+        try:
+            response = await self._make_request("creneaux.php", params)
+            return response if response and isinstance(response, list) else []
+        except DendreoAPIError:
+            logger.warning(f"No creneaux data found for ADF {id_action_formation}")
+            return []
+
+    async def get_module_categories(self) -> List[Dict[str, Any]]:
+        """Get all module categories from Dendreo"""
+        try:
+            response = await self._make_request("categories_module.php")
+            return response if response and isinstance(response, list) else []
+        except DendreoAPIError:
+            logger.warning("No module categories data found")
+            return []
+
+    async def get_lmps_for_lap(self, id_lap: str) -> List[Dict[str, Any]]:
+        """Get LMPs data for a specific LAP (participant enrollment)"""
+        params = {
+            "id_lap": id_lap,
+            "include": "participant,module"
+        }
+        try:
+            response = await self._make_request("lmps.php", params)
+            return response if response and isinstance(response, list) else []
+        except DendreoAPIError:
+            logger.warning(f"No LMPs data found for LAP {id_lap}")
+            return []
+
     async def get_lmps_data(self) -> List[Dict[str, Any]]:
         """Legacy method - use get_lmps() instead"""
         return await self.get_lmps()
@@ -81,6 +183,33 @@ class DendreoClient:
         """Get data for a specific course by its LAM ID"""
         data = await self.get_lmps()
         return next((lmp for lmp in data if lmp.get("id_lam") == course_id), {})
+
+    def get_rate_limit_stats(self) -> Dict[str, Any]:
+        """Get current rate limiting statistics"""
+        now = datetime.now()
+        cutoff_time = now - timedelta(seconds=self.rate_limit_window)
+
+        # Count requests in current window
+        current_window_count = sum(1 for ts in self.request_timestamps if ts >= cutoff_time)
+
+        return {
+            "total_requests": self.total_requests,
+            "requests_in_current_window": current_window_count,
+            "rate_limit": f"{self.rate_limit_requests} requests per {self.rate_limit_window}s",
+            "percentage_of_limit": f"{(current_window_count / self.rate_limit_requests * 100):.1f}%"
+        }
+
+    def reset_rate_limit_stats(self):
+        """Reset rate limiting statistics (useful at start of new sync)"""
+        self.request_timestamps.clear()
+        self.total_requests = 0
+        # Clear counter file at sync start
+        try:
+            with open(SYNC_API_COUNTERS_PATH, 'w') as f:
+                json.dump({"dendreo": 0, "hubspot": 0}, f)
+        except Exception:
+            pass
+        logger.info("🔄 Rate limiting statistics reset")
 
 # Create client instance
 dendreo_client = DendreoClient()

@@ -1,0 +1,365 @@
+"""
+Inactivity Tracking Service
+
+Assesses participant inactivity based on learning progression changes over time,
+not login/connection events. Uses two thresholds to classify participants as
+active, at_risk, or inactive.
+"""
+
+from sqlalchemy.orm import Session
+from datetime import datetime, timezone
+from typing import List, Dict, Optional
+from app.models.models import Participant, ParticipantCourse, Course, Module, Creneau, CreneauParticipant, ModuleCategory
+from app.models.schemas import (
+    InactiveParticipantDetail,
+    InactiveParticipantsByCourse,
+    InactivitySummary
+)
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class InactivityService:
+    """Service for tracking and reporting participant inactivity"""
+
+    def __init__(
+        self,
+        db: Session,
+        at_risk_threshold_days: int = 14,
+        inactivity_threshold_days: int = 30,
+        exclude_recent_enrollments_days: int = 0
+    ):
+        self.db = db
+        self.at_risk_threshold = at_risk_threshold_days
+        self.inactivity_threshold = inactivity_threshold_days
+        self.exclude_recent_threshold = exclude_recent_enrollments_days
+
+    def get_participants(
+        self,
+        group_by_course: bool = False,
+        course_id: Optional[int] = None,
+        min_progression: Optional[float] = None,
+        max_progression: Optional[float] = None
+    ) -> InactivitySummary:
+        """
+        Get all non-completed participants grouped by ADF, classified as
+        active / at_risk / inactive.
+        """
+        now = datetime.now(timezone.utc)
+
+        # Build category lookup map: {id_categorie_module: {name, color}}
+        category_map = {}
+        for cat in self.db.query(ModuleCategory).all():
+            category_map[cat.id_categorie_module] = {
+                'name': cat.intitule,
+                'color': cat.color
+            }
+
+        # Pre-build set of (participant_id, adf_id) with liveroom attendance
+        # so we include participants who only have liveroom activity (no LMS access)
+        liveroom_pairs = set()
+        liveroom_results = (
+            self.db.query(CreneauParticipant.participant_id, Creneau.id_action_formation)
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(CreneauParticipant.presence == "1")
+            .distinct()
+            .all()
+        )
+        for pid, adf in liveroom_results:
+            liveroom_pairs.add((pid, adf))
+
+        # Pre-build liveroom duration maps for time tracking
+        # Map: adf_id -> total planned duration (seconds) from all creneaux
+        liveroom_total_durations: Dict[str, int] = {}
+        for creneau in self.db.query(Creneau.id_action_formation, Creneau.duration).all():
+            adf = creneau.id_action_formation
+            liveroom_total_durations[adf] = liveroom_total_durations.get(adf, 0) + (creneau.duration or 0)
+
+        # Map: (participant_id, adf_id) -> time spent (seconds) from attended creneaux
+        liveroom_time_spent_map: Dict[tuple, int] = {}
+        attended_rows = (
+            self.db.query(CreneauParticipant.participant_id, Creneau.id_action_formation, Creneau.duration)
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(CreneauParticipant.presence == "1")
+            .all()
+        )
+        for pid, adf, duration in attended_rows:
+            key = (pid, adf)
+            liveroom_time_spent_map[key] = liveroom_time_spent_map.get(key, 0) + (duration or 0)
+
+        query = (
+            self.db.query(ParticipantCourse, Participant, Course)
+            .join(Participant, ParticipantCourse.participant_id == Participant.id)
+            .join(Course, ParticipantCourse.course_id == Course.id)
+            .filter(Course.status.in_(['5', '6', '7']))
+        )
+
+        if course_id:
+            course = self.db.query(Course).filter(Course.id == course_id).first()
+            if course:
+                query = query.filter(Course.id_action_formation == course.id_action_formation)
+
+        enrollments = query.all()
+
+        # Group by (participant_id, id_action_formation) to aggregate LAMs
+        adf_groups = {}
+        for pc, participant, course in enrollments:
+            key = (participant.id, course.id_action_formation)
+            if key not in adf_groups:
+                adf_groups[key] = {
+                    'participant': participant,
+                    'adf_id': course.id_action_formation,
+                    'adf_title': course.intitule,
+                    'enrollments': []
+                }
+            adf_groups[key]['enrollments'].append({
+                'participant_course': pc,
+                'course': course
+            })
+
+        stats = {
+            'total_checked': len(adf_groups),
+            'active': 0,
+            'at_risk': 0,
+            'inactive': 0,
+            'never_started': 0,
+            'newly_enrolled_excluded': 0
+        }
+
+        all_details: List[InactiveParticipantDetail] = []
+        by_course_map: Dict[str, List[InactiveParticipantDetail]] = {}
+
+        for (participant_id, adf_id), group_data in adf_groups.items():
+            participant = group_data['participant']
+            enrollments = group_data['enrollments']
+
+            # E-learning last activity
+            elearning_last_activities = [e['participant_course'].last_activity for e in enrollments
+                             if e['participant_course'].last_activity]
+            last_elearning = max(elearning_last_activities) if elearning_last_activities else None
+
+            has_liveroom = (participant_id, adf_id) in liveroom_pairs
+
+            # Liveroom last attended (only sessions where participant was present)
+            last_liveroom = self._get_last_liveroom_date(participant_id, adf_id) if has_liveroom else None
+
+            # Determine effective last activity and its source
+            last_activity = None
+            last_activity_source = None
+
+            if last_elearning and last_liveroom:
+                if last_elearning >= last_liveroom:
+                    last_activity = last_elearning
+                    last_activity_source = "elearning"
+                else:
+                    last_activity = last_liveroom
+                    last_activity_source = "classe_virtuelle"
+            elif last_elearning:
+                last_activity = last_elearning
+                last_activity_source = "elearning"
+            elif last_liveroom:
+                last_activity = last_liveroom
+                last_activity_source = "classe_virtuelle"
+
+            # Get earliest enrollment date (prefer date_add from Dendreo, fallback to created_at)
+            enrollment_dates = []
+            for e in enrollments:
+                pc = e['participant_course']
+                date = pc.date_add if pc.date_add else pc.created_at
+                if date:
+                    enrollment_dates.append(date)
+            enrollment_date = min(enrollment_dates) if enrollment_dates else None
+
+            elearning_duration = sum(e['course'].planned_duration_hours or 0.0 for e in enrollments)
+
+            # Liveroom time tracking
+            lr_total_seconds = liveroom_total_durations.get(adf_id, 0)
+            lr_spent_seconds = liveroom_time_spent_map.get((participant_id, adf_id), 0)
+            lr_planned_hours = lr_total_seconds / 3600.0
+            lr_spent_hours = lr_spent_seconds / 3600.0
+
+            total_duration = elearning_duration + lr_planned_hours
+
+            # Query all LAMs for this ADF (same as course detail page)
+            adf_lam_rows = self.db.query(Course.id_lam).filter(
+                Course.id_action_formation == adf_id
+            ).distinct().all()
+            lam_ids = [row[0] for row in adf_lam_rows if row[0]]
+            if lam_ids:
+                all_modules = self.db.query(Module).filter(
+                    Module.participant_id == participant.id,
+                    Module.id_lam.in_(lam_ids)
+                ).all()
+            else:
+                all_modules = []
+
+            elearning_time_spent_seconds = sum(m.lms_time_spent or 0 for m in all_modules)
+            total_time_spent_hours = (elearning_time_spent_seconds / 3600.0) + lr_spent_hours
+
+            # Compute progression from all module data (same as course detail page)
+            if all_modules:
+                avg_progression = sum(m.lms_progression or 0 for m in all_modules) / len(all_modules)
+            else:
+                avg_progression = 0.0
+
+            # Skip fully completed participants
+            if avg_progression >= 100.0:
+                continue
+
+            if min_progression is not None and avg_progression < min_progression:
+                continue
+            if max_progression is not None and avg_progression > max_progression:
+                continue
+
+            days_since_activity = (now - last_activity).days if last_activity else 0
+            days_since_enrollment = (now - enrollment_date).days if enrollment_date else 0
+
+            # Exclude recently enrolled participants
+            if days_since_enrollment < self.exclude_recent_threshold:
+                stats['newly_enrolled_excluded'] += 1
+                continue
+
+            # Classify: never_started if no activity at all, otherwise use thresholds
+            if not last_activity:
+                inactivity_status = 'never_started'
+                inactivity_reason = 'Never started'
+            else:
+                inactivity_status, inactivity_reason = self._classify(days_since_activity)
+
+            stats[inactivity_status] += 1
+
+            formateurs = enrollments[0]['course'].formateurs if enrollments[0]['course'].formateurs else None
+
+            # Look up category from first course in the group
+            cat_id = enrollments[0]['course'].categorie_module_id
+            cat_info = category_map.get(cat_id, {}) if cat_id else {}
+
+            detail = InactiveParticipantDetail(
+                id=participant.id,
+                id_participant=participant.id_participant,
+                nom=participant.nom,
+                prenom=participant.prenom,
+                email=participant.email,
+                course_id=enrollments[0]['course'].id,
+                course_title=group_data['adf_title'],
+                id_action_formation=adf_id,
+                total_modules=len(enrollments),
+                total_planned_duration_hours=total_duration,
+                total_time_spent_hours=total_time_spent_hours,
+                liveroom_planned_duration_hours=lr_planned_hours,
+                liveroom_time_spent_hours=lr_spent_hours,
+                current_progression=avg_progression,
+                last_activity=last_activity,
+                last_activity_source=last_activity_source,
+                days_inactive=days_since_activity,
+                enrollment_date=enrollment_date,
+                days_since_enrollment=days_since_enrollment,
+                inactivity_status=inactivity_status,
+                inactivity_reason=inactivity_reason,
+                formateurs=formateurs,
+                category_name=cat_info.get('name'),
+                category_color=cat_info.get('color')
+            )
+
+            all_details.append(detail)
+
+            if group_by_course:
+                if adf_id not in by_course_map:
+                    by_course_map[adf_id] = []
+                by_course_map[adf_id].append(detail)
+
+        total_participants = stats['active'] + stats['at_risk'] + stats['inactive'] + stats['never_started']
+
+        summary_kwargs = dict(
+            total_participants_checked=stats['total_checked'],
+            total_participants=total_participants,
+            active_count=stats['active'],
+            at_risk_count=stats['at_risk'],
+            inactive_count=stats['inactive'],
+            never_started_count=stats['never_started'],
+            newly_enrolled_excluded=stats['newly_enrolled_excluded'],
+            at_risk_threshold_days=self.at_risk_threshold,
+            inactivity_threshold_days=self.inactivity_threshold,
+            exclude_recent_enrollments_days=self.exclude_recent_threshold
+        )
+
+        if group_by_course:
+            grouped = self._build_adf_groups(by_course_map)
+            return InactivitySummary(by_course=grouped, participants=None, **summary_kwargs)
+        else:
+            all_details.sort(key=lambda x: x.days_inactive, reverse=True)
+            return InactivitySummary(by_course=None, participants=all_details, **summary_kwargs)
+
+    def _get_last_liveroom_date(self, participant_id: int, adf_id: str) -> Optional[datetime]:
+        """
+        Get the most recent creneau date_fin where the participant was present (presence='1')
+        for a given ADF. Excludes future sessions.
+        """
+        now = datetime.now(timezone.utc)
+        result = (
+            self.db.query(Creneau.date_fin)
+            .join(CreneauParticipant, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(
+                Creneau.id_action_formation == adf_id,
+                CreneauParticipant.participant_id == participant_id,
+                CreneauParticipant.presence == "1",
+                Creneau.date_fin <= now
+            )
+            .order_by(Creneau.date_fin.desc())
+            .first()
+        )
+        return result[0] if result else None
+
+    def _classify(self, days_since_activity: int) -> tuple[str, str]:
+        """Classify into active / at_risk / inactive based on days since last activity."""
+        if days_since_activity < self.at_risk_threshold:
+            return ('active', 'Recent activity detected')
+
+        if days_since_activity < self.inactivity_threshold:
+            return (
+                'at_risk',
+                f'No activity for {days_since_activity} days'
+            )
+
+        return (
+            'inactive',
+            f'No activity for {days_since_activity} days'
+        )
+
+    def _build_adf_groups(
+        self,
+        by_adf_map: Dict[str, List[InactiveParticipantDetail]]
+    ) -> List[InactiveParticipantsByCourse]:
+        """Build ADF-grouped response from map"""
+        grouped = []
+
+        for adf_id, participants in by_adf_map.items():
+            if not participants:
+                continue
+
+            first = participants[0]
+
+            active = sum(1 for p in participants if p.inactivity_status == 'active')
+            at_risk = sum(1 for p in participants if p.inactivity_status == 'at_risk')
+            inactive = sum(1 for p in participants if p.inactivity_status == 'inactive')
+            never_started = sum(1 for p in participants if p.inactivity_status == 'never_started')
+
+            participants.sort(key=lambda x: x.days_inactive, reverse=True)
+
+            grouped.append(InactiveParticipantsByCourse(
+                course_id=first.course_id or 0,
+                course_title=first.course_title,
+                id_action_formation=adf_id,
+                category_name=first.category_name,
+                category_color=first.category_color,
+                total_participants=len(participants),
+                active_count=active,
+                at_risk_count=at_risk,
+                inactive_count=inactive,
+                never_started_count=never_started,
+                participants=participants
+            ))
+
+        grouped.sort(key=lambda x: x.inactive_count, reverse=True)
+        return grouped

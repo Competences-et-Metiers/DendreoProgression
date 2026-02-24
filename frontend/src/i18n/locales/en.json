@@ -10,6 +10,7 @@
     "refresh": "Refresh",
     "refreshData": "Refresh data",
     "refreshing": "Refreshing...",
+    "updating": "Updating...",
     "noData": "No data",
     "view": "View",
     "details": "Details",
@@ -115,6 +116,10 @@
     "viewCourseDetails": "View course details",
     "viewParticipantDetails": "View participant details",
     "openDendreoProfile": "Open Dendreo profile",
+    "openHubspotProfile": "Open HubSpot profile",
+    "hubspotNotFound": "Contact not found in HubSpot",
+    "hubspotError": "HubSpot error",
+    "openDendreoADF": "Open ADF on Dendreo",
     "openHubSpotDeal": "Open HubSpot deal",
     "hubSpotDeal": "HubSpot Deal",
     "noHubSpotDealLinked": "No HubSpot deal linked",
@@ -148,7 +153,10 @@
     "moduleProgressInsights": "Module Progress Insights",
     "moduleProgressData": "Module Progress Data",
     "moduleProgressInfo": "Module Progress Information",
-    "moduleProgressDetails": "Module Progress Details"
+    "moduleProgressDetails": "Module Progress Details",
+    "timeSpent": "Time Spent",
+    "plannedDuration": "Planned Duration",
+    "comingSoon": "Coming Soon"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -204,7 +212,9 @@
       "totalParticipants": "Total Participants",
       "completed": "Completed",
       "averageProgress": "Average Progress",
-      "hubSpotLinked": "HubSpot Linked"
+      "hubSpotLinked": "HubSpot Linked",
+      "plannedDuration": "Planned Duration",
+      "actual": "actual"
     },
     "participants": {
       "title": "Participants",
@@ -237,13 +247,18 @@
       "allStatus": "All Status",
       "active": "Active",
       "completed": "Completed",
-      "inactive": "Inactive"
+      "inactive": "Inactive",
+      "inactiveForDays": "Inactive for",
+      "days": "days"
     },
     "sort": {
       "byName": "Sort by Name",
       "byProgress": "Sort by Progress",
       "byCourses": "Sort by Courses",
-      "byEmail": "Sort by Email"
+      "byEmail": "Sort by Email",
+      "byInactivity": "Sort by Inactivity",
+      "ascending": "Ascending",
+      "descending": "Descending"
     },
     "status": {
       "allCompleted": "All Completed",
@@ -295,5 +310,97 @@
     "english": "English",
     "selectLanguage": "Select language",
     "currentLanguage": "Current language"
+  },
+  "pagination": {
+    "show": "Show",
+    "perPage": "per page",
+    "showing": "Showing {{start}} to {{end}} of {{total}} results",
+    "firstPage": "First page",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "lastPage": "Last page"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "participants": "Participants",
+    "inactiveManagement": "Inactive Management",
+    "account": "My Account",
+    "settings": "Settings",
+    "logout": "Logout",
+    "expand": "Expand menu",
+    "collapse": "Collapse menu",
+    "comingSoon": "Soon"
+  },
+  "account": {
+    "title": "My Account",
+    "subtitle": "Manage your profile and preferences",
+    "placeholder": "Account management will be available soon. You will be able to edit your personal information and preferences."
+  },
+  "inactiveManagement": {
+    "title": "Inactive Management",
+    "subtitle": "Track and manage inactive participants",
+    "placeholder": "Inactive participant management will be available soon. You will be able to identify and re-engage participants who have been inactive.",
+    "stats": {
+      "total": "Total participants",
+      "active": "Active",
+      "atRisk": "At Risk",
+      "inactive": "Inactive",
+      "neverStarted": "Never Started"
+    },
+    "status": {
+      "active": "Active",
+      "atRisk": "At Risk",
+      "inactive": "Inactive",
+      "neverStarted": "Never Started"
+    },
+    "lastActivitySource": "Last activity source",
+    "activitySource": {
+      "elearning": "E-learning",
+      "classe_virtuelle": "Virtual classroom"
+    },
+    "categoryFilter": {
+      "title": "Filter by category",
+      "searchPlaceholder": "Search a category...",
+      "noResults": "No category found",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "selectedCount": "category(ies) selected"
+    },
+    "searchPlaceholder": "Search by name, course or category...",
+    "modifyThreshold": "Modify threshold",
+    "removeFilters": "Reset filters",
+    "downloadPdf": "Download PDF",
+    "pdf": {
+      "title": "Participant Activity Report",
+      "subtitle": "Participant activity management",
+      "generatedOn": "Generated on",
+      "appliedFilters": "Applied filters",
+      "filterADFs": "course(s)",
+      "filterFormateurs": "instructor(s)",
+      "filterCategories": "category(ies)",
+      "filterExcluded": "Excluded statuses",
+      "colName": "Name",
+      "colCourse": "Course / ADF",
+      "colStatus": "Status",
+      "colDaysInactive": "Days Inactive",
+      "colProgression": "Progression %",
+      "colEmail": "Email"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Configure application options",
+    "placeholder": "Application settings will be available soon. You will be able to customize the interface and notifications."
+  },
+  "login": {
+    "title": "Login",
+    "subtitle": "Sign in to access the dashboard",
+    "username": "Username",
+    "usernamePlaceholder": "Enter your username",
+    "password": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "submit": "Sign in",
+    "loggingIn": "Signing in...",
+    "error": "Invalid credentials"
   }
 } 

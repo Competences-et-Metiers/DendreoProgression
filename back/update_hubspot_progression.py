@@ -11,6 +11,8 @@ import sys
 import logging
 import asyncio
 import httpx
+import json
+import tempfile
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from pathlib import Path
@@ -144,15 +146,16 @@ async def get_participants_with_hubspot_deals(db: Session) -> List[Dict[str, Any
     
     return participants_data
 
-async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_seconds: float = 1.0, db_session: Optional[Session] = None):
+async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_seconds: float = 1.0, db_session: Optional[Session] = None, max_api_calls: Optional[int] = None):
     """
     Main function to update HubSpot deals with progression data
-    
+
     Args:
         api_key: HubSpot API key
         batch_size: Number of requests to process in parallel
         delay_seconds: Delay between batches to respect rate limits
         db_session: Optional existing database session (for integration with sync process)
+        max_api_calls: Maximum number of API calls to make (None = unlimited)
     """
     
     # Use provided session or create new one
@@ -194,14 +197,30 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
             "failed_updates": 0
         }
         
+        if max_api_calls is not None:
+            logger.info(f"🔒 HubSpot API limit: {max_api_calls} calls")
+
         # Process in batches to respect rate limits
+        api_calls_made = 0
+        counters_path = "/tmp/sync_api_counters.json"
         for i in range(0, len(participants_data), batch_size):
+            # Check API limit before each batch
+            if max_api_calls is not None and api_calls_made >= max_api_calls:
+                remaining = len(participants_data) - i
+                logger.warning(f"🔒 HubSpot API limit reached ({api_calls_made}/{max_api_calls} calls). Skipping remaining {remaining} participants.")
+                break
+
             batch = participants_data[i:i + batch_size]
+
+            # Trim batch if it would exceed the limit
+            if max_api_calls is not None and api_calls_made + len(batch) > max_api_calls:
+                batch = batch[:max_api_calls - api_calls_made]
+
             batch_num = (i // batch_size) + 1
             total_batches = (len(participants_data) + batch_size - 1) // batch_size
-            
+
             logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} participants)")
-            
+
             # Create tasks for this batch
             tasks = []
             for participant in batch:
@@ -211,14 +230,15 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
                     participant_email=participant["participant_email"]
                 )
                 tasks.append(task)
-            
+
             # Execute batch in parallel
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            
+
             # Process results
             for j, result in enumerate(results):
                 stats["total_processed"] += 1
-                
+                api_calls_made += 1
+
                 if isinstance(result, Exception):
                     stats["failed_updates"] += 1
                     logger.error(f"Exception updating {batch[j]['participant_email']}: {result}")
@@ -226,7 +246,21 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
                     stats["successful_updates"] += 1
                 else:
                     stats["failed_updates"] += 1
-            
+
+            # Update shared counter file for live monitoring
+            try:
+                current = {"dendreo": 0, "hubspot": 0}
+                if os.path.exists(counters_path):
+                    with open(counters_path, 'r') as f:
+                        current = json.load(f)
+                current["hubspot"] = api_calls_made
+                fd, tmp_path = tempfile.mkstemp(dir="/tmp", prefix="sync_api_")
+                with os.fdopen(fd, 'w') as f:
+                    json.dump(current, f)
+                os.replace(tmp_path, counters_path)
+            except Exception:
+                pass
+
             # Delay between batches to respect rate limits
             if i + batch_size < len(participants_data):
                 logger.info(f"Waiting {delay_seconds} seconds before next batch...")
@@ -251,14 +285,15 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
         if should_close_db:
             db.close()
 
-async def update_hubspot_progressions_for_sync(db_session: Session, api_key: Optional[str] = None) -> Dict[str, Any]:
+async def update_hubspot_progressions_for_sync(db_session: Session, api_key: Optional[str] = None, max_api_calls: Optional[int] = None) -> Dict[str, Any]:
     """
     Function specifically for integration with Dendreo sync process
-    
+
     Args:
         db_session: Database session from sync process
         api_key: HubSpot API key (if None, will try to get from environment)
-    
+        max_api_calls: Maximum number of HubSpot API calls (None = unlimited)
+
     Returns:
         Dict with update results
     """
@@ -285,7 +320,8 @@ async def update_hubspot_progressions_for_sync(db_session: Session, api_key: Opt
             api_key=api_key,
             batch_size=5,  # Smaller batches during sync
             delay_seconds=2.0,  # Longer delay during sync
-            db_session=db_session
+            db_session=db_session,
+            max_api_calls=max_api_calls
         )
         
         logger.info(f"✅ HubSpot progression updates completed: {result['successful_updates']}/{result['total_processed']} successful")

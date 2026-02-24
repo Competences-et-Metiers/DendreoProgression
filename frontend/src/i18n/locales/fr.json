@@ -10,6 +10,7 @@
     "refresh": "Actualiser",
     "refreshData": "Actualiser les données",
     "refreshing": "Actualisation...",
+    "updating": "Mise à jour...",
     "noData": "Aucune donnée",
     "view": "Voir",
     "details": "Détails",
@@ -26,7 +27,7 @@
     "memberSince": "Membre depuis",
     "modules": "modules",
     "participants": "participants",
-    "courses": "cours",
+    "courses": "ADF",
     "progress": "progression",
     "completion": "completion",
     "average": "moyenne",
@@ -35,7 +36,7 @@
     "totalModules": "modules au total",
     "averageProgress": "progression moyenne",
     "completionRate": "taux de completion",
-    "totalCourses": "cours totaux",
+    "totalCourses": "ADFs totaux",
     "totalParticipants": "participants totaux",
     "withHubSpot": "Avec HubSpot",
     "withoutHubSpot": "Sans HubSpot",
@@ -115,6 +116,10 @@
     "viewCourseDetails": "Voir les détails du cours",
     "viewParticipantDetails": "Voir les détails du participant",
     "openDendreoProfile": "Ouvrir le profil Dendreo",
+    "openHubspotProfile": "Ouvrir le profil HubSpot",
+    "hubspotNotFound": "Contact non trouvé dans HubSpot",
+    "hubspotError": "Erreur HubSpot",
+    "openDendreoADF": "Ouvrir l'ADF sur Dendreo",
     "openHubSpotDeal": "Ouvrir le deal HubSpot",
     "hubSpotDeal": "Deal HubSpot",
     "noHubSpotDealLinked": "Aucun deal HubSpot lié",
@@ -148,7 +153,15 @@
     "moduleProgressInsights": "Aperçus de progression du module",
     "moduleProgressData": "Données de progression du module",
     "moduleProgressInfo": "Informations de progression du module",
-    "moduleProgressDetails": "Détails de progression du module"
+    "moduleProgressDetails": "Détails de progression du module",
+    "timeSpent": "Temps passé",
+    "plannedDuration": "Durée prévue",
+    "comingSoon": "Bientôt disponible",
+    "filters": "Filtres",
+    "apply": "Appliquer",
+    "daysInactive": "jours d'inactivité",
+    "enrolled": "Inscrit il y a",
+    "daysAgo": "jours"
   },
   "navigation": {
     "dashboard": "Tableau de bord",
@@ -169,7 +182,7 @@
       "completionRate": "Taux de completion"
     },
     "courses": {
-      "title": "Cours",
+      "title": "ADF",
       "subtitle": "{{count}} de {{total}} cours",
       "searchPlaceholder": "Rechercher des cours...",
       "searching": "Recherche : \"{{term}}\"",
@@ -204,7 +217,9 @@
       "totalParticipants": "Participants totaux",
       "completed": "Terminés",
       "averageProgress": "Progression moyenne",
-      "hubSpotLinked": "HubSpot lié"
+      "hubSpotLinked": "HubSpot lié",
+      "plannedDuration": "Durée prévue",
+      "actual": "réel"
     },
     "participants": {
       "title": "Participants",
@@ -237,13 +252,18 @@
       "allStatus": "Tous les statuts",
       "active": "Actifs",
       "completed": "Terminés",
-      "inactive": "Inactifs"
+      "inactive": "Inactifs",
+      "inactiveForDays": "Inactifs pour",
+      "days": "jours"
     },
     "sort": {
       "byName": "Trier par nom",
       "byProgress": "Trier par progression",
       "byCourses": "Trier par cours",
-      "byEmail": "Trier par email"
+      "byEmail": "Trier par email",
+      "byInactivity": "Trier par inactivité",
+      "ascending": "Croissant",
+      "descending": "Décroissant"
     },
     "status": {
       "allCompleted": "Tous terminés",
@@ -295,5 +315,130 @@
     "english": "Anglais",
     "selectLanguage": "Sélectionner la langue",
     "currentLanguage": "Langue actuelle"
+  },
+  "pagination": {
+    "show": "Afficher",
+    "perPage": "par page",
+    "showing": "Affichage de {{start}} à {{end}} sur {{total}} résultats",
+    "firstPage": "Première page",
+    "previousPage": "Page précédente",
+    "nextPage": "Page suivante",
+    "lastPage": "Dernière page"
+  },
+  "sidebar": {
+    "dashboard": "Tableau de bord",
+    "participants": "Participants",
+    "inactiveManagement": "Gestion des inactifs",
+    "account": "Mon compte",
+    "settings": "Paramètres",
+    "logout": "Déconnexion",
+    "expand": "Développer le menu",
+    "collapse": "Réduire le menu",
+    "comingSoon": "Bientôt"
+  },
+  "account": {
+    "title": "Mon compte",
+    "subtitle": "Gérer votre profil et vos préférences",
+    "userInformation": "Informations utilisateur",
+    "username": "Nom d'utilisateur",
+    "email": "Email",
+    "changePassword": "Changer le mot de passe",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "changePasswordButton": "Changer le mot de passe",
+    "changing": "Modification en cours...",
+    "passwordRequirements": "Minimum 6 caractères requis",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordChangeSuccess": "Mot de passe modifié avec succès",
+    "passwordChangeError": "Erreur lors du changement de mot de passe"
+  },
+  "inactiveManagement": {
+    "title": "Gestion des participants",
+    "subtitle": "Suivre et gérer l'activité des participants",
+    "viewFlat": "Vue liste",
+    "viewGrouped": "Grouper par cours",
+    "showing": "Affichage",
+    "noInactive": "Aucun participant trouvé",
+    "noInactiveDescription": "Aucun participant ne correspond aux critères actuels.",
+    "stats": {
+      "total": "Total participants",
+      "active": "Actifs",
+      "atRisk": "À risque",
+      "inactive": "Inactifs",
+      "neverStarted": "Jamais commencé"
+    },
+    "status": {
+      "active": "Actif",
+      "atRisk": "À risque",
+      "inactive": "Inactif",
+      "neverStarted": "Jamais"
+    },
+    "filters": {
+      "title": "Filtres et seuils",
+      "atRiskThreshold": "Seuil à risque (jours)",
+      "inactiveThreshold": "Seuil inactif (jours)",
+      "excludeRecentDays": "Exclure les nouveaux inscrits (jours)"
+    },
+    "sorting": {
+      "title": "Tri",
+      "byInactivity": "Trier par inactivité",
+      "byName": "Trier par nom",
+      "byProgression": "Trier par progression",
+      "byStatus": "Trier par statut"
+    },
+    "statusFilter": {
+      "title": "Filtrer par statut"
+    },
+    "lastActivitySource": "Source de la dernière activité",
+    "activitySource": {
+      "elearning": "E-learning",
+      "classe_virtuelle": "Classe virtuelle"
+    },
+    "categoryFilter": {
+      "title": "Filtrer par catégorie",
+      "searchPlaceholder": "Rechercher une catégorie...",
+      "noResults": "Aucune catégorie trouvée",
+      "selectAll": "Tout sélectionner",
+      "deselectAll": "Tout désélectionner",
+      "selectedCount": "catégorie(s) sélectionnée(s)"
+    },
+    "searchPlaceholder": "Rechercher par nom, formation ou catégorie...",
+    "modifyThreshold": "Modifier le seuil",
+    "removeFilters": "Réinitialiser les filtres",
+    "downloadPdf": "Télécharger PDF",
+    "pdf": {
+      "title": "Rapport de suivi des participants",
+      "subtitle": "Gestion de l'activité des participants",
+      "generatedOn": "Généré le",
+      "appliedFilters": "Filtres appliqués",
+      "filterADFs": "formation(s)",
+      "filterFormateurs": "formateur(s)",
+      "filterCategories": "catégorie(s)",
+      "filterExcluded": "Statuts exclus",
+      "colName": "Nom",
+      "colCourse": "Formation / ADF",
+      "colStatus": "Statut",
+      "colDaysInactive": "Jours d'inactivité",
+      "colProgression": "Progression %",
+      "colEmail": "Email"
+    }
+  },
+  "settings": {
+    "title": "Paramètres",
+    "subtitle": "Configurer les options de l'application",
+    "placeholder": "Les paramètres de l'application seront bientôt disponibles. Vous pourrez personnaliser l'interface et les notifications."
+  },
+  "login": {
+    "title": "Connexion",
+    "subtitle": "Connectez-vous pour accéder au tableau de bord",
+    "username": "Nom d'utilisateur",
+    "usernamePlaceholder": "Entrez votre nom d'utilisateur",
+    "password": "Mot de passe",
+    "passwordPlaceholder": "Entrez votre mot de passe",
+    "submit": "Se connecter",
+    "loggingIn": "Connexion...",
+    "error": "Identifiants invalides"
   }
 } 

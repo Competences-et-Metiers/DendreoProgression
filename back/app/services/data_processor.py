@@ -35,9 +35,11 @@ class DataProcessor:
                     participant_data = record.get('participant', {})
                     participant = self._process_participant(participant_data, stats)
 
-                    # Process course
-                    course_data = record.get('module', {})  # Module contains course info
-                    course = self._process_course(course_data, record.get('id_lmp'), stats)
+                    # Find course using LAP -> ADF -> Course relationship
+                    course = self._find_course_for_lmp(record, stats)
+                    if not course:
+                        logger.warning(f"Could not find course for LMP {record.get('id_lmp')}, LAP {record.get('id_lap')}, LAM {record.get('id_lam')}")
+                        continue
 
                     # Process module
                     module = self._process_module(record, participant.id, course.id, stats)
@@ -124,23 +126,70 @@ class DataProcessor:
 
         return course
 
+    def _find_course_for_lmp(self, record: Dict[str, Any], stats: Dict[str, int]) -> Course:
+        """Find the correct course for an LMP record using LAP -> ADF -> Course relationship"""
+        id_lap = record.get('id_lap')
+        id_lam = record.get('id_lam')
+        
+        if not id_lap or not id_lam:
+            logger.warning(f"Missing id_lap ({id_lap}) or id_lam ({id_lam}) in LMP record")
+            return None
+        
+        # First, try to find course by existing ParticipantCourse relationship with id_lap
+        participant_course = self.db.query(ParticipantCourse).filter(
+            ParticipantCourse.id_lap == id_lap
+        ).first()
+        
+        if participant_course:
+            # Get the course from the existing relationship
+            course = self.db.query(Course).filter(Course.id == participant_course.course_id).first()
+            if course:
+                logger.debug(f"Found course via existing ParticipantCourse: {course.id} for LAP {id_lap}")
+                return course
+        
+        # If not found, try to find course by id_lam (module ID) 
+        # This assumes the course was created by the sync process
+        course = self.db.query(Course).filter(Course.id_lam == id_lam).first()
+        if course:
+            logger.debug(f"Found course by id_lam: {course.id} for LAM {id_lam}")
+            return course
+        
+        # If still not found, create a placeholder course
+        # This shouldn't happen in a properly synced system, but provides fallback
+        module_data = record.get('module', {})
+        course_title = module_data.get('intitule', f'Course for LAM {id_lam}')
+        
+        course = Course(
+            id_lam=id_lam,
+            intitule=course_title,
+            id_action_formation=f'unknown_adf_for_lap_{id_lap}',
+            status='5'  # Active
+        )
+        self.db.add(course)
+        self.db.flush()  # Get the ID
+        stats['courses_created'] += 1
+        logger.warning(f"Created fallback course for LAM {id_lam}, LAP {id_lap}: {course.id}")
+        
+        return course
+
     def _process_module(self, record: Dict[str, Any], participant_id: int, course_id: int, stats: Dict[str, int]) -> Module:
         """Process module data"""
         id_lam = record.get('id_lam')
+        id_lmp = record.get('id_lmp')
 
-        # Get mode organisation from module data
+        # Get mode organisation and title from module data
         module_data = record.get('module', {})
         mode_organisation = module_data.get('mode_organisation', '')
+        module_title = module_data.get('intitule', '')
 
-        # Skip if not elearning_async
-        if mode_organisation != 'elearning_async':
-            logger.debug(f"Skipping module {id_lam} with mode_organisation: {mode_organisation}")
-            return None
-
-        # Find existing module by id_lam
-        module = self.db.query(Module).filter(Module.id_lam == id_lam).first()
+        # Find existing module by id_lam AND participant_id (unique constraint)
+        module = self.db.query(Module).filter(
+            Module.id_lam == id_lam,
+            Module.participant_id == participant_id
+        ).first()
 
         # Parse progression
+        progression = 0.0
         progression_str = record.get('lms_progression', '0') or '0'
         try:
             progression = float(progression_str) if progression_str else 0.0
@@ -156,28 +205,91 @@ class DataProcessor:
             except:
                 last_access = None
 
+        # Parse time tracking data
+        time_spent = 0
+        time_spent_str = record.get('lms_tempspasse', '0') or '0'
+        try:
+            time_spent = int(float(time_spent_str)) if time_spent_str else 0
+        except (ValueError, TypeError):
+            time_spent = 0
+
+        # Also check custom_properties for total_time_spent
+        custom_properties = record.get('custom_properties', {})
+        if isinstance(custom_properties, dict):
+            total_time_spent_str = custom_properties.get('total_time_spent', '0') or '0'
+            try:
+                total_time_spent = int(float(total_time_spent_str)) if total_time_spent_str else 0
+                # Use the larger value between lms_tempspasse and total_time_spent
+                time_spent = max(time_spent, total_time_spent)
+            except (ValueError, TypeError):
+                pass
+
+        # Parse started_at
+        started_at = None
+        started_at_str = record.get('lms_started_at')
+        if started_at_str:
+            try:
+                started_at = datetime.fromisoformat(started_at_str.replace('Z', '+00:00'))
+            except:
+                started_at = None
+
+        # Parse completed_at
+        completed_at = None
+        completed_at_str = record.get('lms_completed_at')
+        if completed_at_str:
+            try:
+                completed_at = datetime.fromisoformat(completed_at_str.replace('Z', '+00:00'))
+            except:
+                completed_at = None
+
         if not module:
             # Create new module
             module = Module(
+                id_lmp=id_lmp,
                 id_lam=id_lam,
+                intitule=module_title,
                 course_id=course_id,
                 participant_id=participant_id,
-                lms_progression=progression,
+                lms_progression=progression if is_elearning else 0.0,
                 lms_last_access_at=last_access,
-                mode_organisation=mode_organisation
+                mode_organisation=mode_organisation,
+                lms_time_spent=time_spent,
+                lms_started_at=started_at,
+                lms_completed_at=completed_at
             )
             self.db.add(module)
             self.db.flush()
             stats['modules_created'] += 1
-            logger.debug(f"Created module: {id_lam}")
+            logger.debug(f"Created module: {id_lam} for participant {participant_id} with {time_spent}s ({'elearning' if is_elearning else 'non-elearning'})")
         else:
-            # Update existing module
-            module.lms_progression = progression
-            module.lms_last_access_at = last_access
+            # Update existing module - AGGREGATE data from multiple LMP entries
+            # Take the highest progression (most complete) - only for e-learning modules
+            if is_elearning and progression > (module.lms_progression or 0):
+                module.lms_progression = progression
+            
+            # Take the latest last access date
+            if last_access and (not module.lms_last_access_at or last_access > module.lms_last_access_at):
+                module.lms_last_access_at = last_access
+            
+            # Keep mode_organisation and update title if missing
             module.mode_organisation = mode_organisation
+            if not module.intitule and module_title:
+                module.intitule = module_title
+            
+            # AGGREGATE time spent (add to existing time)
+            module.lms_time_spent = (module.lms_time_spent or 0) + time_spent
+            
+            # Take the earliest started_at date
+            if started_at and (not module.lms_started_at or started_at < module.lms_started_at):
+                module.lms_started_at = started_at
+            
+            # Take the latest completed_at date  
+            if completed_at and (not module.lms_completed_at or completed_at > module.lms_completed_at):
+                module.lms_completed_at = completed_at
+                
             module.updated_at = datetime.utcnow()
             stats['modules_updated'] += 1
-            logger.debug(f"Updated module: {id_lam}")
+            logger.debug(f"Aggregated module data: {id_lam} for participant {participant_id} - added {time_spent}s (total: {module.lms_time_spent}s) ({'elearning' if is_elearning else 'non-elearning'})")
 
         return module
 

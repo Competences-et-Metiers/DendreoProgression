@@ -50,7 +50,7 @@ const Dashboard = () => {
     isFetching: lastSyncRefetching
   } = useLastSync();
   
-  const { prefetchParticipants, prefetchCourseParticipants } = usePrefetchQueries();
+  const { prefetchCourseParticipants } = usePrefetchQueries();
   
   // Combined loading and error states
   const loading = statsLoading || coursesLoading;
@@ -72,18 +72,6 @@ const Dashboard = () => {
       // Prefetch course participants data for faster loading
       prefetchCourseParticipants(courseId);
       navigate(`/courses/${courseId}`);
-    }
-  };
-
-  const handleViewParticipants = (event) => {
-    // Check if Ctrl/Cmd key is pressed or middle mouse button for new tab
-    if (event.ctrlKey || event.metaKey || event.button === 1) {
-      // Open in new tab
-      window.open('/participants', '_blank', 'noopener,noreferrer');
-    } else {
-      // Prefetch participants data for faster loading
-      prefetchParticipants();
-      navigate('/participants');
     }
   };
 
@@ -230,14 +218,6 @@ const Dashboard = () => {
                 >
                   <RefreshCw size={16} className={`mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
                   {isRefetching ? t('common.refreshing') : t('common.refresh')}
-                </button>
-                <button
-                  onClick={handleViewParticipants}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                  title={`${t('navigation.viewParticipants')} (Ctrl+Click or middle-click to open in new tab)`}
-                >
-                  <Users size={16} className="mr-2" />
-                  {t('navigation.viewParticipants')}
                 </button>
               </div>
             </div>

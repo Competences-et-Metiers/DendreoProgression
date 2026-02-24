@@ -1,14 +1,97 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from typing import List, Optional
 from app.models.database import get_db
-from app.models.models import Participant, ParticipantCourse, Course
-from app.models.schemas import ParticipantWithProgress, ParticipantCourse as ParticipantCourseSchema
+from app.models.models import Participant, ParticipantCourse, Course, ModuleCategory
+from app.models.schemas import ParticipantWithProgress, ParticipantCourse as ParticipantCourseSchema, InactivitySummary, ModuleCategoryResponse
 from app.services.cache_service import cache_service
+from app.services.inactivity_service import InactivityService
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+def normalize_search_term(search: str) -> list:
+    """Normalize search term to handle accented characters and create multiple search patterns"""
+    # Define accent mappings for all common characters
+    accent_map = {
+        'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+        'à': 'a', 'â': 'a', 'ä': 'a',
+        'î': 'i', 'ï': 'i',
+        'ô': 'o', 'ö': 'o',
+        'ù': 'u', 'û': 'u', 'ü': 'u',
+        'ÿ': 'y',
+        'ç': 'c'
+    }
+    
+    # Create reverse mapping for generating accented variations
+    reverse_accent_map = {}
+    for accented, non_accented in accent_map.items():
+        if non_accented not in reverse_accent_map:
+            reverse_accent_map[non_accented] = []
+        reverse_accent_map[non_accented].append(accented)
+    
+    # Remove accents from search term
+    search_no_accent = search
+    for accented, non_accented in accent_map.items():
+        search_no_accent = search_no_accent.replace(accented, non_accented)
+    
+    # Create bidirectional patterns - both with and without accents
+    patterns = []
+    
+    # Original search term patterns
+    patterns.extend([
+        f"%{search}%",  # Original search term
+        f"%{search.lower()}%",  # Lowercase
+        f"%{search_no_accent}%",  # Without accents
+        f"%{search_no_accent.lower()}%"  # Lowercase without accents
+    ])
+    
+    # If the search term has no accents, generate all possible accented variations
+    if search == search_no_accent:
+        # Generate all possible combinations of accented characters
+        # This creates patterns like "Frédéric", "Frèdéric", "Frêdéric", etc.
+        def generate_accented_variations(text, index=0):
+            if index >= len(text):
+                return [text]
+            
+            char = text[index].lower()
+            variations = []
+            
+            if char in reverse_accent_map:
+                # For each accent variation of this character
+                for accent in reverse_accent_map[char]:
+                    # Create variation with this accent
+                    accented_text = text[:index] + accent + text[index+1:]
+                    # Recursively generate variations for remaining characters
+                    sub_variations = generate_accented_variations(accented_text, index + 1)
+                    variations.extend(sub_variations)
+            
+            # Also include the original character (no accent)
+            sub_variations = generate_accented_variations(text, index + 1)
+            variations.extend(sub_variations)
+            
+            return variations
+        
+        # Generate all accented variations
+        accented_variations = generate_accented_variations(search)
+        
+        # Add patterns for each variation
+        for variation in accented_variations:
+            if variation != search:  # Avoid duplicates
+                patterns.extend([
+                    f"%{variation}%",
+                    f"%{variation.lower()}%"
+                ])
+    
+    # Remove duplicates while preserving order
+    unique_patterns = []
+    for pattern in patterns:
+        if pattern not in unique_patterns:
+            unique_patterns.append(pattern)
+    
+    return unique_patterns
 
 def calculate_activity_status(participant_course: ParticipantCourse, db: Session = None) -> str:
     """Calculate activity status for a participant course"""
@@ -36,7 +119,6 @@ def calculate_activity_status(participant_course: ParticipantCourse, db: Session
                 modules = db.query(Module).filter(
                     Module.id_lam.in_(lam_ids_list),
                     Module.participant_id == participant_course.participant_id,
-                    Module.mode_organisation == 'elearning_async',
                     Module.lms_last_access_at.isnot(None)
                 ).all()
                 
@@ -65,15 +147,16 @@ def calculate_activity_status(participant_course: ParticipantCourse, db: Session
 @router.get("/", response_model=List[ParticipantWithProgress])
 async def get_participants(
         skip: int = Query(0, ge=0),
-        limit: int = Query(100, ge=1, le=1000),
+        limit: int = Query(25, ge=1, le=1000),
         email: Optional[str] = Query(None),
         company: Optional[str] = Query(None),
+        search: Optional[str] = Query(None),
         db: Session = Depends(get_db)
 ):
     """Get all participants with their course progress"""
     try:
         # For basic requests without filters, try cache first
-        if skip == 0 and limit == 100 and not email and not company:
+        if skip == 0 and limit == 100 and not email and not company and not search:
             cached_participants = cache_service.get_participants_list()
             if cached_participants:
                 logger.info("🚀 Participants list served from cache")
@@ -85,7 +168,24 @@ async def get_participants(
         )
 
         # Apply filters
-        if email:
+        if search:
+            # Search across email, first name, and last name with accent-insensitive search
+            search_patterns = normalize_search_term(search)
+            logger.info(f"🔍 Search patterns for '{search}': {search_patterns}")
+            
+            # Build OR conditions for each pattern
+            search_conditions = []
+            
+            for pattern in search_patterns:
+                search_conditions.extend([
+                    Participant.email.ilike(pattern),
+                    Participant.prenom.ilike(pattern),
+                    Participant.nom.ilike(pattern),
+                    (Participant.prenom + ' ' + Participant.nom).ilike(pattern)
+                ])
+            
+            query = query.filter(or_(*search_conditions))
+        elif email:
             query = query.filter(Participant.email.ilike(f"%{email}%"))
         # Note: company field doesn't exist in our model, so removing this filter
         # if company:
@@ -114,7 +214,7 @@ async def get_participants(
                     pc.activity_status = status  # Update the status
                     if status == 'completed':
                         completed_courses += 1
-                    elif status == 'active':
+                    elif status in ('active', 'not_started'):
                         active_courses += 1
 
                 participant_data.completed_courses = completed_courses
@@ -124,13 +224,112 @@ async def get_participants(
             result.append(participant_data)
 
         # Cache the result if it's the default query
-        if skip == 0 and limit == 100 and not email and not company:
+        if skip == 0 and limit == 25 and not email and not company and not search:
             cache_service.set_participants_list(result, ttl=300)
 
         return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching participants: {str(e)}")
+
+@router.get("/count")
+async def get_participants_count(
+        email: Optional[str] = Query(None),
+        company: Optional[str] = Query(None),
+        search: Optional[str] = Query(None),
+        db: Session = Depends(get_db)
+):
+    """Get total count of participants"""
+    try:
+        query = db.query(Participant)
+
+        # Apply filters
+        if search:
+            # Search across email, first name, and last name with accent-insensitive search
+            search_patterns = normalize_search_term(search)
+            
+            # Build OR conditions for each pattern
+            search_conditions = []
+            
+            for pattern in search_patterns:
+                search_conditions.extend([
+                    Participant.email.ilike(pattern),
+                    Participant.prenom.ilike(pattern),
+                    Participant.nom.ilike(pattern),
+                    (Participant.prenom + ' ' + Participant.nom).ilike(pattern)
+                ])
+            
+            query = query.filter(or_(*search_conditions))
+        elif email:
+            query = query.filter(Participant.email.ilike(f"%{email}%"))
+        # Note: company field doesn't exist in our model, so removing this filter
+        # if company:
+        #     query = query.filter(Participant.company.ilike(f"%{company}%"))
+
+        count = query.count()
+        return {"total": count}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error counting participants: {str(e)}")
+
+@router.get("/inactive", response_model=InactivitySummary)
+async def get_inactive_participants(
+    group_by_course: bool = Query(False),
+    course_id: Optional[int] = Query(None),
+    at_risk_threshold_days: int = Query(14, ge=1, le=365),
+    inactivity_threshold_days: int = Query(30, ge=1, le=365),
+    exclude_recent_enrollments_days: int = Query(0, ge=0, le=90),
+    min_progression: Optional[float] = Query(None, ge=0, le=100),
+    max_progression: Optional[float] = Query(None, ge=0, le=100),
+    db: Session = Depends(get_db)
+):
+    """Get participants classified by activity status.
+
+    Statuses:
+    - active: Last activity within at_risk_threshold_days
+    - at_risk: Between at_risk_threshold_days and inactivity_threshold_days
+    - inactive: Beyond inactivity_threshold_days
+    - never_started: No activity data at all
+
+    Exclusions:
+    - Participants enrolled less than exclude_recent_enrollments_days ago
+    - Participants with 100% completion
+    """
+    try:
+        logger.info(f"Fetching participants (group_by_course={group_by_course}, course_id={course_id})")
+
+        service = InactivityService(
+            db=db,
+            at_risk_threshold_days=at_risk_threshold_days,
+            inactivity_threshold_days=inactivity_threshold_days,
+            exclude_recent_enrollments_days=exclude_recent_enrollments_days
+        )
+
+        result = service.get_participants(
+            group_by_course=group_by_course,
+            course_id=course_id,
+            min_progression=min_progression,
+            max_progression=max_progression
+        )
+
+        logger.info(f"Found {result.total_participants} participants ({result.active_count} active, {result.at_risk_count} at risk, {result.inactive_count} inactive, {result.never_started_count} never started)")
+        return result
+
+    except Exception as e:
+        logger.error(f"Error fetching participants: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching participants: {str(e)}")
+
+@router.get("/categories", response_model=List[ModuleCategoryResponse])
+async def get_module_categories(db: Session = Depends(get_db)):
+    """Get all active module categories for filtering"""
+    try:
+        categories = db.query(ModuleCategory).filter(
+            ModuleCategory.status == "1"
+        ).order_by(ModuleCategory.display_order).all()
+        return [ModuleCategoryResponse.model_validate(cat) for cat in categories]
+    except Exception as e:
+        logger.error(f"Error fetching categories: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching categories: {str(e)}")
 
 @router.get("/{participant_id}", response_model=ParticipantWithProgress)
 async def get_participant(participant_id: int, db: Session = Depends(get_db)):

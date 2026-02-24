@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="redis://localhost:6379/0", env="REDIS_URL")
     redis_enabled: bool = Field(default=True, env="REDIS_ENABLED")
 
+    # JWT Authentication
+    jwt_secret_key: str = Field(..., env="JWT_SECRET_KEY", description="Secret key for JWT token signing")
+    jwt_algorithm: str = Field(default="HS256", env="JWT_ALGORITHM")
+    jwt_expiration_hours: int = Field(default=24, env="JWT_EXPIRATION_HOURS")
+
     # Server settings
     host: str = Field(default="0.0.0.0", env="HOST")
     port: int = Field(default=8000, env="PORT")
