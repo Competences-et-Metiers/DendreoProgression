@@ -129,7 +129,19 @@ fi
 # Run sync (30 min timeout)
 SYNC_TIMEOUT=1800
 
-if timeout $SYNC_TIMEOUT python3 /app/scripts/sync_dendreo.py --force --log-level "${LOG_LEVEL:-INFO}" 2>&1; then
+# Live log file paths (shared volume with backend container for admin dashboard)
+LIVE_LOG="/app/logs/sync_live.log"
+API_COUNTERS="/app/logs/sync_api_counters.json"
+
+# Clear live log files so the frontend starts fresh
+> "$LIVE_LOG"
+echo '{"dendreo": 0, "hubspot": 0}' > "$API_COUNTERS"
+
+# Run sync — tee sends output to both stdout (cron.log) and the live log file
+timeout $SYNC_TIMEOUT python3 -u /app/scripts/sync_dendreo.py --force --log-level "${LOG_LEVEL:-INFO}" 2>&1 | tee "$LIVE_LOG"
+SYNC_EXIT_CODE=${PIPESTATUS[0]}
+
+if [ "$SYNC_EXIT_CODE" -eq 0 ]; then
     echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Sync completed successfully (PID: $$)"
 
     # HubSpot updates if configured
@@ -140,8 +152,7 @@ if timeout $SYNC_TIMEOUT python3 /app/scripts/sync_dendreo.py --force --log-leve
 
     exit 0
 else
-    SYNC_EXIT_CODE=$?
-    if [ $SYNC_EXIT_CODE -eq 124 ]; then
+    if [ "$SYNC_EXIT_CODE" -eq 124 ]; then
         echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - ERROR: Sync timed out after ${SYNC_TIMEOUT}s"
         if [ -f "/app/scripts/clear_stuck_sync.py" ]; then
             python3 /app/scripts/clear_stuck_sync.py --force --non-interactive 2>&1 || true

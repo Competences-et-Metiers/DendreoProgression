@@ -202,7 +202,7 @@ async def update_hubspot_progressions(api_key: str, batch_size: int = 10, delay_
 
         # Process in batches to respect rate limits
         api_calls_made = 0
-        counters_path = "/tmp/sync_api_counters.json"
+        counters_path = "/app/logs/sync_api_counters.json"
         for i in range(0, len(participants_data), batch_size):
             # Check API limit before each batch
             if max_api_calls is not None and api_calls_made >= max_api_calls:
