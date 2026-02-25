@@ -10,6 +10,7 @@ import {
   BookOpen,
   Calendar,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Settings,
   Filter,
@@ -119,6 +120,11 @@ const InactiveManagement = () => {
   // Global search
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Pagination
+  const PAGE_SIZE_OPTIONS = [25, 50, 100, 0]; // 0 = all
+  const [pageSize, setPageSize] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Persist state to localStorage
   useEffect(() => {
     localStorage.setItem('inactiveManagement.groupByCourse', JSON.stringify(groupByCourse));
@@ -151,6 +157,11 @@ const InactiveManagement = () => {
   useEffect(() => {
     localStorage.setItem('inactiveManagement.selectedCategories', JSON.stringify(selectedCategories));
   }, [selectedCategories]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, groupByCourse, pageSize]);
 
   // Clean up old localStorage keys from removed active user toggle
   useEffect(() => {
@@ -247,131 +258,118 @@ const InactiveManagement = () => {
     }
   };
 
-  // Filter and sort participants
-  const filterAndSortParticipants = (participants) => {
-    if (!participants) return [];
+  // Consolidated filtering: single useMemo produces stats, flat list, and grouped list
+  const { filteredStats, filteredParticipantsFlat, filteredCourseGroups } = useMemo(() => {
+    const emptyResult = {
+      filteredStats: { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0 },
+      filteredParticipantsFlat: [],
+      filteredCourseGroups: [],
+    };
+    if (!data) return emptyResult;
 
-    let filtered = participants;
-
-    // Apply ADF filter
-    if (selectedADFs.length > 0) {
-      filtered = filtered.filter(p => selectedADFs.includes(p.id_action_formation));
-    }
-
-    // Apply Formateur filter
-    if (selectedFormateurs.length > 0) {
-      filtered = filtered.filter(p => {
-        if (!p.formateurs || p.formateurs.length === 0) return false;
-        return p.formateurs.some(formateur =>
-          selectedFormateurs.includes(formateur.id_formateur)
-        );
-      });
-    }
-
-    // Apply Category filter
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter(p => p.category_name && selectedCategories.includes(p.category_name));
-    }
-
-    // Apply global search
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(p => {
-        const name = `${p.nom || ''} ${p.prenom || ''}`.toLowerCase();
-        const courseTitle = (p.course_title || '').toLowerCase();
-        const category = (p.category_name || '').toLowerCase();
-        return name.includes(term) || courseTitle.includes(term) || category.includes(term);
-      });
-    }
-
-    // Apply status filter
-    filtered = filtered.filter(p => statusFilter[p.inactivity_status]);
-
-    // Sort participants
-    const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
-
-    filtered.sort((a, b) => {
-      let comparison = 0;
-
-      switch (sortBy) {
-        case 'inactivity':
-          comparison = ((a.days_inactive || 0) - (b.days_inactive || 0)) * -1;
-          break;
-        case 'name':
-          comparison = `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`);
-          break;
-        case 'progression':
-          const progressionA = a.current_progression || a.overall_progression || 0;
-          const progressionB = b.current_progression || b.overall_progression || 0;
-          comparison = progressionA - progressionB;
-          break;
-        case 'status':
-          const statusOrder = { 'never_started': 4, 'inactive': 3, 'at_risk': 2, 'active': 1 };
-          comparison = (statusOrder[a.inactivity_status] || 0) - (statusOrder[b.inactivity_status] || 0);
-          break;
-        default:
-          comparison = 0;
+    // Base filters: ADF, formateur, category, search (no status, no sort)
+    const applyBaseFilters = (participants) => {
+      if (!participants) return [];
+      let filtered = participants;
+      if (selectedADFs.length > 0) {
+        filtered = filtered.filter(p => selectedADFs.includes(p.id_action_formation));
       }
+      if (selectedFormateurs.length > 0) {
+        filtered = filtered.filter(p =>
+          p.formateurs?.some(f => selectedFormateurs.includes(f.id_formateur))
+        );
+      }
+      if (selectedCategories.length > 0) {
+        filtered = filtered.filter(p => p.category_name && selectedCategories.includes(p.category_name));
+      }
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase().trim();
+        filtered = filtered.filter(p => {
+          const name = `${p.nom || ''} ${p.prenom || ''}`.toLowerCase();
+          const courseTitle = (p.course_title || '').toLowerCase();
+          const category = (p.category_name || '').toLowerCase();
+          return name.includes(term) || courseTitle.includes(term) || category.includes(term);
+        });
+      }
+      return filtered;
+    };
 
-      return comparison * sortMultiplier;
-    });
+    // Status filter + sort
+    const applySortAndStatus = (participants) => {
+      const withStatus = participants.filter(p => statusFilter[p.inactivity_status]);
+      const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
+      withStatus.sort((a, b) => {
+        let comparison = 0;
+        switch (sortBy) {
+          case 'inactivity':
+            comparison = ((a.days_inactive || 0) - (b.days_inactive || 0)) * -1;
+            break;
+          case 'name':
+            comparison = `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`);
+            break;
+          case 'progression': {
+            const progA = a.current_progression || a.overall_progression || 0;
+            const progB = b.current_progression || b.overall_progression || 0;
+            comparison = progA - progB;
+            break;
+          }
+          case 'status': {
+            const order = { never_started: 4, inactive: 3, at_risk: 2, active: 1 };
+            comparison = (order[a.inactivity_status] || 0) - (order[b.inactivity_status] || 0);
+            break;
+          }
+          default:
+            comparison = 0;
+        }
+        return comparison * sortMultiplier;
+      });
+      return withStatus;
+    };
 
-    return filtered;
-  };
-
-  // Compute stats from client-side filtered data (ADF + formateur filters, ignoring status filter)
-  const filteredStats = useMemo(() => {
-    if (!data) return { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0 };
-
-    // Collect all participants from either view mode
+    // Collect all participants into flat list
     let allParticipants = [];
     if (data.participants) {
       allParticipants = data.participants;
     } else if (data.by_course) {
-      data.by_course.forEach(course => {
-        if (course.participants) {
-          allParticipants = allParticipants.concat(course.participants);
-        }
-      });
+      for (const course of data.by_course) {
+        if (course.participants) allParticipants = allParticipants.concat(course.participants);
+      }
     }
 
-    // Apply ADF filter
-    if (selectedADFs.length > 0) {
-      allParticipants = allParticipants.filter(p => selectedADFs.includes(p.id_action_formation));
+    // Base filter once for stats + flat view
+    const baseFiltered = applyBaseFilters(allParticipants);
+
+    // Stats: single loop instead of 4 separate .filter() calls
+    const stats = { total: baseFiltered.length, active: 0, at_risk: 0, inactive: 0, never_started: 0 };
+    for (const p of baseFiltered) {
+      if (p.inactivity_status in stats) stats[p.inactivity_status]++;
     }
 
-    // Apply formateur filter
-    if (selectedFormateurs.length > 0) {
-      allParticipants = allParticipants.filter(p => {
-        if (!p.formateurs || p.formateurs.length === 0) return false;
-        return p.formateurs.some(f => selectedFormateurs.includes(f.id_formateur));
-      });
-    }
+    // Flat view: apply status + sort to already-filtered list
+    const flat = data.participants ? applySortAndStatus(baseFiltered) : [];
 
-    // Apply category filter
-    if (selectedCategories.length > 0) {
-      allParticipants = allParticipants.filter(p => p.category_name && selectedCategories.includes(p.category_name));
-    }
+    // Grouped view: base filter per course, then status + sort
+    const groups = data.by_course
+      ? data.by_course
+          .map(course => ({
+            ...course,
+            filteredParticipants: applySortAndStatus(applyBaseFilters(course.participants))
+          }))
+          .filter(course => course.filteredParticipants.length > 0)
+      : [];
 
-    // Apply global search
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase().trim();
-      allParticipants = allParticipants.filter(p => {
-        const name = `${p.nom || ''} ${p.prenom || ''}`.toLowerCase();
-        const courseTitle = (p.course_title || '').toLowerCase();
-        const category = (p.category_name || '').toLowerCase();
-        return name.includes(term) || courseTitle.includes(term) || category.includes(term);
-      });
-    }
+    return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection]);
 
-    return {
-      total: allParticipants.length,
-      active: allParticipants.filter(p => p.inactivity_status === 'active').length,
-      at_risk: allParticipants.filter(p => p.inactivity_status === 'at_risk').length,
-      inactive: allParticipants.filter(p => p.inactivity_status === 'inactive').length,
-      never_started: allParticipants.filter(p => p.inactivity_status === 'never_started').length,
-    };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm]);
+  // Pagination: slice data for current page (pageSize 0 = show all)
+  const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
+  const effectivePageSize = pageSize === 0 ? totalItems : pageSize;
+  const totalPages = Math.max(1, Math.ceil(totalItems / effectivePageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * effectivePageSize;
+  const pageEnd = Math.min(pageStart + effectivePageSize, totalItems);
+  const paginatedFlat = filteredParticipantsFlat.slice(pageStart, pageEnd);
+  const paginatedGroups = filteredCourseGroups.slice(pageStart, pageEnd);
 
   const toggleSort = useCallback((field) => {
     setSortBy(prev => {
@@ -450,22 +448,6 @@ const InactiveManagement = () => {
     return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  // Memoized filtered results to avoid re-filtering on unrelated state changes
-  const filteredParticipantsFlat = useMemo(() => {
-    if (!data?.participants) return [];
-    return filterAndSortParticipants(data.participants);
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection]);
-
-  const filteredCourseGroups = useMemo(() => {
-    if (!data?.by_course) return [];
-    return data.by_course
-      .map(course => ({
-        ...course,
-        filteredParticipants: filterAndSortParticipants(course.participants)
-      }))
-      .filter(course => course.filteredParticipants.length > 0);
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection]);
-
   const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0;
 
   const resetAllFilters = useCallback(() => {
@@ -480,33 +462,28 @@ const InactiveManagement = () => {
   const handleDownloadPDF = async () => {
     if (!data) return;
 
-    // Collect all participants regardless of view mode
-    let allParticipants = [];
-    if (data.participants) {
-      allParticipants = data.participants;
-    } else if (data.by_course) {
-      data.by_course.forEach(course => {
-        if (course.participants) {
-          allParticipants = allParticipants.concat(course.participants);
-        }
-      });
+    // Use pre-computed filtered data from the consolidated useMemo
+    let filteredParticipants;
+    if (groupByCourse) {
+      filteredParticipants = filteredCourseGroups.flatMap(c => c.filteredParticipants);
+    } else {
+      filteredParticipants = filteredParticipantsFlat;
     }
-
-    const filteredParticipants = filterAndSortParticipants(allParticipants);
 
     // Build active filter descriptions
     const activeFilterDescriptions = [];
     if (searchTerm.trim()) {
       activeFilterDescriptions.push(`${t('common.search')}: "${searchTerm.trim()}"`);
     }
-    if (selectedADFs.length > 0) {
-      activeFilterDescriptions.push(`${selectedADFs.length} ${t('inactiveManagement.pdf.filterADFs')}`);
-    }
     if (selectedFormateurs.length > 0) {
-      activeFilterDescriptions.push(`${selectedFormateurs.length} ${t('inactiveManagement.pdf.filterFormateurs')}`);
+      const formateurNames = selectedFormateurs
+        .map(id => formateurList.find(f => f.id === id))
+        .filter(Boolean)
+        .map(f => f.fullName);
+      activeFilterDescriptions.push(`${t('inactiveManagement.pdf.filterFormateurs')}: ${formateurNames.join(', ')}`);
     }
     if (selectedCategories.length > 0) {
-      activeFilterDescriptions.push(`${selectedCategories.length} ${t('inactiveManagement.pdf.filterCategories')}`);
+      activeFilterDescriptions.push(`${t('inactiveManagement.pdf.filterCategories')}: ${selectedCategories.join(', ')}`);
     }
 
     const disabledStatuses = [];
@@ -1171,10 +1148,29 @@ const InactiveManagement = () => {
               </div>
             </div>
 
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm text-gray-600">{t('pagination.show')}</span>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setPageSize(size)}
+                  className={`px-3 py-1 rounded-full border text-xs font-medium transition-colors ${
+                    pageSize === size
+                      ? 'bg-primary-50 border-primary-200 text-primary-700'
+                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {size === 0 ? t('common.all') : size}
+                </button>
+              ))}
+              <span className="text-sm text-gray-600">{t('pagination.perPage')}</span>
+            </div>
+
             {/* Grouped by Course View */}
             {groupByCourse && data.by_course && (
               <div className="space-y-4">
-                {filteredCourseGroups.map((course) => (
+                {paginatedGroups.map((course) => (
                     <div key={course.course_id} className="bg-white rounded-lg border border-gray-200">
                       {/* Course Header */}
                       <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
@@ -1320,7 +1316,7 @@ const InactiveManagement = () => {
             {!groupByCourse && data.participants && (
               <div className="bg-white rounded-lg border border-gray-200">
                 <div className="divide-y divide-gray-200">
-                  {filteredParticipantsFlat.map((participant) => (
+                  {paginatedFlat.map((participant) => (
                     <div key={`${participant.id}-${participant.course_id}`} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
@@ -1416,6 +1412,52 @@ const InactiveManagement = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {pageSize !== 0 && totalPages > 1 && (
+              <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-6 py-3 mt-4">
+                <p className="text-sm text-gray-600">
+                  {t('pagination.showing', { start: pageStart + 1, end: pageEnd, total: totalItems })}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={safePage <= 1}
+                    className="px-2 py-1.5 rounded border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={t('pagination.firstPage')}
+                  >
+                    1
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                    className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={t('pagination.previousPage')}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="px-3 py-1.5 text-sm font-medium text-gray-900">
+                    {safePage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                    className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={t('pagination.nextPage')}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={safePage >= totalPages}
+                    className="px-2 py-1.5 rounded border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={t('pagination.lastPage')}
+                  >
+                    {totalPages}
+                  </button>
                 </div>
               </div>
             )}

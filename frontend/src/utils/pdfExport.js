@@ -81,14 +81,19 @@ export const generateInactivityReport = ({ participants, stats, activeFilters, t
   // --- ACTIVE FILTERS ---
   if (activeFilters && activeFilters.length > 0) {
     doc.setFontSize(8);
-    doc.setFont('helvetica', 'italic');
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(107, 114, 128);
-    doc.text(
-      `${t('inactiveManagement.pdf.appliedFilters')}: ${activeFilters.join(', ')}`,
-      margin,
-      yPos
-    );
-    yPos += 6;
+    doc.text(`${t('inactiveManagement.pdf.appliedFilters')}:`, margin, yPos);
+    yPos += 4;
+
+    const maxTextWidth = pageWidth - 2 * margin;
+    doc.setFont('helvetica', 'italic');
+    activeFilters.forEach((filter) => {
+      const lines = doc.splitTextToSize(`• ${filter}`, maxTextWidth);
+      doc.text(lines, margin + 2, yPos);
+      yPos += lines.length * 3.5;
+    });
+    yPos += 2;
   }
 
   // --- TABLE ---
