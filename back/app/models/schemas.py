@@ -212,6 +212,9 @@ class UserResponse(BaseModel):
     username: str
     role: str
     is_active: bool
+    auth_provider: str = 'local'
+    email: Optional[str] = None
+    display_name: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -225,6 +228,16 @@ class ChangePasswordRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class MicrosoftLoginRequest(BaseModel):
+    id_token: str
+
+
+class MicrosoftConfigResponse(BaseModel):
+    enabled: bool
+    client_id: Optional[str] = None
+    tenant_id: Optional[str] = None
 
 
 class ModuleCategoryResponse(BaseModel):

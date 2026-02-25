@@ -352,7 +352,12 @@
     "passwordMismatch": "Les mots de passe ne correspondent pas",
     "passwordTooShort": "Le mot de passe doit contenir au moins 6 caractères",
     "passwordChangeSuccess": "Mot de passe modifié avec succès",
-    "passwordChangeError": "Erreur lors du changement de mot de passe"
+    "passwordChangeError": "Erreur lors du changement de mot de passe",
+    "displayName": "Nom complet",
+    "authProvider": "Authentification",
+    "authProviderLocal": "Nom d'utilisateur et mot de passe",
+    "authProviderMicrosoft": "Microsoft (Entra ID)",
+    "microsoftManaged": "Votre compte est géré par Microsoft. Pour changer votre mot de passe, veuillez utiliser les paramètres de votre compte Microsoft."
   },
   "inactiveManagement": {
     "title": "Gestion des participants",
@@ -439,6 +444,8 @@
     "passwordPlaceholder": "Entrez votre mot de passe",
     "submit": "Se connecter",
     "loggingIn": "Connexion...",
-    "error": "Identifiants invalides"
+    "error": "Identifiants invalides",
+    "or": "ou",
+    "microsoftSignIn": "Se connecter avec Microsoft"
   }
 } 

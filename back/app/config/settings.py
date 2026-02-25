@@ -77,6 +77,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", env="JWT_ALGORITHM")
     jwt_expiration_hours: int = Field(default=24, env="JWT_EXPIRATION_HOURS")
 
+    # Microsoft Entra ID (Azure AD) - Optional
+    azure_ad_tenant_id: Optional[str] = Field(None, env="AZURE_AD_TENANT_ID")
+    azure_ad_client_id: Optional[str] = Field(None, env="AZURE_AD_CLIENT_ID")
+    azure_ad_client_secret: Optional[str] = Field(None, env="AZURE_AD_CLIENT_SECRET")
+    azure_ad_admin_group_id: Optional[str] = Field(None, env="AZURE_AD_ADMIN_GROUP_ID")
+
     # Server settings
     host: str = Field(default="0.0.0.0", env="HOST")
     port: int = Field(default=8000, env="PORT")
@@ -100,6 +106,10 @@ class Settings(BaseSettings):
         if not v.startswith(('postgresql://', 'postgresql+psycopg2://')):
             raise ValueError('DATABASE_URL must be a valid PostgreSQL connection string')
         return v
+
+    @property
+    def azure_ad_enabled(self) -> bool:
+        return bool(self.azure_ad_tenant_id and self.azure_ad_client_id)
 
     @property
     def is_development(self) -> bool:
