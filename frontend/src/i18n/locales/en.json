@@ -334,7 +334,26 @@
   "account": {
     "title": "My Account",
     "subtitle": "Manage your profile and preferences",
-    "placeholder": "Account management will be available soon. You will be able to edit your personal information and preferences."
+    "placeholder": "Account management will be available soon. You will be able to edit your personal information and preferences.",
+    "userInformation": "User Information",
+    "username": "Username",
+    "email": "Email",
+    "displayName": "Display Name",
+    "authProvider": "Authentication",
+    "authProviderLocal": "Username and password",
+    "authProviderMicrosoft": "Microsoft (Entra ID)",
+    "microsoftManaged": "Your account is managed through Microsoft. To change your password, please use your Microsoft account settings.",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm Password",
+    "changePasswordButton": "Change Password",
+    "changing": "Changing...",
+    "passwordRequirements": "Minimum 6 characters required",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordChangeSuccess": "Password changed successfully",
+    "passwordChangeError": "Error changing password"
   },
   "inactiveManagement": {
     "title": "Inactive Management",
@@ -376,8 +395,8 @@
       "generatedOn": "Generated on",
       "appliedFilters": "Applied filters",
       "filterADFs": "course(s)",
-      "filterFormateurs": "instructor(s)",
-      "filterCategories": "category(ies)",
+      "filterFormateurs": "Instructors",
+      "filterCategories": "Categories",
       "filterExcluded": "Excluded statuses",
       "colName": "Name",
       "colCourse": "Course / ADF",
@@ -401,6 +420,8 @@
     "passwordPlaceholder": "Enter your password",
     "submit": "Sign in",
     "loggingIn": "Signing in...",
-    "error": "Invalid credentials"
+    "error": "Invalid credentials",
+    "or": "or",
+    "microsoftSignIn": "Sign in with Microsoft"
   }
 } 

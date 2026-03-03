@@ -10,7 +10,7 @@ from app.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-SYNC_API_COUNTERS_PATH = "/tmp/sync_api_counters.json"
+SYNC_API_COUNTERS_PATH = "/app/logs/sync_api_counters.json"
 
 class DendreoAPIError(Exception):
     """Custom exception for Dendreo API errors"""
@@ -71,7 +71,7 @@ class DendreoClient:
         import tempfile
         try:
             counter_data = json.dumps({"dendreo": self.total_requests, "hubspot": 0})
-            fd, tmp_path = tempfile.mkstemp(dir="/tmp", prefix="sync_api_")
+            fd, tmp_path = tempfile.mkstemp(dir="/app/logs", prefix="sync_api_")
             with os.fdopen(fd, 'w') as f:
                 f.write(counter_data)
             os.replace(tmp_path, SYNC_API_COUNTERS_PATH)

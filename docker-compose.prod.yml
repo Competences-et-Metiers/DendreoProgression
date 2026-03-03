@@ -53,6 +53,11 @@ services:
       # Redis configuration (optional)
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      # Microsoft Entra ID (Azure AD) - Optional
+      AZURE_AD_TENANT_ID: ${AZURE_AD_TENANT_ID:-}
+      AZURE_AD_CLIENT_ID: ${AZURE_AD_CLIENT_ID:-}
+      AZURE_AD_CLIENT_SECRET: ${AZURE_AD_CLIENT_SECRET:-}
+      AZURE_AD_ADMIN_GROUP_ID: ${AZURE_AD_ADMIN_GROUP_ID:-}
       # Timezone configuration
       POSTGRES_TZ: ${POSTGRES_TZ:-Europe/Paris}
       TZ: ${TZ:-Europe/Paris}
@@ -149,6 +154,9 @@ services:
       args:
         BRANCH: ${PROD_BRANCH:-main}
         REACT_APP_API_URL: /api
+        REACT_APP_AZURE_AD_CLIENT_ID: ${AZURE_AD_CLIENT_ID:-}
+        REACT_APP_AZURE_AD_TENANT_ID: ${AZURE_AD_TENANT_ID:-}
+        REACT_APP_AZURE_AD_REDIRECT_URI: ${AZURE_AD_REDIRECT_URI:-}
         BUILD_DATE: ${BUILD_DATE:-$(date)}
         BUILD_VERSION: ${BUILD_VERSION:-$(git rev-parse HEAD 2>/dev/null || echo 'no-git')}
     env_file:

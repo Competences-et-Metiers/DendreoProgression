@@ -121,6 +121,10 @@ class InactiveParticipantDetail(BaseModel):
     enrollment_date: Optional[datetime] = None  # Earliest enrollment date
     days_since_enrollment: int = 0
 
+    # Upcoming liveroom sessions
+    next_session_date: Optional[datetime] = None  # Next upcoming session start date
+    upcoming_sessions_count: int = 0  # Number of future planned sessions
+
     # Inactivity classification
     inactivity_status: str  # 'active', 'at_risk', 'inactive', 'never_started'
     inactivity_reason: str  # Human-readable explanation
@@ -212,6 +216,9 @@ class UserResponse(BaseModel):
     username: str
     role: str
     is_active: bool
+    auth_provider: str = 'local'
+    email: Optional[str] = None
+    display_name: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -225,6 +232,16 @@ class ChangePasswordRequest(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class MicrosoftLoginRequest(BaseModel):
+    id_token: str
+
+
+class MicrosoftConfigResponse(BaseModel):
+    enabled: bool
+    client_id: Optional[str] = None
+    tenant_id: Optional[str] = None
 
 
 class ModuleCategoryResponse(BaseModel):

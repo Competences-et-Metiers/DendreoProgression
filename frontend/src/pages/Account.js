@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { UserCircle, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
+import { UserCircle, Lock, Eye, EyeOff, CheckCircle, AlertCircle, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
@@ -97,10 +97,35 @@ const Account = () => {
               <span className="text-gray-600 w-32">{t('account.email')}:</span>
               <span className="text-gray-900 font-medium">{user?.email || '-'}</span>
             </div>
+            {user?.display_name && (
+              <div className="flex items-center">
+                <span className="text-gray-600 w-32">{t('account.displayName')}:</span>
+                <span className="text-gray-900 font-medium">{user.display_name}</span>
+              </div>
+            )}
+            <div className="flex items-center">
+              <span className="text-gray-600 w-32">{t('account.authProvider')}:</span>
+              <span className="text-gray-900 font-medium">
+                {user?.auth_provider === 'microsoft'
+                  ? t('account.authProviderMicrosoft')
+                  : t('account.authProviderLocal')}
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Change Password Card */}
+        {/* Change Password / Microsoft Info Card */}
+        {user?.auth_provider === 'microsoft' ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="flex items-center mb-4">
+              <Shield size={20} className="text-blue-600 mr-2" />
+              <h2 className="text-lg font-semibold text-gray-900">
+                {t('account.authProvider')}
+              </h2>
+            </div>
+            <p className="text-sm text-gray-500">{t('account.microsoftManaged')}</p>
+          </div>
+        ) : (
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <div className="flex items-center mb-4">
             <Lock size={20} className="text-gray-600 mr-2" />
@@ -219,6 +244,7 @@ const Account = () => {
             </div>
           </form>
         </div>
+        )}
       </div>
     </div>
   );

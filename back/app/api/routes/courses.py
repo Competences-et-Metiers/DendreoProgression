@@ -30,6 +30,27 @@ def _get_last_liveroom_date(db: Session, participant_id: int, adf_id: str):
     )
     return result[0] if result else None
 
+def _get_upcoming_sessions(db: Session, participant_id: int, adf_id: str):
+    """Get count and next date of upcoming liveroom sessions for a participant in an ADF."""
+    now = datetime.now(timezone.utc)
+    from sqlalchemy import func as sa_func
+    result = (
+        db.query(
+            sa_func.count(Creneau.id),
+            sa_func.min(Creneau.date_debut)
+        )
+        .join(CreneauParticipant, CreneauParticipant.creneau_id == Creneau.id)
+        .filter(
+            Creneau.id_action_formation == adf_id,
+            CreneauParticipant.participant_id == participant_id,
+            Creneau.date_debut > now
+        )
+        .first()
+    )
+    if result and result[0]:
+        return result[0], result[1]
+    return 0, None
+
 def _resolve_last_activity(last_elearning, last_liveroom):
     """Return (last_activity_datetime, source_string) from the most recent of both."""
     if last_elearning and last_liveroom:
@@ -391,6 +412,9 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
             last_liveroom = _get_last_liveroom_date(db, participant.id, course.id_action_formation)
             last_activity, last_activity_source = _resolve_last_activity(last_elearning, last_liveroom)
 
+            # Get upcoming sessions
+            upcoming_count, next_session_date = _get_upcoming_sessions(db, participant.id, course.id_action_formation)
+
             # Get HubSpot data for this participant and ADF
             hubspot_data = db.query(ParticipantHubspotData).filter(
                 ParticipantHubspotData.participant_id == participant.id,
@@ -409,6 +433,8 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "date_add": pc.date_add.isoformat() if pc.date_add else None,
                 "last_activity": last_activity.isoformat() if last_activity else None,
                 "last_activity_source": last_activity_source,
+                "upcoming_sessions_count": upcoming_count,
+                "next_session_date": next_session_date.isoformat() if next_session_date else None,
                 "completed_modules": completed_modules,
                 "total_modules": total_modules,
                 "total_time_spent": total_time_spent,

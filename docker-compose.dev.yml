@@ -13,6 +13,11 @@ services:
       # Redis configuration (optional)
       REDIS_URL: redis://redis:6379/0
       REDIS_ENABLED: false
+      # Microsoft Entra ID (Azure AD) - Optional
+      AZURE_AD_TENANT_ID: ${AZURE_AD_TENANT_ID:-}
+      AZURE_AD_CLIENT_ID: ${AZURE_AD_CLIENT_ID:-}
+      AZURE_AD_CLIENT_SECRET: ${AZURE_AD_CLIENT_SECRET:-}
+      AZURE_AD_ADMIN_GROUP_ID: ${AZURE_AD_ADMIN_GROUP_ID:-}
       # Timezone configuration
       POSTGRES_TZ: Europe/Paris
       TZ: Europe/Paris
@@ -80,6 +85,9 @@ services:
       dockerfile: Dockerfile.frontend.prod
       args:
         BRANCH: ${DEV_BRANCH:-dev}
+        REACT_APP_AZURE_AD_CLIENT_ID: ${AZURE_AD_CLIENT_ID:-}
+        REACT_APP_AZURE_AD_TENANT_ID: ${AZURE_AD_TENANT_ID:-}
+        REACT_APP_AZURE_AD_REDIRECT_URI: ${AZURE_AD_REDIRECT_URI:-http://localhost:3000/login}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000/api}

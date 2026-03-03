@@ -66,6 +66,30 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const loginWithMicrosoft = useCallback(async (idToken) => {
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const response = await authService.microsoftLogin(idToken);
+      const { access_token } = response;
+
+      localStorage.setItem('token', access_token);
+      setToken(access_token);
+
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+
+      return true;
+    } catch (err) {
+      const message = err.response?.data?.detail || 'Microsoft login failed';
+      setError(message);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem('token');
     setToken(null);
@@ -84,6 +108,7 @@ export const AuthProvider = ({ children }) => {
     isLoading,
     error,
     login,
+    loginWithMicrosoft,
     logout,
     clearError,
   };

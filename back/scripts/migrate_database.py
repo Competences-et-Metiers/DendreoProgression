@@ -113,7 +113,11 @@ def verify_migration(engine):
         ("courses", "planned_duration_hours"),
         ("modules", "lms_time_spent"),
         ("modules", "lms_started_at"),
-        ("modules", "lms_completed_at")
+        ("modules", "lms_completed_at"),
+        ("users", "auth_provider"),
+        ("users", "microsoft_id"),
+        ("users", "email"),
+        ("users", "display_name"),
     ]
     
     all_exist = True
@@ -152,7 +156,12 @@ def main():
         ("courses", "planned_duration_hours", "FLOAT DEFAULT 0.0"),
         ("modules", "lms_time_spent", "INTEGER DEFAULT 0"),
         ("modules", "lms_started_at", "TIMESTAMP WITH TIME ZONE"),
-        ("modules", "lms_completed_at", "TIMESTAMP WITH TIME ZONE")
+        ("modules", "lms_completed_at", "TIMESTAMP WITH TIME ZONE"),
+        # Microsoft Entra ID (Azure AD) authentication
+        ("users", "auth_provider", "VARCHAR(20) DEFAULT 'local' NOT NULL"),
+        ("users", "microsoft_id", "VARCHAR(255) UNIQUE"),
+        ("users", "email", "VARCHAR(255)"),
+        ("users", "display_name", "VARCHAR(255)"),
     ]
     
     # Add columns
@@ -162,12 +171,23 @@ def main():
             logger.error(f"❌ Migration failed at {table_name}.{column_name}")
             sys.exit(1)
     
+    # Make hashed_password nullable for Microsoft-only users
+    logger.info("🔑 Making hashed_password nullable for Microsoft auth support...")
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE users ALTER COLUMN hashed_password DROP NOT NULL"))
+            conn.commit()
+            logger.info("✅ Made users.hashed_password nullable")
+    except SQLAlchemyError as e:
+        logger.info(f"ℹ️  hashed_password already nullable or change skipped: {e}")
+
     # Create indexes
     logger.info("🔍 Creating indexes...")
     indexes = [
         ("idx_modules_lms_time_spent", "modules", "lms_time_spent"),
         ("idx_modules_lms_started_at", "modules", "lms_started_at"),
-        ("idx_modules_lms_completed_at", "modules", "lms_completed_at")
+        ("idx_modules_lms_completed_at", "modules", "lms_completed_at"),
+        ("idx_users_microsoft_id", "users", "microsoft_id"),
     ]
     
     for index_name, table_name, column_name in indexes:

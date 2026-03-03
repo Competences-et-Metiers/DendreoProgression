@@ -9,7 +9,9 @@ import {
   Clock,
   BookOpen,
   Calendar,
+  CalendarClock,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Settings,
   Filter,
@@ -42,6 +44,7 @@ const InactiveManagement = () => {
       // Migrate old filter format
       return {
         atRiskThreshold: parsed.atRiskThreshold || 14,
+        atRiskEnabled: parsed.atRiskEnabled ?? true,
         inactivityThreshold: parsed.inactivityThreshold || 30,
         excludeRecentDays: parsed.excludeRecentDays ?? 0,
         minProgression: parsed.minProgression ?? null,
@@ -51,6 +54,7 @@ const InactiveManagement = () => {
     }
     return {
       atRiskThreshold: 14,
+      atRiskEnabled: true,
       inactivityThreshold: 30,
       excludeRecentDays: 0,
       minProgression: null,
@@ -116,8 +120,25 @@ const InactiveManagement = () => {
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
+  // Progression range slider (client-side filter)
+  const [progressionRange, setProgressionRange] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.progressionRange');
+    return cached ? JSON.parse(cached) : [0, 100];
+  });
+
+  // CV planifié = Actif toggle
+  const [cvPlannedIsActive, setCvPlannedIsActive] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.cvPlannedIsActive');
+    return cached ? JSON.parse(cached) : false;
+  });
+
   // Global search
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Pagination
+  const PAGE_SIZE_OPTIONS = [25, 50, 100, 0]; // 0 = all
+  const [pageSize, setPageSize] = useState(50);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Persist state to localStorage
   useEffect(() => {
@@ -152,6 +173,19 @@ const InactiveManagement = () => {
     localStorage.setItem('inactiveManagement.selectedCategories', JSON.stringify(selectedCategories));
   }, [selectedCategories]);
 
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.progressionRange', JSON.stringify(progressionRange));
+  }, [progressionRange]);
+
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.cvPlannedIsActive', JSON.stringify(cvPlannedIsActive));
+  }, [cvPlannedIsActive]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, groupByCourse, pageSize, progressionRange, cvPlannedIsActive]);
+
   // Clean up old localStorage keys from removed active user toggle
   useEffect(() => {
     localStorage.removeItem('inactiveManagement.showActiveOnly');
@@ -164,7 +198,7 @@ const InactiveManagement = () => {
     queryFn: async () => {
       const params = new URLSearchParams({
         group_by_course: groupByCourse,
-        at_risk_threshold_days: filters.atRiskThreshold,
+        at_risk_threshold_days: filters.atRiskEnabled ? filters.atRiskThreshold : filters.inactivityThreshold,
         inactivity_threshold_days: filters.inactivityThreshold,
         exclude_recent_enrollments_days: filters.excludeRecentDays
       });
@@ -247,131 +281,138 @@ const InactiveManagement = () => {
     }
   };
 
-  // Filter and sort participants
-  const filterAndSortParticipants = (participants) => {
-    if (!participants) return [];
+  // Consolidated filtering: single useMemo produces stats, flat list, and grouped list
+  const { filteredStats, filteredParticipantsFlat, filteredCourseGroups } = useMemo(() => {
+    const emptyResult = {
+      filteredStats: { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0 },
+      filteredParticipantsFlat: [],
+      filteredCourseGroups: [],
+    };
+    if (!data) return emptyResult;
 
-    let filtered = participants;
-
-    // Apply ADF filter
-    if (selectedADFs.length > 0) {
-      filtered = filtered.filter(p => selectedADFs.includes(p.id_action_formation));
-    }
-
-    // Apply Formateur filter
-    if (selectedFormateurs.length > 0) {
-      filtered = filtered.filter(p => {
-        if (!p.formateurs || p.formateurs.length === 0) return false;
-        return p.formateurs.some(formateur =>
-          selectedFormateurs.includes(formateur.id_formateur)
-        );
-      });
-    }
-
-    // Apply Category filter
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter(p => p.category_name && selectedCategories.includes(p.category_name));
-    }
-
-    // Apply global search
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase().trim();
-      filtered = filtered.filter(p => {
-        const name = `${p.nom || ''} ${p.prenom || ''}`.toLowerCase();
-        const courseTitle = (p.course_title || '').toLowerCase();
-        const category = (p.category_name || '').toLowerCase();
-        return name.includes(term) || courseTitle.includes(term) || category.includes(term);
-      });
-    }
-
-    // Apply status filter
-    filtered = filtered.filter(p => statusFilter[p.inactivity_status]);
-
-    // Sort participants
-    const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
-
-    filtered.sort((a, b) => {
-      let comparison = 0;
-
-      switch (sortBy) {
-        case 'inactivity':
-          comparison = ((a.days_inactive || 0) - (b.days_inactive || 0)) * -1;
-          break;
-        case 'name':
-          comparison = `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`);
-          break;
-        case 'progression':
-          const progressionA = a.current_progression || a.overall_progression || 0;
-          const progressionB = b.current_progression || b.overall_progression || 0;
-          comparison = progressionA - progressionB;
-          break;
-        case 'status':
-          const statusOrder = { 'never_started': 4, 'inactive': 3, 'at_risk': 2, 'active': 1 };
-          comparison = (statusOrder[a.inactivity_status] || 0) - (statusOrder[b.inactivity_status] || 0);
-          break;
-        default:
-          comparison = 0;
+    // Base filters: ADF, formateur, category, search (no status, no sort)
+    const applyBaseFilters = (participants) => {
+      if (!participants) return [];
+      let filtered = participants;
+      if (selectedADFs.length > 0) {
+        filtered = filtered.filter(p => selectedADFs.includes(p.id_action_formation));
       }
+      if (selectedFormateurs.length > 0) {
+        filtered = filtered.filter(p =>
+          p.formateurs?.some(f => selectedFormateurs.includes(f.id_formateur))
+        );
+      }
+      if (selectedCategories.length > 0) {
+        filtered = filtered.filter(p => p.category_name && selectedCategories.includes(p.category_name));
+      }
+      if (searchTerm.trim()) {
+        const term = searchTerm.toLowerCase().trim();
+        filtered = filtered.filter(p => {
+          const name = `${p.nom || ''} ${p.prenom || ''}`.toLowerCase();
+          const courseTitle = (p.course_title || '').toLowerCase();
+          const category = (p.category_name || '').toLowerCase();
+          return name.includes(term) || courseTitle.includes(term) || category.includes(term);
+        });
+      }
+      if (progressionRange[0] > 0 || progressionRange[1] < 100) {
+        filtered = filtered.filter(p => {
+          const prog = p.current_progression || p.overall_progression || 0;
+          return prog >= progressionRange[0] && prog <= progressionRange[1];
+        });
+      }
+      return filtered;
+    };
 
-      return comparison * sortMultiplier;
-    });
+    // Status filter + sort
+    const applySortAndStatus = (participants) => {
+      const withStatus = participants.filter(p => statusFilter[p.inactivity_status]);
+      const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
+      withStatus.sort((a, b) => {
+        let comparison = 0;
+        switch (sortBy) {
+          case 'inactivity':
+            comparison = ((a.days_inactive || 0) - (b.days_inactive || 0)) * -1;
+            break;
+          case 'name':
+            comparison = `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`);
+            break;
+          case 'progression': {
+            const progA = a.current_progression || a.overall_progression || 0;
+            const progB = b.current_progression || b.overall_progression || 0;
+            comparison = progA - progB;
+            break;
+          }
+          case 'status': {
+            const order = { never_started: 4, inactive: 3, at_risk: 2, active: 1 };
+            comparison = (order[a.inactivity_status] || 0) - (order[b.inactivity_status] || 0);
+            break;
+          }
+          default:
+            comparison = 0;
+        }
+        return comparison * sortMultiplier;
+      });
+      return withStatus;
+    };
 
-    return filtered;
-  };
-
-  // Compute stats from client-side filtered data (ADF + formateur filters, ignoring status filter)
-  const filteredStats = useMemo(() => {
-    if (!data) return { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0 };
-
-    // Collect all participants from either view mode
+    // Collect all participants into flat list
     let allParticipants = [];
     if (data.participants) {
       allParticipants = data.participants;
     } else if (data.by_course) {
-      data.by_course.forEach(course => {
-        if (course.participants) {
-          allParticipants = allParticipants.concat(course.participants);
-        }
-      });
+      for (const course of data.by_course) {
+        if (course.participants) allParticipants = allParticipants.concat(course.participants);
+      }
     }
 
-    // Apply ADF filter
-    if (selectedADFs.length > 0) {
-      allParticipants = allParticipants.filter(p => selectedADFs.includes(p.id_action_formation));
+    // CV planifié = Actif: override status for participants with upcoming sessions
+    if (cvPlannedIsActive) {
+      allParticipants = allParticipants.map(p =>
+        p.upcoming_sessions_count > 0
+          ? { ...p, inactivity_status: 'active', inactivity_reason: 'CV planifiée' }
+          : p
+      );
     }
 
-    // Apply formateur filter
-    if (selectedFormateurs.length > 0) {
-      allParticipants = allParticipants.filter(p => {
-        if (!p.formateurs || p.formateurs.length === 0) return false;
-        return p.formateurs.some(f => selectedFormateurs.includes(f.id_formateur));
-      });
+    // Base filter once for stats + flat view
+    const baseFiltered = applyBaseFilters(allParticipants);
+
+    // Stats: single loop instead of 4 separate .filter() calls
+    const stats = { total: baseFiltered.length, active: 0, at_risk: 0, inactive: 0, never_started: 0 };
+    for (const p of baseFiltered) {
+      if (p.inactivity_status in stats) stats[p.inactivity_status]++;
     }
 
-    // Apply category filter
-    if (selectedCategories.length > 0) {
-      allParticipants = allParticipants.filter(p => p.category_name && selectedCategories.includes(p.category_name));
-    }
+    // Flat view: apply status + sort to already-filtered list
+    const flat = data.participants ? applySortAndStatus(baseFiltered) : [];
 
-    // Apply global search
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase().trim();
-      allParticipants = allParticipants.filter(p => {
-        const name = `${p.nom || ''} ${p.prenom || ''}`.toLowerCase();
-        const courseTitle = (p.course_title || '').toLowerCase();
-        const category = (p.category_name || '').toLowerCase();
-        return name.includes(term) || courseTitle.includes(term) || category.includes(term);
-      });
-    }
+    // Grouped view: base filter per course, then status + sort
+    const applyCvOverride = (participants) =>
+      cvPlannedIsActive
+        ? participants.map(p => p.upcoming_sessions_count > 0 ? { ...p, inactivity_status: 'active', inactivity_reason: 'CV planifiée' } : p)
+        : participants;
 
-    return {
-      total: allParticipants.length,
-      active: allParticipants.filter(p => p.inactivity_status === 'active').length,
-      at_risk: allParticipants.filter(p => p.inactivity_status === 'at_risk').length,
-      inactive: allParticipants.filter(p => p.inactivity_status === 'inactive').length,
-      never_started: allParticipants.filter(p => p.inactivity_status === 'never_started').length,
-    };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm]);
+    const groups = data.by_course
+      ? data.by_course
+          .map(course => ({
+            ...course,
+            filteredParticipants: applySortAndStatus(applyBaseFilters(applyCvOverride(course.participants)))
+          }))
+          .filter(course => course.filteredParticipants.length > 0)
+      : [];
+
+    return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive]);
+
+  // Pagination: slice data for current page (pageSize 0 = show all)
+  const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
+  const effectivePageSize = pageSize === 0 ? totalItems : pageSize;
+  const totalPages = Math.max(1, Math.ceil(totalItems / effectivePageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * effectivePageSize;
+  const pageEnd = Math.min(pageStart + effectivePageSize, totalItems);
+  const paginatedFlat = filteredParticipantsFlat.slice(pageStart, pageEnd);
+  const paginatedGroups = filteredCourseGroups.slice(pageStart, pageEnd);
 
   const toggleSort = useCallback((field) => {
     setSortBy(prev => {
@@ -450,23 +491,7 @@ const InactiveManagement = () => {
     return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  // Memoized filtered results to avoid re-filtering on unrelated state changes
-  const filteredParticipantsFlat = useMemo(() => {
-    if (!data?.participants) return [];
-    return filterAndSortParticipants(data.participants);
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection]);
-
-  const filteredCourseGroups = useMemo(() => {
-    if (!data?.by_course) return [];
-    return data.by_course
-      .map(course => ({
-        ...course,
-        filteredParticipants: filterAndSortParticipants(course.participants)
-      }))
-      .filter(course => course.filteredParticipants.length > 0);
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection]);
-
-  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0;
+  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || !filters.atRiskEnabled || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive;
 
   const resetAllFilters = useCallback(() => {
     setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true });
@@ -474,39 +499,36 @@ const InactiveManagement = () => {
     setSelectedFormateurs([]);
     setSelectedCategories([]);
     setSearchTerm('');
-    setFilters(f => ({ ...f, atRiskThreshold: 14, inactivityThreshold: 30, excludeRecentDays: 0 }));
+    setCvPlannedIsActive(false);
+    setProgressionRange([0, 100]);
+    setFilters(f => ({ ...f, atRiskThreshold: 14, atRiskEnabled: true, inactivityThreshold: 30, excludeRecentDays: 0 }));
   }, []);
 
   const handleDownloadPDF = async () => {
     if (!data) return;
 
-    // Collect all participants regardless of view mode
-    let allParticipants = [];
-    if (data.participants) {
-      allParticipants = data.participants;
-    } else if (data.by_course) {
-      data.by_course.forEach(course => {
-        if (course.participants) {
-          allParticipants = allParticipants.concat(course.participants);
-        }
-      });
+    // Use pre-computed filtered data from the consolidated useMemo
+    let filteredParticipants;
+    if (groupByCourse) {
+      filteredParticipants = filteredCourseGroups.flatMap(c => c.filteredParticipants);
+    } else {
+      filteredParticipants = filteredParticipantsFlat;
     }
-
-    const filteredParticipants = filterAndSortParticipants(allParticipants);
 
     // Build active filter descriptions
     const activeFilterDescriptions = [];
     if (searchTerm.trim()) {
       activeFilterDescriptions.push(`${t('common.search')}: "${searchTerm.trim()}"`);
     }
-    if (selectedADFs.length > 0) {
-      activeFilterDescriptions.push(`${selectedADFs.length} ${t('inactiveManagement.pdf.filterADFs')}`);
-    }
     if (selectedFormateurs.length > 0) {
-      activeFilterDescriptions.push(`${selectedFormateurs.length} ${t('inactiveManagement.pdf.filterFormateurs')}`);
+      const formateurNames = selectedFormateurs
+        .map(id => formateurList.find(f => f.id === id))
+        .filter(Boolean)
+        .map(f => f.fullName);
+      activeFilterDescriptions.push(`${t('inactiveManagement.pdf.filterFormateurs')}: ${formateurNames.join(', ')}`);
     }
     if (selectedCategories.length > 0) {
-      activeFilterDescriptions.push(`${selectedCategories.length} ${t('inactiveManagement.pdf.filterCategories')}`);
+      activeFilterDescriptions.push(`${t('inactiveManagement.pdf.filterCategories')}: ${selectedCategories.join(', ')}`);
     }
 
     const disabledStatuses = [];
@@ -610,16 +632,23 @@ const InactiveManagement = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.atRiskEnabled}
+                    onChange={(e) => setFilters({ ...filters, atRiskEnabled: e.target.checked })}
+                    className="w-4 h-4 text-yellow-500 rounded focus:ring-2 focus:ring-yellow-400"
+                  />
                   {t('inactiveManagement.filters.atRiskThreshold')}
                 </label>
                 <input
                   type="number"
                   value={filters.atRiskThreshold}
                   onChange={(e) => setFilters({ ...filters, atRiskThreshold: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${!filters.atRiskEnabled ? 'opacity-40 pointer-events-none' : ''}`}
                   min="1"
                   max="365"
+                  disabled={!filters.atRiskEnabled}
                 />
               </div>
 
@@ -730,13 +759,15 @@ const InactiveManagement = () => {
                 <CheckCircle2 size={12} />
                 {t('inactiveManagement.status.active')}
               </label>
-              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                statusFilter.at_risk ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-white border-gray-200 text-gray-400'
-              }`}>
-                <input type="checkbox" checked={statusFilter.at_risk} onChange={() => toggleStatusFilter('at_risk')} className="sr-only" />
-                <AlertTriangle size={12} />
-                {t('inactiveManagement.status.atRisk')}
-              </label>
+              {filters.atRiskEnabled && (
+                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                  statusFilter.at_risk ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-white border-gray-200 text-gray-400'
+                }`}>
+                  <input type="checkbox" checked={statusFilter.at_risk} onChange={() => toggleStatusFilter('at_risk')} className="sr-only" />
+                  <AlertTriangle size={12} />
+                  {t('inactiveManagement.status.atRisk')}
+                </label>
+              )}
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
                 statusFilter.inactive ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-400'
               }`}>
@@ -750,6 +781,20 @@ const InactiveManagement = () => {
                 <input type="checkbox" checked={statusFilter.never_started} onChange={() => toggleStatusFilter('never_started')} className="sr-only" />
                 <Clock size={12} />
                 {t('inactiveManagement.status.neverStarted')}
+              </label>
+            </div>
+
+            {/* Divider */}
+            <div className="hidden lg:block w-px bg-gray-200" />
+
+            {/* CV planifié = Actif toggle */}
+            <div className="flex items-center gap-2">
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                cvPlannedIsActive ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}>
+                <input type="checkbox" checked={cvPlannedIsActive} onChange={() => setCvPlannedIsActive(!cvPlannedIsActive)} className="sr-only" />
+                <CalendarClock size={12} />
+                CV planifié = Actif
               </label>
             </div>
 
@@ -1134,17 +1179,19 @@ const InactiveManagement = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border border-yellow-200 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-yellow-700">{t('inactiveManagement.stats.atRisk')}</p>
-                    <p className="text-3xl font-bold text-yellow-900 mt-2">{filteredStats.at_risk}</p>
-                  </div>
-                  <div className="p-3 bg-yellow-100 rounded-lg">
-                    <AlertTriangle size={24} className="text-yellow-600" />
+              {filters.atRiskEnabled && (
+                <div className="bg-white rounded-lg border border-yellow-200 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-yellow-700">{t('inactiveManagement.stats.atRisk')}</p>
+                      <p className="text-3xl font-bold text-yellow-900 mt-2">{filteredStats.at_risk}</p>
+                    </div>
+                    <div className="p-3 bg-yellow-100 rounded-lg">
+                      <AlertTriangle size={24} className="text-yellow-600" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="bg-white rounded-lg border border-red-200 p-6">
                 <div className="flex items-center justify-between">
@@ -1171,10 +1218,100 @@ const InactiveManagement = () => {
               </div>
             </div>
 
+            {/* Page Size Selector + Progression Range + Count */}
+            <div className="flex items-center gap-6 mb-4 flex-wrap">
+              {/* Per page */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">{t('pagination.show')}</span>
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setPageSize(size)}
+                    className={`px-3 py-1 rounded-full border text-xs font-medium transition-colors ${
+                      pageSize === size
+                        ? 'bg-primary-50 border-primary-200 text-primary-700'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {size === 0 ? t('common.all') : size}
+                  </button>
+                ))}
+                <span className="text-sm text-gray-600">{t('pagination.perPage')}</span>
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-gray-200" />
+
+              {/* Progression Range Slider */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-600 flex items-center gap-1 whitespace-nowrap">
+                  <BarChart3 size={14} />
+                  Progression
+                </span>
+                <span className="text-xs font-medium text-gray-500 w-10 text-right">{progressionRange[0]}%</span>
+                <div className="relative w-40 h-5 flex items-center">
+                  {/* Track background */}
+                  <div className="absolute inset-x-0 h-1.5 bg-gray-200 rounded-full" />
+                  {/* Active range highlight */}
+                  <div
+                    className="absolute h-1.5 bg-primary-400 rounded-full"
+                    style={{
+                      left: `${progressionRange[0]}%`,
+                      right: `${100 - progressionRange[1]}%`,
+                    }}
+                  />
+                  {/* Min handle */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={progressionRange[0]}
+                    onChange={(e) => {
+                      const val = Math.min(Number(e.target.value), progressionRange[1]);
+                      setProgressionRange([val, progressionRange[1]]);
+                    }}
+                    className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary-500 [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:border-primary-600 [&::-webkit-slider-thumb]:hover:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-primary-500 [&::-moz-range-thumb]:shadow-sm [&::-moz-range-thumb]:cursor-pointer"
+                    style={{ zIndex: progressionRange[0] > 50 ? 2 : 1 }}
+                  />
+                  {/* Max handle */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={progressionRange[1]}
+                    onChange={(e) => {
+                      const val = Math.max(Number(e.target.value), progressionRange[0]);
+                      setProgressionRange([progressionRange[0], val]);
+                    }}
+                    className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary-500 [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:border-primary-600 [&::-webkit-slider-thumb]:hover:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-primary-500 [&::-moz-range-thumb]:shadow-sm [&::-moz-range-thumb]:cursor-pointer"
+                    style={{ zIndex: 2 }}
+                  />
+                </div>
+                <span className="text-xs font-medium text-gray-500 w-10">{progressionRange[1]}%</span>
+                {(progressionRange[0] > 0 || progressionRange[1] < 100) && (
+                  <button
+                    onClick={() => setProgressionRange([0, 100])}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Reset"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-gray-200" />
+
+              {/* Result count */}
+              <span className="text-sm text-gray-500">
+                Nb de résultats: {totalItems}
+              </span>
+            </div>
+
             {/* Grouped by Course View */}
             {groupByCourse && data.by_course && (
               <div className="space-y-4">
-                {filteredCourseGroups.map((course) => (
+                {paginatedGroups.map((course) => (
                     <div key={course.course_id} className="bg-white rounded-lg border border-gray-200">
                       {/* Course Header */}
                       <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
@@ -1197,9 +1334,11 @@ const InactiveManagement = () => {
                             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                               {course.active_count} {t('inactiveManagement.status.active')}
                             </span>
-                            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                              {course.at_risk_count} {t('inactiveManagement.status.atRisk')}
-                            </span>
+                            {filters.atRiskEnabled && (
+                              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                                {course.at_risk_count} {t('inactiveManagement.status.atRisk')}
+                              </span>
+                            )}
                             <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
                               {course.inactive_count} {t('inactiveManagement.status.inactive')}
                             </span>
@@ -1266,6 +1405,20 @@ const InactiveManagement = () => {
                                           </span>
                                         )}
                                       </span>
+                                      {participant.upcoming_sessions_count > 0 && participant.next_session_date ? (
+                                        <span
+                                          className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full cursor-default"
+                                          title={`${new Date(participant.next_session_date).toLocaleDateString()}\n${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
+                                        >
+                                          <CalendarClock size={12} />
+                                          CV dans {Math.max(0, Math.ceil((new Date(participant.next_session_date) - new Date()) / (1000 * 60 * 60 * 24)))}j
+                                        </span>
+                                      ) : (
+                                        <span className="flex items-center gap-1 text-xs bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full cursor-default">
+                                          <CalendarClock size={12} />
+                                          pas de CV programmées
+                                        </span>
+                                      )}
                                       {participant.total_planned_duration_hours > 0 && (
                                         <span
                                           className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full cursor-default"
@@ -1320,7 +1473,7 @@ const InactiveManagement = () => {
             {!groupByCourse && data.participants && (
               <div className="bg-white rounded-lg border border-gray-200">
                 <div className="divide-y divide-gray-200">
-                  {filteredParticipantsFlat.map((participant) => (
+                  {paginatedFlat.map((participant) => (
                     <div key={`${participant.id}-${participant.course_id}`} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
@@ -1373,6 +1526,20 @@ const InactiveManagement = () => {
                                   </span>
                                 )}
                               </span>
+                              {participant.upcoming_sessions_count > 0 && participant.next_session_date ? (
+                                <span
+                                  className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full cursor-default"
+                                  title={`${new Date(participant.next_session_date).toLocaleDateString()}\n${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
+                                >
+                                  <CalendarClock size={12} />
+                                  CV dans {Math.max(0, Math.ceil((new Date(participant.next_session_date) - new Date()) / (1000 * 60 * 60 * 24)))}j
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-xs bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full cursor-default">
+                                  <CalendarClock size={12} />
+                                  pas de CV programmées
+                                </span>
+                              )}
                               {participant.total_planned_duration_hours > 0 && (
                                 <span
                                   className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full cursor-default"
@@ -1416,6 +1583,52 @@ const InactiveManagement = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {pageSize !== 0 && totalPages > 1 && (
+              <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-6 py-3 mt-4">
+                <p className="text-sm text-gray-600">
+                  {t('pagination.showing', { start: pageStart + 1, end: pageEnd, total: totalItems })}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={safePage <= 1}
+                    className="px-2 py-1.5 rounded border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={t('pagination.firstPage')}
+                  >
+                    1
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                    className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={t('pagination.previousPage')}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="px-3 py-1.5 text-sm font-medium text-gray-900">
+                    {safePage} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                    className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={t('pagination.nextPage')}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={safePage >= totalPages}
+                    className="px-2 py-1.5 rounded border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    title={t('pagination.lastPage')}
+                  >
+                    {totalPages}
+                  </button>
                 </div>
               </div>
             )}

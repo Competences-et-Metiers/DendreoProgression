@@ -185,9 +185,13 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
-    hashed_password = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=True)  # Nullable for Microsoft-only users
     role = Column(String(20), default='user', nullable=False)  # 'admin' or 'user'
     is_active = Column(Boolean, default=True)
+    auth_provider = Column(String(20), default='local', nullable=False)  # 'local' or 'microsoft'
+    microsoft_id = Column(String(255), unique=True, nullable=True, index=True)  # Azure AD oid
+    email = Column(String(255), nullable=True)
+    display_name = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

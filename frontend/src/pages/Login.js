@@ -3,15 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, AlertCircle, Loader2 } from 'lucide-react';
+import { msalInstance, loginRequest } from '../config/msalConfig';
 
 const Login = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { login, isAuthenticated, isLoading, error, clearError } = useAuth();
+  const { login, loginWithMicrosoft, isAuthenticated, isLoading, error, clearError } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMicrosoftLoading, setIsMicrosoftLoading] = useState(false);
+  const [msalReady, setMsalReady] = useState(false);
+
+  // Initialize MSAL on mount
+  useEffect(() => {
+    if (!msalInstance) return;
+    msalInstance.initialize().then(() => {
+      setMsalReady(true);
+    }).catch((err) => {
+      console.error('MSAL initialization failed:', err);
+    });
+  }, []);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -40,6 +53,48 @@ const Login = () => {
     setIsSubmitting(false);
   };
 
+  const handleMicrosoftLogin = async () => {
+    if (!msalInstance || !msalReady) return;
+
+    setIsMicrosoftLoading(true);
+    clearError();
+
+    try {
+      // Clear any stuck interaction state from a previous failed popup
+      const activeAccount = msalInstance.getActiveAccount();
+      if (!activeAccount) {
+        try {
+          await msalInstance.handleRedirectPromise();
+        } catch (_) {
+          // Ignore - just clearing stale state
+        }
+      }
+
+      const response = await msalInstance.loginPopup({
+        ...loginRequest,
+        prompt: 'select_account',
+      });
+
+      if (response?.idToken) {
+        const success = await loginWithMicrosoft(response.idToken);
+        if (success) {
+          navigate('/');
+        }
+      }
+    } catch (err) {
+      if (err.errorCode === 'interaction_in_progress') {
+        // Clear stuck interaction state and let user retry
+        sessionStorage.clear();
+        await msalInstance.initialize();
+        console.warn('Cleared stuck MSAL interaction state — please try again.');
+      } else if (err.errorCode !== 'user_cancelled') {
+        console.error('Microsoft login error:', err);
+      }
+    } finally {
+      setIsMicrosoftLoading(false);
+    }
+  };
+
   // Show loading while checking auth state
   if (isLoading) {
     return (
@@ -59,17 +114,50 @@ const Login = () => {
           <p className="mt-2 text-sm text-gray-500">{t('login.subtitle')}</p>
         </div>
 
-        {/* Login Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
-            {/* Error Message */}
-            {error && (
-              <div className="flex items-center p-3 bg-red-50 border border-red-200 rounded-md">
-                <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
-                <span className="text-sm text-red-700">{error}</span>
-              </div>
-            )}
+        {/* Error Message */}
+        {error && (
+          <div className="flex items-center p-3 bg-red-50 border border-red-200 rounded-md">
+            <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
+            <span className="text-sm text-red-700">{error}</span>
+          </div>
+        )}
 
+        {/* Microsoft Login Button */}
+        {msalReady && (
+          <>
+            <button
+              type="button"
+              onClick={handleMicrosoftLogin}
+              disabled={isMicrosoftLoading}
+              className="w-full flex justify-center items-center py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isMicrosoftLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <svg className="w-4 h-4 mr-2" viewBox="0 0 21 21">
+                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
+              )}
+              {t('login.microsoftSignIn')}
+            </button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-50 text-gray-500">{t('login.or')}</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Login Form */}
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          <div className="bg-white rounded-lg shadow-md p-6 space-y-4">
             {/* Username Field */}
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700">

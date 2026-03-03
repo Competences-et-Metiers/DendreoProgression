@@ -43,6 +43,16 @@ export const authService = {
   getToken() {
     return localStorage.getItem('token');
   },
+
+  /**
+   * Exchange Microsoft ID token for app JWT
+   * @param {string} idToken - ID token from MSAL popup
+   * @returns {Promise<{access_token: string, token_type: string}>}
+   */
+  async microsoftLogin(idToken) {
+    const response = await api.post('/auth/microsoft', { id_token: idToken });
+    return response.data;
+  },
 };
 
 export default authService;

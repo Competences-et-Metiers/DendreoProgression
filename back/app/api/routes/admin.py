@@ -15,8 +15,8 @@ import os
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-SYNC_LOG_PATH = "/tmp/sync_live.log"
-SYNC_API_COUNTERS_PATH = "/tmp/sync_api_counters.json"
+SYNC_LOG_PATH = "/app/logs/sync_live.log"
+SYNC_API_COUNTERS_PATH = "/app/logs/sync_api_counters.json"
 _sync_process = None  # Track the running subprocess
 _sync_log_file = None  # Track the log file handle
 
@@ -156,13 +156,22 @@ def _cleanup_finished_process():
 
 def _is_process_running() -> bool:
     """Check if the sync subprocess is still running. Auto-cleans up if finished."""
+    return _check_process_state() == 'running'
+
+
+def _check_process_state() -> str:
+    """Check local subprocess state. Returns 'running', 'exited', or 'none'.
+
+    'none' means no local subprocess was tracked (e.g. scheduled syncs in sync container).
+    'exited' means a local subprocess was started and has since terminated.
+    """
     if _sync_process is None:
-        return False
+        return 'none'
     if _sync_process.poll() is None:
-        return True
+        return 'running'
     # Process has exited — clean up
     _cleanup_finished_process()
-    return False
+    return 'exited'
 
 
 def start_sync_process(command: List[str]) -> Dict[str, Any]:
@@ -501,8 +510,12 @@ async def get_sync_status(
     Check if a sync is currently running (status='in_progress')
     Return last sync info + current config
     """
-    # If process has exited, clean up stale in_progress records
-    if not _is_process_running():
+    # Only clean up stale in_progress records if a LOCAL subprocess has exited.
+    # State 'none' means no local subprocess (e.g. scheduled sync in sync container) — don't touch.
+    process_state = _check_process_state()
+    process_running = process_state == 'running'
+
+    if process_state == 'exited':
         stale_records = db.query(SyncMetadata).filter(
             SyncMetadata.status == 'in_progress'
         ).all()
@@ -549,8 +562,6 @@ async def get_sync_status(
 
     # Get config
     config = get_or_create_sync_config(db)
-
-    process_running = _is_process_running()
 
     return SyncStatusResponse(
         is_running=(in_progress is not None) or process_running,
@@ -786,11 +797,12 @@ async def get_live_log(
                 content = f.read()
                 new_offset = f.tell()
 
-    # Check if the subprocess is still alive (auto-cleans up if exited)
-    process_running = _is_process_running()
+    # Check local subprocess state — only clean up stale records if a local process exited.
+    # State 'none' means no local subprocess (e.g. scheduled sync in sync container) — don't touch.
+    process_state = _check_process_state()
+    process_running = process_state == 'running'
 
-    # If process is no longer running, clean up any stale in_progress metadata
-    if not process_running:
+    if process_state == 'exited':
         stale_records = db.query(SyncMetadata).filter(
             SyncMetadata.status == 'in_progress'
         ).all()
