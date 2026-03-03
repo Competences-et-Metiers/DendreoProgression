@@ -44,6 +44,7 @@ const InactiveManagement = () => {
       // Migrate old filter format
       return {
         atRiskThreshold: parsed.atRiskThreshold || 14,
+        atRiskEnabled: parsed.atRiskEnabled ?? true,
         inactivityThreshold: parsed.inactivityThreshold || 30,
         excludeRecentDays: parsed.excludeRecentDays ?? 0,
         minProgression: parsed.minProgression ?? null,
@@ -53,6 +54,7 @@ const InactiveManagement = () => {
     }
     return {
       atRiskThreshold: 14,
+      atRiskEnabled: true,
       inactivityThreshold: 30,
       excludeRecentDays: 0,
       minProgression: null,
@@ -124,9 +126,9 @@ const InactiveManagement = () => {
     return cached ? JSON.parse(cached) : [0, 100];
   });
 
-  // Upcoming sessions filter
-  const [hideWithUpcomingSessions, setHideWithUpcomingSessions] = useState(() => {
-    const cached = localStorage.getItem('inactiveManagement.hideWithUpcomingSessions');
+  // CV planifié = Actif toggle
+  const [cvPlannedIsActive, setCvPlannedIsActive] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.cvPlannedIsActive');
     return cached ? JSON.parse(cached) : false;
   });
 
@@ -176,13 +178,13 @@ const InactiveManagement = () => {
   }, [progressionRange]);
 
   useEffect(() => {
-    localStorage.setItem('inactiveManagement.hideWithUpcomingSessions', JSON.stringify(hideWithUpcomingSessions));
-  }, [hideWithUpcomingSessions]);
+    localStorage.setItem('inactiveManagement.cvPlannedIsActive', JSON.stringify(cvPlannedIsActive));
+  }, [cvPlannedIsActive]);
 
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, groupByCourse, pageSize, progressionRange, hideWithUpcomingSessions]);
+  }, [selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, groupByCourse, pageSize, progressionRange, cvPlannedIsActive]);
 
   // Clean up old localStorage keys from removed active user toggle
   useEffect(() => {
@@ -196,7 +198,7 @@ const InactiveManagement = () => {
     queryFn: async () => {
       const params = new URLSearchParams({
         group_by_course: groupByCourse,
-        at_risk_threshold_days: filters.atRiskThreshold,
+        at_risk_threshold_days: filters.atRiskEnabled ? filters.atRiskThreshold : filters.inactivityThreshold,
         inactivity_threshold_days: filters.inactivityThreshold,
         exclude_recent_enrollments_days: filters.excludeRecentDays
       });
@@ -318,9 +320,6 @@ const InactiveManagement = () => {
           return prog >= progressionRange[0] && prog <= progressionRange[1];
         });
       }
-      if (hideWithUpcomingSessions) {
-        filtered = filtered.filter(p => !p.upcoming_sessions_count || p.upcoming_sessions_count === 0);
-      }
       return filtered;
     };
 
@@ -366,6 +365,15 @@ const InactiveManagement = () => {
       }
     }
 
+    // CV planifié = Actif: override status for participants with upcoming sessions
+    if (cvPlannedIsActive) {
+      allParticipants = allParticipants.map(p =>
+        p.upcoming_sessions_count > 0
+          ? { ...p, inactivity_status: 'active', inactivity_reason: 'CV planifiée' }
+          : p
+      );
+    }
+
     // Base filter once for stats + flat view
     const baseFiltered = applyBaseFilters(allParticipants);
 
@@ -379,17 +387,22 @@ const InactiveManagement = () => {
     const flat = data.participants ? applySortAndStatus(baseFiltered) : [];
 
     // Grouped view: base filter per course, then status + sort
+    const applyCvOverride = (participants) =>
+      cvPlannedIsActive
+        ? participants.map(p => p.upcoming_sessions_count > 0 ? { ...p, inactivity_status: 'active', inactivity_reason: 'CV planifiée' } : p)
+        : participants;
+
     const groups = data.by_course
       ? data.by_course
           .map(course => ({
             ...course,
-            filteredParticipants: applySortAndStatus(applyBaseFilters(course.participants))
+            filteredParticipants: applySortAndStatus(applyBaseFilters(applyCvOverride(course.participants)))
           }))
           .filter(course => course.filteredParticipants.length > 0)
       : [];
 
     return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, hideWithUpcomingSessions]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive]);
 
   // Pagination: slice data for current page (pageSize 0 = show all)
   const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
@@ -478,7 +491,7 @@ const InactiveManagement = () => {
     return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || hideWithUpcomingSessions;
+  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || !filters.atRiskEnabled || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive;
 
   const resetAllFilters = useCallback(() => {
     setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true });
@@ -486,9 +499,9 @@ const InactiveManagement = () => {
     setSelectedFormateurs([]);
     setSelectedCategories([]);
     setSearchTerm('');
+    setCvPlannedIsActive(false);
     setProgressionRange([0, 100]);
-    setHideWithUpcomingSessions(false);
-    setFilters(f => ({ ...f, atRiskThreshold: 14, inactivityThreshold: 30, excludeRecentDays: 0 }));
+    setFilters(f => ({ ...f, atRiskThreshold: 14, atRiskEnabled: true, inactivityThreshold: 30, excludeRecentDays: 0 }));
   }, []);
 
   const handleDownloadPDF = async () => {
@@ -619,16 +632,23 @@ const InactiveManagement = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.atRiskEnabled}
+                    onChange={(e) => setFilters({ ...filters, atRiskEnabled: e.target.checked })}
+                    className="w-4 h-4 text-yellow-500 rounded focus:ring-2 focus:ring-yellow-400"
+                  />
                   {t('inactiveManagement.filters.atRiskThreshold')}
                 </label>
                 <input
                   type="number"
                   value={filters.atRiskThreshold}
                   onChange={(e) => setFilters({ ...filters, atRiskThreshold: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${!filters.atRiskEnabled ? 'opacity-40 pointer-events-none' : ''}`}
                   min="1"
                   max="365"
+                  disabled={!filters.atRiskEnabled}
                 />
               </div>
 
@@ -739,13 +759,15 @@ const InactiveManagement = () => {
                 <CheckCircle2 size={12} />
                 {t('inactiveManagement.status.active')}
               </label>
-              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                statusFilter.at_risk ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-white border-gray-200 text-gray-400'
-              }`}>
-                <input type="checkbox" checked={statusFilter.at_risk} onChange={() => toggleStatusFilter('at_risk')} className="sr-only" />
-                <AlertTriangle size={12} />
-                {t('inactiveManagement.status.atRisk')}
-              </label>
+              {filters.atRiskEnabled && (
+                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                  statusFilter.at_risk ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-white border-gray-200 text-gray-400'
+                }`}>
+                  <input type="checkbox" checked={statusFilter.at_risk} onChange={() => toggleStatusFilter('at_risk')} className="sr-only" />
+                  <AlertTriangle size={12} />
+                  {t('inactiveManagement.status.atRisk')}
+                </label>
+              )}
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
                 statusFilter.inactive ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-400'
               }`}>
@@ -765,14 +787,14 @@ const InactiveManagement = () => {
             {/* Divider */}
             <div className="hidden lg:block w-px bg-gray-200" />
 
-            {/* Upcoming sessions filter */}
+            {/* CV planifié = Actif toggle */}
             <div className="flex items-center gap-2">
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                hideWithUpcomingSessions ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                cvPlannedIsActive ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}>
-                <input type="checkbox" checked={hideWithUpcomingSessions} onChange={() => setHideWithUpcomingSessions(!hideWithUpcomingSessions)} className="sr-only" />
+                <input type="checkbox" checked={cvPlannedIsActive} onChange={() => setCvPlannedIsActive(!cvPlannedIsActive)} className="sr-only" />
                 <CalendarClock size={12} />
-                Masquer avec sessions à venir
+                CV planifié = Actif
               </label>
             </div>
 
@@ -1157,17 +1179,19 @@ const InactiveManagement = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border border-yellow-200 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-yellow-700">{t('inactiveManagement.stats.atRisk')}</p>
-                    <p className="text-3xl font-bold text-yellow-900 mt-2">{filteredStats.at_risk}</p>
-                  </div>
-                  <div className="p-3 bg-yellow-100 rounded-lg">
-                    <AlertTriangle size={24} className="text-yellow-600" />
+              {filters.atRiskEnabled && (
+                <div className="bg-white rounded-lg border border-yellow-200 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-yellow-700">{t('inactiveManagement.stats.atRisk')}</p>
+                      <p className="text-3xl font-bold text-yellow-900 mt-2">{filteredStats.at_risk}</p>
+                    </div>
+                    <div className="p-3 bg-yellow-100 rounded-lg">
+                      <AlertTriangle size={24} className="text-yellow-600" />
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className="bg-white rounded-lg border border-red-200 p-6">
                 <div className="flex items-center justify-between">
@@ -1310,9 +1334,11 @@ const InactiveManagement = () => {
                             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                               {course.active_count} {t('inactiveManagement.status.active')}
                             </span>
-                            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
-                              {course.at_risk_count} {t('inactiveManagement.status.atRisk')}
-                            </span>
+                            {filters.atRiskEnabled && (
+                              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                                {course.at_risk_count} {t('inactiveManagement.status.atRisk')}
+                              </span>
+                            )}
                             <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
                               {course.inactive_count} {t('inactiveManagement.status.inactive')}
                             </span>
@@ -1379,13 +1405,18 @@ const InactiveManagement = () => {
                                           </span>
                                         )}
                                       </span>
-                                      {participant.upcoming_sessions_count > 0 && participant.next_session_date && (
+                                      {participant.upcoming_sessions_count > 0 && participant.next_session_date ? (
                                         <span
                                           className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full cursor-default"
-                                          title={`${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
+                                          title={`${new Date(participant.next_session_date).toLocaleDateString()}\n${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
                                         >
                                           <CalendarClock size={12} />
                                           CV dans {Math.max(0, Math.ceil((new Date(participant.next_session_date) - new Date()) / (1000 * 60 * 60 * 24)))}j
+                                        </span>
+                                      ) : (
+                                        <span className="flex items-center gap-1 text-xs bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full cursor-default">
+                                          <CalendarClock size={12} />
+                                          pas de CV programmées
                                         </span>
                                       )}
                                       {participant.total_planned_duration_hours > 0 && (
@@ -1495,13 +1526,18 @@ const InactiveManagement = () => {
                                   </span>
                                 )}
                               </span>
-                              {participant.upcoming_sessions_count > 0 && participant.next_session_date && (
+                              {participant.upcoming_sessions_count > 0 && participant.next_session_date ? (
                                 <span
                                   className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full cursor-default"
-                                  title={`${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
+                                  title={`${new Date(participant.next_session_date).toLocaleDateString()}\n${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
                                 >
                                   <CalendarClock size={12} />
                                   CV dans {Math.max(0, Math.ceil((new Date(participant.next_session_date) - new Date()) / (1000 * 60 * 60 * 24)))}j
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-xs bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full cursor-default">
+                                  <CalendarClock size={12} />
+                                  pas de CV programmées
                                 </span>
                               )}
                               {participant.total_planned_duration_hours > 0 && (
