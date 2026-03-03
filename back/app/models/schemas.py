@@ -121,6 +121,10 @@ class InactiveParticipantDetail(BaseModel):
     enrollment_date: Optional[datetime] = None  # Earliest enrollment date
     days_since_enrollment: int = 0
 
+    # Upcoming liveroom sessions
+    next_session_date: Optional[datetime] = None  # Next upcoming session start date
+    upcoming_sessions_count: int = 0  # Number of future planned sessions
+
     # Inactivity classification
     inactivity_status: str  # 'active', 'at_risk', 'inactive', 'never_started'
     inactivity_reason: str  # Human-readable explanation

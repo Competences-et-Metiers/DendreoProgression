@@ -25,7 +25,13 @@ export const loginRequest = {
   scopes: ['openid', 'profile', 'email'],
 };
 
-// Only create MSAL instance if client ID is configured
-export const msalInstance = clientId
-  ? new PublicClientApplication(msalConfig)
-  : null;
+// Only create MSAL instance if client ID is configured and crypto API is available
+let _msalInstance = null;
+if (clientId) {
+  try {
+    _msalInstance = new PublicClientApplication(msalConfig);
+  } catch (e) {
+    console.warn('MSAL initialization failed (likely insecure context - crypto API unavailable):', e.message);
+  }
+}
+export const msalInstance = _msalInstance;

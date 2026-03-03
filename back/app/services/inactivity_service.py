@@ -7,8 +7,9 @@ active, at_risk, or inactive.
 """
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func as sa_func
 from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from app.models.models import Participant, ParticipantCourse, Course, Module, Creneau, CreneauParticipant, ModuleCategory
 from app.models.schemas import (
     InactiveParticipantDetail,
@@ -87,6 +88,23 @@ class InactivityService:
         for pid, adf, duration in attended_rows:
             key = (pid, adf)
             liveroom_time_spent_map[key] = liveroom_time_spent_map.get(key, 0) + (duration or 0)
+
+        # Pre-build upcoming sessions map: (participant_id, adf_id) -> (count, earliest_date)
+        upcoming_sessions_map: Dict[Tuple[int, str], Tuple[int, datetime]] = {}
+        upcoming_rows = (
+            self.db.query(
+                CreneauParticipant.participant_id,
+                Creneau.id_action_formation,
+                sa_func.count(Creneau.id).label('cnt'),
+                sa_func.min(Creneau.date_debut).label('next_date')
+            )
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(Creneau.date_debut > now)
+            .group_by(CreneauParticipant.participant_id, Creneau.id_action_formation)
+            .all()
+        )
+        for pid, adf, cnt, next_date in upcoming_rows:
+            upcoming_sessions_map[(pid, adf)] = (cnt, next_date)
 
         query = (
             self.db.query(ParticipantCourse, Participant, Course)
@@ -231,6 +249,11 @@ class InactivityService:
 
             formateurs = enrollments[0]['course'].formateurs if enrollments[0]['course'].formateurs else None
 
+            # Upcoming sessions
+            upcoming_info = upcoming_sessions_map.get((participant_id, adf_id))
+            upcoming_count = upcoming_info[0] if upcoming_info else 0
+            next_session = upcoming_info[1] if upcoming_info else None
+
             # Look up category from first course in the group
             cat_id = enrollments[0]['course'].categorie_module_id
             cat_info = category_map.get(cat_id, {}) if cat_id else {}
@@ -255,6 +278,8 @@ class InactivityService:
                 days_inactive=days_since_activity,
                 enrollment_date=enrollment_date,
                 days_since_enrollment=days_since_enrollment,
+                next_session_date=next_session,
+                upcoming_sessions_count=upcoming_count,
                 inactivity_status=inactivity_status,
                 inactivity_reason=inactivity_reason,
                 formateurs=formateurs,

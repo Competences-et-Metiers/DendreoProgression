@@ -13,6 +13,7 @@ All deployment-related documentation is in the `deployment/` folder:
 - [CONTAINER_SYNC_DEPLOYMENT.md](deployment/CONTAINER_SYNC_DEPLOYMENT.md) - Sync container deployment
 - [SYSTEMD_SERVICE_SETUP.md](deployment/SYSTEMD_SERVICE_SETUP.md) - Systemd service setup
 - [DEPLOY_TO_REMOTE.md](deployment/DEPLOY_TO_REMOTE.md) - Remote deployment
+- [SSH_TUNNEL.md](deployment/SSH_TUNNEL.md) - SSH tunnel for dev access (MSAL/crypto workaround)
 
 ## Feature Documentation
 

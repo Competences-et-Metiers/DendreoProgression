@@ -9,6 +9,7 @@ import {
   Clock,
   BookOpen,
   Calendar,
+  CalendarClock,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -117,6 +118,18 @@ const InactiveManagement = () => {
   const [categorySearchTerm, setCategorySearchTerm] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
+  // Progression range slider (client-side filter)
+  const [progressionRange, setProgressionRange] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.progressionRange');
+    return cached ? JSON.parse(cached) : [0, 100];
+  });
+
+  // Upcoming sessions filter
+  const [hideWithUpcomingSessions, setHideWithUpcomingSessions] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.hideWithUpcomingSessions');
+    return cached ? JSON.parse(cached) : false;
+  });
+
   // Global search
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -158,10 +171,18 @@ const InactiveManagement = () => {
     localStorage.setItem('inactiveManagement.selectedCategories', JSON.stringify(selectedCategories));
   }, [selectedCategories]);
 
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.progressionRange', JSON.stringify(progressionRange));
+  }, [progressionRange]);
+
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.hideWithUpcomingSessions', JSON.stringify(hideWithUpcomingSessions));
+  }, [hideWithUpcomingSessions]);
+
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, groupByCourse, pageSize]);
+  }, [selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, groupByCourse, pageSize, progressionRange, hideWithUpcomingSessions]);
 
   // Clean up old localStorage keys from removed active user toggle
   useEffect(() => {
@@ -291,6 +312,15 @@ const InactiveManagement = () => {
           return name.includes(term) || courseTitle.includes(term) || category.includes(term);
         });
       }
+      if (progressionRange[0] > 0 || progressionRange[1] < 100) {
+        filtered = filtered.filter(p => {
+          const prog = p.current_progression || p.overall_progression || 0;
+          return prog >= progressionRange[0] && prog <= progressionRange[1];
+        });
+      }
+      if (hideWithUpcomingSessions) {
+        filtered = filtered.filter(p => !p.upcoming_sessions_count || p.upcoming_sessions_count === 0);
+      }
       return filtered;
     };
 
@@ -359,7 +389,7 @@ const InactiveManagement = () => {
       : [];
 
     return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, hideWithUpcomingSessions]);
 
   // Pagination: slice data for current page (pageSize 0 = show all)
   const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
@@ -448,7 +478,7 @@ const InactiveManagement = () => {
     return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0;
+  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || hideWithUpcomingSessions;
 
   const resetAllFilters = useCallback(() => {
     setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true });
@@ -456,6 +486,8 @@ const InactiveManagement = () => {
     setSelectedFormateurs([]);
     setSelectedCategories([]);
     setSearchTerm('');
+    setProgressionRange([0, 100]);
+    setHideWithUpcomingSessions(false);
     setFilters(f => ({ ...f, atRiskThreshold: 14, inactivityThreshold: 30, excludeRecentDays: 0 }));
   }, []);
 
@@ -727,6 +759,20 @@ const InactiveManagement = () => {
                 <input type="checkbox" checked={statusFilter.never_started} onChange={() => toggleStatusFilter('never_started')} className="sr-only" />
                 <Clock size={12} />
                 {t('inactiveManagement.status.neverStarted')}
+              </label>
+            </div>
+
+            {/* Divider */}
+            <div className="hidden lg:block w-px bg-gray-200" />
+
+            {/* Upcoming sessions filter */}
+            <div className="flex items-center gap-2">
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                hideWithUpcomingSessions ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}>
+                <input type="checkbox" checked={hideWithUpcomingSessions} onChange={() => setHideWithUpcomingSessions(!hideWithUpcomingSessions)} className="sr-only" />
+                <CalendarClock size={12} />
+                Masquer avec sessions à venir
               </label>
             </div>
 
@@ -1148,23 +1194,94 @@ const InactiveManagement = () => {
               </div>
             </div>
 
-            {/* Page Size Selector */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm text-gray-600">{t('pagination.show')}</span>
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setPageSize(size)}
-                  className={`px-3 py-1 rounded-full border text-xs font-medium transition-colors ${
-                    pageSize === size
-                      ? 'bg-primary-50 border-primary-200 text-primary-700'
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {size === 0 ? t('common.all') : size}
-                </button>
-              ))}
-              <span className="text-sm text-gray-600">{t('pagination.perPage')}</span>
+            {/* Page Size Selector + Progression Range + Count */}
+            <div className="flex items-center gap-6 mb-4 flex-wrap">
+              {/* Per page */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">{t('pagination.show')}</span>
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setPageSize(size)}
+                    className={`px-3 py-1 rounded-full border text-xs font-medium transition-colors ${
+                      pageSize === size
+                        ? 'bg-primary-50 border-primary-200 text-primary-700'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {size === 0 ? t('common.all') : size}
+                  </button>
+                ))}
+                <span className="text-sm text-gray-600">{t('pagination.perPage')}</span>
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-gray-200" />
+
+              {/* Progression Range Slider */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-gray-600 flex items-center gap-1 whitespace-nowrap">
+                  <BarChart3 size={14} />
+                  Progression
+                </span>
+                <span className="text-xs font-medium text-gray-500 w-10 text-right">{progressionRange[0]}%</span>
+                <div className="relative w-40 h-5 flex items-center">
+                  {/* Track background */}
+                  <div className="absolute inset-x-0 h-1.5 bg-gray-200 rounded-full" />
+                  {/* Active range highlight */}
+                  <div
+                    className="absolute h-1.5 bg-primary-400 rounded-full"
+                    style={{
+                      left: `${progressionRange[0]}%`,
+                      right: `${100 - progressionRange[1]}%`,
+                    }}
+                  />
+                  {/* Min handle */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={progressionRange[0]}
+                    onChange={(e) => {
+                      const val = Math.min(Number(e.target.value), progressionRange[1]);
+                      setProgressionRange([val, progressionRange[1]]);
+                    }}
+                    className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary-500 [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:border-primary-600 [&::-webkit-slider-thumb]:hover:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-primary-500 [&::-moz-range-thumb]:shadow-sm [&::-moz-range-thumb]:cursor-pointer"
+                    style={{ zIndex: progressionRange[0] > 50 ? 2 : 1 }}
+                  />
+                  {/* Max handle */}
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={progressionRange[1]}
+                    onChange={(e) => {
+                      const val = Math.max(Number(e.target.value), progressionRange[0]);
+                      setProgressionRange([progressionRange[0], val]);
+                    }}
+                    className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-primary-500 [&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:hover:border-primary-600 [&::-webkit-slider-thumb]:hover:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-primary-500 [&::-moz-range-thumb]:shadow-sm [&::-moz-range-thumb]:cursor-pointer"
+                    style={{ zIndex: 2 }}
+                  />
+                </div>
+                <span className="text-xs font-medium text-gray-500 w-10">{progressionRange[1]}%</span>
+                {(progressionRange[0] > 0 || progressionRange[1] < 100) && (
+                  <button
+                    onClick={() => setProgressionRange([0, 100])}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Reset"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-gray-200" />
+
+              {/* Result count */}
+              <span className="text-sm text-gray-500">
+                Nb de résultats: {totalItems}
+              </span>
             </div>
 
             {/* Grouped by Course View */}
@@ -1262,6 +1379,15 @@ const InactiveManagement = () => {
                                           </span>
                                         )}
                                       </span>
+                                      {participant.upcoming_sessions_count > 0 && participant.next_session_date && (
+                                        <span
+                                          className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full cursor-default"
+                                          title={`${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
+                                        >
+                                          <CalendarClock size={12} />
+                                          CV dans {Math.max(0, Math.ceil((new Date(participant.next_session_date) - new Date()) / (1000 * 60 * 60 * 24)))}j
+                                        </span>
+                                      )}
                                       {participant.total_planned_duration_hours > 0 && (
                                         <span
                                           className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full cursor-default"
@@ -1369,6 +1495,15 @@ const InactiveManagement = () => {
                                   </span>
                                 )}
                               </span>
+                              {participant.upcoming_sessions_count > 0 && participant.next_session_date && (
+                                <span
+                                  className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full cursor-default"
+                                  title={`${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
+                                >
+                                  <CalendarClock size={12} />
+                                  CV dans {Math.max(0, Math.ceil((new Date(participant.next_session_date) - new Date()) / (1000 * 60 * 60 * 24)))}j
+                                </span>
+                              )}
                               {participant.total_planned_duration_hours > 0 && (
                                 <span
                                   className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full cursor-default"
