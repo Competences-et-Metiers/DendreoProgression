@@ -103,6 +103,45 @@ export const useLastSync = () => {
   return query;
 };
 
+// Intervention hooks
+export const useParticipantTimeline = (participantId, idActionFormation, enabled = true) => {
+  return useQuery({
+    queryKey: queryKeys.interventionTimeline(participantId, idActionFormation),
+    queryFn: () => apiService.getParticipantTimeline(participantId, idActionFormation),
+    enabled: enabled && !!participantId,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useCreateIntervention = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: apiService.createIntervention,
+    onSuccess: (data, variables) => {
+      // Invalidate timeline for this participant
+      queryClient.invalidateQueries({
+        queryKey: ['interventions', 'timeline', variables.participant_id],
+      });
+      // Invalidate inactive participants list to pick up snooze/dismiss changes
+      queryClient.invalidateQueries({ queryKey: ['inactiveParticipants'] });
+    },
+  });
+};
+
+export const useCancelIntervention = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: apiService.cancelIntervention,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['interventions'] });
+      queryClient.invalidateQueries({ queryKey: ['inactiveParticipants'] });
+    },
+  });
+};
+
 // Mutation hooks for cache invalidation
 export const useSyncMutation = () => {
   const queryClient = useQueryClient();

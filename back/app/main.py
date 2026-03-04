@@ -52,7 +52,7 @@ app.add_middleware(
 )
 
 # Include routers
-from app.api.routes import participants, courses, sync, auth, hubspot, admin
+from app.api.routes import participants, courses, sync, auth, hubspot, admin, interventions
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(participants.router, prefix="/api/participants", tags=["participants"])
@@ -60,6 +60,7 @@ app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
 app.include_router(sync.router, prefix="/api/sync", tags=["sync"])
 app.include_router(hubspot.router, prefix="/api/hubspot", tags=["hubspot"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(interventions.router, prefix="/api/interventions", tags=["interventions"])
 
 @app.get("/")
 async def root():

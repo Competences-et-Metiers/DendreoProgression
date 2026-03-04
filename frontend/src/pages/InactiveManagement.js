@@ -23,10 +23,13 @@ import {
   CheckCircle2,
   X,
   Download,
-  Search
+  Search,
+  AlarmClock,
+  Ban,
 } from 'lucide-react';
 import api from '../services/api';
 import { generateInactivityReport } from '../utils/pdfExport';
+import InterventionPanel from '../components/InterventionPanel';
 
 const InactiveManagement = () => {
   const { t, i18n } = useTranslation();
@@ -131,6 +134,23 @@ const InactiveManagement = () => {
     const cached = localStorage.getItem('inactiveManagement.cvPlannedIsActive');
     return cached ? JSON.parse(cached) : false;
   });
+
+  // Intervention expand state + snooze/dismiss toggles
+  const [expandedParticipants, setExpandedParticipants] = useState(new Set());
+  const [showSnoozed, setShowSnoozed] = useState(false);
+  const [showDismissed, setShowDismissed] = useState(false);
+
+  const toggleParticipantExpand = useCallback((participantKey) => {
+    setExpandedParticipants(prev => {
+      const next = new Set(prev);
+      if (next.has(participantKey)) {
+        next.delete(participantKey);
+      } else {
+        next.add(participantKey);
+      }
+      return next;
+    });
+  }, []);
 
   // Global search
   const [searchTerm, setSearchTerm] = useState('');
@@ -320,6 +340,13 @@ const InactiveManagement = () => {
           return prog >= progressionRange[0] && prog <= progressionRange[1];
         });
       }
+      // Snooze/dismiss visibility
+      if (!showSnoozed) {
+        filtered = filtered.filter(p => !p.has_active_snooze);
+      }
+      if (!showDismissed) {
+        filtered = filtered.filter(p => !p.is_dismissed);
+      }
       return filtered;
     };
 
@@ -402,7 +429,7 @@ const InactiveManagement = () => {
       : [];
 
     return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showSnoozed, showDismissed]);
 
   // Pagination: slice data for current page (pageSize 0 = show all)
   const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
@@ -795,6 +822,20 @@ const InactiveManagement = () => {
                 <input type="checkbox" checked={cvPlannedIsActive} onChange={() => setCvPlannedIsActive(!cvPlannedIsActive)} className="sr-only" />
                 <CalendarClock size={12} />
                 CV planifié = Actif
+              </label>
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                showSnoozed ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}>
+                <input type="checkbox" checked={showSnoozed} onChange={() => setShowSnoozed(!showSnoozed)} className="sr-only" />
+                <AlarmClock size={12} />
+                {t('inactiveManagement.interventions.showSnoozed')}
+              </label>
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                showDismissed ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}>
+                <input type="checkbox" checked={showDismissed} onChange={() => setShowDismissed(!showDismissed)} className="sr-only" />
+                <Ban size={12} />
+                {t('inactiveManagement.interventions.showDismissed')}
               </label>
             </div>
 
@@ -1364,8 +1405,15 @@ const InactiveManagement = () => {
                       {/* Participants List */}
                       {expandedCourses.has(course.course_id) && (
                         <div className="divide-y divide-gray-200">
-                          {course.filteredParticipants.map((participant) => (
-                            <div key={participant.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                          {course.filteredParticipants.map((participant) => {
+                            const pKey = `${participant.id}-${participant.id_action_formation}`;
+                            return (
+                            <div key={participant.id} className={`transition-colors ${
+                              participant.is_dismissed ? 'opacity-40 bg-gray-50' :
+                              participant.has_active_snooze ? 'opacity-60 bg-amber-50/30' :
+                              'hover:bg-gray-50'
+                            }`}>
+                              <div className="px-6 py-4">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4 flex-1">
                                   <div className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${getStatusColor(participant.inactivity_status)}`}>
@@ -1383,6 +1431,18 @@ const InactiveManagement = () => {
                                       <span className="text-sm text-gray-500">
                                         ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                                       </span>
+                                      {participant.has_active_snooze && (
+                                        <span className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                                          <AlarmClock size={10} />
+                                          {t('inactiveManagement.interventions.snoozeActive')} {new Date(participant.snooze_until).toLocaleDateString('fr-FR')}
+                                        </span>
+                                      )}
+                                      {participant.is_dismissed && (
+                                        <span className="flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                                          <Ban size={10} />
+                                          {t('inactiveManagement.interventions.dismiss')}
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                                       <span className="flex items-center gap-1">
@@ -1459,9 +1519,26 @@ const InactiveManagement = () => {
                                     </div>
                                   </div>
                                 </div>
+                                {/* Expand button for intervention panel */}
+                                <button
+                                  onClick={() => toggleParticipantExpand(pKey)}
+                                  className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors"
+                                  title={t('inactiveManagement.interventions.title')}
+                                >
+                                  {expandedParticipants.has(pKey)
+                                    ? <ChevronDown size={16} className="text-gray-400" />
+                                    : <ChevronRight size={16} className="text-gray-400" />
+                                  }
+                                </button>
                               </div>
+                              </div>
+                              {/* Intervention Panel */}
+                              {expandedParticipants.has(pKey) && (
+                                <InterventionPanel participant={participant} />
+                              )}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -1473,8 +1550,15 @@ const InactiveManagement = () => {
             {!groupByCourse && data.participants && (
               <div className="bg-white rounded-lg border border-gray-200">
                 <div className="divide-y divide-gray-200">
-                  {paginatedFlat.map((participant) => (
-                    <div key={`${participant.id}-${participant.course_id}`} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                  {paginatedFlat.map((participant) => {
+                    const pKey = `${participant.id}-${participant.id_action_formation}`;
+                    return (
+                    <div key={`${participant.id}-${participant.course_id}`} className={`transition-colors ${
+                      participant.is_dismissed ? 'opacity-40 bg-gray-50' :
+                      participant.has_active_snooze ? 'opacity-60 bg-amber-50/30' :
+                      'hover:bg-gray-50'
+                    }`}>
+                      <div className="px-6 py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
                           <div className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${getStatusColor(participant.inactivity_status)}`}>
@@ -1504,6 +1588,18 @@ const InactiveManagement = () => {
                               <span className="text-sm text-gray-500">
                                 ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                               </span>
+                              {participant.has_active_snooze && (
+                                <span className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                                  <AlarmClock size={10} />
+                                  {t('inactiveManagement.interventions.snoozeActive')} {new Date(participant.snooze_until).toLocaleDateString('fr-FR')}
+                                </span>
+                              )}
+                              {participant.is_dismissed && (
+                                <span className="flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                                  <Ban size={10} />
+                                  {t('inactiveManagement.interventions.dismiss')}
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                               <span className="flex items-center gap-1">
@@ -1580,9 +1676,26 @@ const InactiveManagement = () => {
                             </div>
                           </div>
                         </div>
+                        {/* Expand button for intervention panel */}
+                        <button
+                          onClick={() => toggleParticipantExpand(pKey)}
+                          className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors"
+                          title={t('inactiveManagement.interventions.title')}
+                        >
+                          {expandedParticipants.has(pKey)
+                            ? <ChevronDown size={16} className="text-gray-400" />
+                            : <ChevronRight size={16} className="text-gray-400" />
+                          }
+                        </button>
                       </div>
+                      </div>
+                      {/* Intervention Panel */}
+                      {expandedParticipants.has(pKey) && (
+                        <InterventionPanel participant={participant} />
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

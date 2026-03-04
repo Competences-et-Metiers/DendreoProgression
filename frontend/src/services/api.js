@@ -103,6 +103,24 @@ export const apiService = {
     return response.data;
   },
 
+  // Interventions
+  async createIntervention(data) {
+    const response = await api.post('/interventions/', data);
+    return response.data;
+  },
+
+  async getParticipantTimeline(participantId, idActionFormation = null) {
+    const params = {};
+    if (idActionFormation) params.id_action_formation = idActionFormation;
+    const response = await api.get(`/interventions/timeline/${participantId}`, { params });
+    return response.data;
+  },
+
+  async cancelIntervention(interventionId) {
+    const response = await api.post(`/interventions/${interventionId}/cancel`);
+    return response.data;
+  },
+
   // Sync operations
   async syncAll() {
     const response = await api.post('/sync/sync-all');

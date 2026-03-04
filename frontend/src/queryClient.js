@@ -52,4 +52,7 @@ export const queryKeys = {
   
   // Sync
   syncStats: ['sync', 'stats'],
+
+  // Interventions
+  interventionTimeline: (participantId, adf) => ['interventions', 'timeline', participantId, adf],
 }; 
