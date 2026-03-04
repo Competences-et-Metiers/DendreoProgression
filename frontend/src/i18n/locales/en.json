@@ -440,6 +440,7 @@
       "listenRecording": "Listen to recording",
       "callConfirmMessage": "Was the call made?",
       "emailConfirmMessage": "Was the email sent?",
+      "deleteNote": "Delete",
       "filters": {
         "all": "All",
         "calls": "Calls",

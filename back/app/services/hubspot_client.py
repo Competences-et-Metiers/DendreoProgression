@@ -180,8 +180,38 @@ class HubSpotClient:
             logger.error(f"Error fetching HubSpot calls: {e}")
             return []
 
-    async def create_note_for_contact(self, contact_id: str, note_body: str) -> Optional[str]:
-        """Create a note associated with a contact. Returns the note ID or None."""
+    async def get_owner_by_email(self, email: str) -> Optional[str]:
+        """Look up a HubSpot owner ID by email. Returns owner ID or None."""
+        if not self.api_key or not email:
+            return None
+
+        headers = self._get_headers()
+        email_lower = email.lower()
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                url = f"{self.base_url}/crm/v3/owners"
+                params = {"email": email_lower, "limit": 100}
+                response = await client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                # Filter by exact email match — the API may return all owners
+                for owner in data.get('results', []):
+                    if owner.get('email', '').lower() == email_lower:
+                        owner_id = owner.get('id')
+                        logger.info(f"HubSpot owner match: {email} -> owner_id={owner_id}")
+                        return owner_id
+                logger.warning(f"No HubSpot owner found for email {email}. "
+                             f"Available: {[o.get('email') for o in data.get('results', [])]}")
+                return None
+        except Exception as e:
+            logger.warning(f"Failed to look up HubSpot owner for {email}: {e}")
+            return None
+
+    async def create_note_for_contact(
+        self, contact_id: str, note_body: str, owner_id: Optional[str] = None
+    ) -> Optional[str]:
+        """Create a note associated with a contact. Optionally attributed to a HubSpot owner.
+        Returns the note ID or None."""
         if not self.api_key:
             logger.warning("HubSpot API key not configured, cannot create note")
             return None
@@ -189,11 +219,15 @@ class HubSpotClient:
         headers = self._get_headers()
         url = f"{self.base_url}/crm/v3/objects/notes"
 
+        properties = {
+            "hs_note_body": note_body,
+            "hs_timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if owner_id:
+            properties["hubspot_owner_id"] = owner_id
+
         body = {
-            "properties": {
-                "hs_note_body": note_body,
-                "hs_timestamp": datetime.now(timezone.utc).isoformat(),
-            },
+            "properties": properties,
             "associations": [{
                 "to": {"id": contact_id},
                 "types": [{
@@ -209,7 +243,7 @@ class HubSpotClient:
                 response.raise_for_status()
                 result = response.json()
                 note_id = result.get('id')
-                logger.info(f"Created HubSpot note {note_id} for contact {contact_id}")
+                logger.info(f"Created HubSpot note {note_id} for contact {contact_id} (owner={owner_id})")
                 return note_id
         except httpx.HTTPError as e:
             logger.error(f"Error creating HubSpot note for contact {contact_id}: {e}")
@@ -217,6 +251,23 @@ class HubSpotClient:
         except Exception as e:
             logger.error(f"Unexpected error creating HubSpot note: {e}")
             return None
+
+    async def delete_note(self, note_id: str) -> bool:
+        """Delete a note from HubSpot. Returns True on success."""
+        if not self.api_key:
+            return False
+
+        headers = self._get_headers()
+        url = f"{self.base_url}/crm/v3/objects/notes/{note_id}"
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.delete(url, headers=headers)
+                response.raise_for_status()
+                logger.info(f"Deleted HubSpot note {note_id}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to delete HubSpot note {note_id}: {e}")
+            return False
 
     async def get_contact_engagements(self, email: str) -> Dict[str, Any]:
         """Get all notes and calls for a contact by email. Uses parallel fetching."""

@@ -121,6 +121,18 @@ export const apiService = {
     return response.data;
   },
 
+  async deleteIntervention(interventionId) {
+    const response = await api.delete(`/interventions/${interventionId}`);
+    return response.data;
+  },
+
+  async deleteHubspotNote(hubspotNoteId, participantId, idActionFormation = null) {
+    const params = { participant_id: participantId };
+    if (idActionFormation) params.id_action_formation = idActionFormation;
+    const response = await api.delete(`/interventions/hubspot-note/${hubspotNoteId}`, { params });
+    return response.data;
+  },
+
   // Sync operations
   async syncAll() {
     const response = await api.post('/sync/sync-all');

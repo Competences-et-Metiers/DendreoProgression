@@ -15,9 +15,11 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
+  Trash2,
 } from 'lucide-react';
-import { useParticipantTimeline, useCreateIntervention, useCancelIntervention } from '../hooks/useQuery';
+import { useParticipantTimeline, useCreateIntervention, useCancelIntervention, useDeleteIntervention, useDeleteHubspotNote } from '../hooks/useQuery';
 import { apiService } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -39,6 +41,7 @@ const FILTER_MATCHERS = {
 
 const InterventionPanel = ({ participant }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
 
   // Timeline data — only fetches when panel is rendered (i.e. expanded)
   const { data: timeline, isLoading: timelineLoading, refetch: refetchTimeline } = useParticipantTimeline(
@@ -49,6 +52,8 @@ const InterventionPanel = ({ participant }) => {
 
   const createIntervention = useCreateIntervention();
   const cancelIntervention = useCancelIntervention();
+  const deleteIntervention = useDeleteIntervention();
+  const deleteHubspotNote = useDeleteHubspotNote();
 
   // UI state
   const [showSnoozeForm, setShowSnoozeForm] = useState(false);
@@ -178,6 +183,32 @@ const InterventionPanel = ({ participant }) => {
   const handleCancelIntervention = useCallback((interventionId) => {
     cancelIntervention.mutate(interventionId);
   }, []);
+
+  const handleDeleteEntry = useCallback((entry) => {
+    if (entry.source === 'hubspot_note' && entry.hubspot_id) {
+      deleteHubspotNote.mutate({
+        hubspotNoteId: entry.hubspot_id,
+        participantId: participant.id,
+        idActionFormation: participant.id_action_formation,
+      });
+    } else if (entry.source === 'local' && entry.intervention_id) {
+      deleteIntervention.mutate(entry.intervention_id);
+    }
+  }, [participant.id, participant.id_action_formation]);
+
+  const canDeleteEntry = useCallback((entry) => {
+    // Local notes/emails: creator or admin
+    if (entry.source === 'local') {
+      if (entry.intervention_type !== 'note' && entry.intervention_type !== 'email') return false;
+      if (user?.role === 'admin') return true;
+      return entry.user_id === user?.id;
+    }
+    // HubSpot notes: owner or admin (ownership checked server-side, but show button for all authenticated users)
+    if (entry.source === 'hubspot_note') {
+      return user?.role === 'admin' || !!entry.hubspot_owner_id;
+    }
+    return false;
+  }, [user]);
 
   // --- Action button click with filter auto-select ---
 
@@ -619,23 +650,37 @@ const InterventionPanel = ({ participant }) => {
                     )}
                   </div>
 
-                  {/* Cancel button for active snoozes/dismissals */}
-                  {entry.source === 'local' &&
-                    entry.is_active &&
-                    (entry.intervention_type === 'snooze' || entry.intervention_type === 'dismiss') && (
+                  {/* Action buttons for timeline entries */}
+                  <div className="flex-shrink-0 flex items-center gap-0.5">
+                    {/* Cancel button for active snoozes/dismissals */}
+                    {entry.source === 'local' &&
+                      entry.is_active &&
+                      (entry.intervention_type === 'snooze' || entry.intervention_type === 'dismiss') && (
+                        <button
+                          onClick={() => handleCancelIntervention(entry.intervention_id)}
+                          disabled={cancelIntervention.isPending}
+                          className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                          title={
+                            entry.intervention_type === 'snooze'
+                              ? t('inactiveManagement.interventions.cancelSnooze')
+                              : t('inactiveManagement.interventions.reverseDismiss')
+                          }
+                        >
+                          <Undo2 size={12} />
+                        </button>
+                      )}
+                    {/* Delete button for own notes/emails or HubSpot notes */}
+                    {canDeleteEntry(entry) && (
                       <button
-                        onClick={() => handleCancelIntervention(entry.intervention_id)}
-                        disabled={cancelIntervention.isPending}
-                        className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 transition-colors"
-                        title={
-                          entry.intervention_type === 'snooze'
-                            ? t('inactiveManagement.interventions.cancelSnooze')
-                            : t('inactiveManagement.interventions.reverseDismiss')
-                        }
+                        onClick={() => handleDeleteEntry(entry)}
+                        disabled={deleteIntervention.isPending || deleteHubspotNote.isPending}
+                        className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                        title={t('inactiveManagement.interventions.deleteNote')}
                       >
-                        <Undo2 size={12} />
+                        <Trash2 size={12} />
                       </button>
                     )}
+                  </div>
                 </div>
               ))}
             </div>

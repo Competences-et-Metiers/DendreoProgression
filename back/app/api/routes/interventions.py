@@ -34,13 +34,23 @@ async def create_intervention(
     db: Session = Depends(get_db),
 ):
     """Create a new intervention (snooze, note, email, call, dismiss).
-    For snooze type: also pushes a note to the HubSpot contact."""
+    For snooze and note types: also pushes a note to the HubSpot contact."""
     service = InterventionService(db)
 
-    # For snooze: push note to HubSpot
+    # Resolve HubSpot owner ID for current user (for note attribution)
+    hs_owner_id = None
+    if current_user.email:
+        try:
+            hs_owner_id = await hubspot_client.get_owner_by_email(current_user.email)
+            logger.info(f"HubSpot owner resolution: {current_user.email} -> {hs_owner_id}")
+        except Exception as e:
+            logger.warning(f"HubSpot owner lookup failed for {current_user.email}: {e}")
+
     hubspot_note_id = None
+    participant = db.query(Participant).filter(Participant.id == data.participant_id).first()
+
+    # For snooze: push note to HubSpot
     if data.intervention_type == 'snooze' and data.details:
-        participant = db.query(Participant).filter(Participant.id == data.participant_id).first()
         if participant and participant.email:
             try:
                 contact = await hubspot_client.get_contact_by_email(participant.email)
@@ -54,10 +64,23 @@ async def create_intervention(
                     if reason:
                         note_body += f"\nRaison : {reason}"
                     hubspot_note_id = await hubspot_client.create_note_for_contact(
-                        contact['id'], note_body
+                        contact['id'], note_body, owner_id=hs_owner_id
                     )
             except Exception as e:
                 logger.warning(f"Failed to push snooze note to HubSpot: {e}")
+
+    # For note: push to HubSpot as a native note attributed to the staff member
+    if data.intervention_type == 'note' and data.details:
+        if participant and participant.email:
+            try:
+                contact = await hubspot_client.get_contact_by_email(participant.email)
+                if contact and contact.get('id'):
+                    note_text = data.details.get('text', '')
+                    hubspot_note_id = await hubspot_client.create_note_for_contact(
+                        contact['id'], note_text, owner_id=hs_owner_id
+                    )
+            except Exception as e:
+                logger.warning(f"Failed to push note to HubSpot: {e}")
 
     try:
         result = service.create_intervention(
@@ -114,6 +137,7 @@ async def get_participant_timeline(
             timestamp=intervention.created_at,
             intervention_id=intervention.id,
             intervention_type=intervention.intervention_type,
+            user_id=intervention.user_id,
             user_display_name=intervention.user_display_name,
             details=intervention.details,
             is_active=intervention.is_active,
@@ -133,6 +157,7 @@ async def get_participant_timeline(
             timestamp=timestamp,
             hubspot_id=note.get('id'),
             body=note.get('hs_note_body', ''),
+            hubspot_owner_id=note.get('hubspot_owner_id'),
         ))
 
     for call in hs_calls:
@@ -207,13 +232,18 @@ async def cancel_intervention(
         ).first()
         if participant and participant.email:
             try:
+                hs_owner_id = None
+                if current_user.email:
+                    hs_owner_id = await hubspot_client.get_owner_by_email(current_user.email)
                 contact = await hubspot_client.get_contact_by_email(participant.email)
                 if contact and contact.get('id'):
                     staff_name = current_user.display_name or current_user.username
                     note_body = (
                         f"[DendreoProgression] Report annulé par {staff_name}."
                     )
-                    await hubspot_client.create_note_for_contact(contact['id'], note_body)
+                    await hubspot_client.create_note_for_contact(
+                        contact['id'], note_body, owner_id=hs_owner_id
+                    )
             except Exception as e:
                 logger.warning(f"Failed to push snooze cancellation note to HubSpot: {e}")
 
@@ -223,6 +253,95 @@ async def cancel_intervention(
     ))
 
     return {"message": "Intervention cancelled", "id": intervention_id}
+
+
+@router.delete("/{intervention_id}")
+async def delete_intervention(
+    intervention_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a note intervention. Only the creator or an admin can delete."""
+    intervention = db.query(Intervention).filter(Intervention.id == intervention_id).first()
+    if not intervention:
+        raise HTTPException(status_code=404, detail="Intervention not found")
+
+    # Only allow deleting notes and emails
+    if intervention.intervention_type not in ('note', 'email'):
+        raise HTTPException(status_code=400, detail="Only notes and emails can be deleted")
+
+    # Permission check: creator or admin
+    if intervention.user_id != current_user.id and current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="You can only delete your own notes")
+
+    # If there's a linked HubSpot note, delete it too
+    if intervention.hubspot_note_id:
+        try:
+            await hubspot_client.delete_note(intervention.hubspot_note_id)
+        except Exception as e:
+            logger.warning(f"Failed to delete HubSpot note {intervention.hubspot_note_id}: {e}")
+
+    # Delete from local DB
+    db.delete(intervention)
+    db.commit()
+
+    # Invalidate timeline cache
+    cache_service.delete(_timeline_cache_key(
+        intervention.participant_id, intervention.id_action_formation
+    ))
+
+    return {"message": "Intervention deleted", "id": intervention_id}
+
+
+@router.delete("/hubspot-note/{hubspot_note_id}")
+async def delete_hubspot_note(
+    hubspot_note_id: str,
+    participant_id: int = Query(...),
+    id_action_formation: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a HubSpot note directly. Only the HubSpot owner or an admin can delete."""
+    # Admin can always delete
+    if current_user.role != 'admin':
+        # Check if current user is the HubSpot owner of this note
+        hs_owner_id = None
+        if current_user.email:
+            hs_owner_id = await hubspot_client.get_owner_by_email(current_user.email)
+
+        if not hs_owner_id:
+            raise HTTPException(status_code=403, detail="Cannot verify HubSpot ownership")
+
+        # Fetch the note to check its owner
+        headers = hubspot_client._get_headers()
+        try:
+            import httpx as _httpx
+            async with _httpx.AsyncClient(timeout=15) as client:
+                url = f"{hubspot_client.base_url}/crm/v3/objects/notes/{hubspot_note_id}"
+                params = {"properties": "hubspot_owner_id"}
+                resp = await client.get(url, params=params, headers=headers)
+                resp.raise_for_status()
+                note_data = resp.json()
+                note_owner = note_data.get('properties', {}).get('hubspot_owner_id')
+                if note_owner != hs_owner_id:
+                    raise HTTPException(
+                        status_code=403, detail="You can only delete your own HubSpot notes"
+                    )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to verify HubSpot note ownership: {e}")
+            raise HTTPException(status_code=500, detail="Failed to verify note ownership")
+
+    # Delete from HubSpot
+    success = await hubspot_client.delete_note(hubspot_note_id)
+    if not success:
+        raise HTTPException(status_code=502, detail="Failed to delete note from HubSpot")
+
+    # Invalidate timeline cache
+    cache_service.delete(_timeline_cache_key(participant_id, id_action_formation))
+
+    return {"message": "HubSpot note deleted", "hubspot_note_id": hubspot_note_id}
 
 
 @router.get("/proxy-recording")

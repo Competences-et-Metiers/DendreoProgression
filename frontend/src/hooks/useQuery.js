@@ -142,6 +142,28 @@ export const useCancelIntervention = () => {
   });
 };
 
+export const useDeleteIntervention = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: apiService.deleteIntervention,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['interventions'] });
+      queryClient.invalidateQueries({ queryKey: ['inactiveParticipants'] });
+    },
+  });
+};
+
+export const useDeleteHubspotNote = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ hubspotNoteId, participantId, idActionFormation }) =>
+      apiService.deleteHubspotNote(hubspotNoteId, participantId, idActionFormation),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['interventions'] });
+    },
+  });
+};
+
 // Mutation hooks for cache invalidation
 export const useSyncMutation = () => {
   const queryClient = useQueryClient();

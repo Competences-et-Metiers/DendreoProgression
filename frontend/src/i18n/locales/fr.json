@@ -464,6 +464,7 @@
       "listenRecording": "Écouter l'enregistrement",
       "callConfirmMessage": "L'appel a-t-il été effectué ?",
       "emailConfirmMessage": "L'email a-t-il été envoyé ?",
+      "deleteNote": "Supprimer",
       "filters": {
         "all": "Tous",
         "calls": "Appels",

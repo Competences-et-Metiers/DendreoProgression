@@ -295,6 +295,7 @@ class TimelineEntry(BaseModel):
     # Local intervention fields
     intervention_id: Optional[int] = None
     intervention_type: Optional[str] = None
+    user_id: Optional[int] = None
     user_display_name: Optional[str] = None
     details: Optional[dict] = None
     is_active: Optional[bool] = None
@@ -305,6 +306,7 @@ class TimelineEntry(BaseModel):
     call_duration: Optional[int] = None
     call_direction: Optional[str] = None
     call_recording_url: Optional[str] = None
+    hubspot_owner_id: Optional[str] = None
     hubspot_owner_name: Optional[str] = None
 
 class ParticipantTimelineResponse(BaseModel):
