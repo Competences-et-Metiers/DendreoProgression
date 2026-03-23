@@ -49,6 +49,27 @@ async def create_view(
     return view
 
 
+@router.put("/{view_id}", response_model=UserViewResponse)
+async def update_view(
+    view_id: int,
+    payload: UserViewCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    view = db.query(UserView).filter(
+        UserView.id == view_id,
+        UserView.user_id == current_user.id,
+    ).first()
+    if not view:
+        raise HTTPException(status_code=404, detail="View not found")
+    view.name = payload.name.strip()
+    view.filter_config = payload.filter_config
+    db.commit()
+    db.refresh(view)
+    logger.info(f"User '{current_user.username}' updated view '{view.name}' (id={view.id})")
+    return view
+
+
 @router.delete("/{view_id}", status_code=204)
 async def delete_view(
     view_id: int,

@@ -432,6 +432,7 @@
   },
   "savedViews": {
     "save": "Sauvegarder la vue",
+    "update": "Mettre à jour avec les filtres actuels",
     "namePlaceholder": "Nom de la vue..."
   },
   "settings": {

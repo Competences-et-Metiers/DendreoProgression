@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '../services/api';
 import { queryKeys } from '../queryClient';
-import { Bookmark, Plus, X, Check, Loader2 } from 'lucide-react';
+import { Bookmark, Plus, X, Check, Loader2, Save } from 'lucide-react';
 
 const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
   const { t } = useTranslation();
@@ -30,6 +30,13 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: ({ viewId, name, filterConfig }) => apiService.updateSavedView(viewId, name, filterConfig),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedViews });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (viewId) => apiService.deleteSavedView(viewId),
     onSuccess: (_, deletedId) => {
@@ -42,6 +49,11 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
     const name = viewName.trim();
     if (!name) return;
     createMutation.mutate({ name, filterConfig: getCurrentFilters() });
+  };
+
+  const handleUpdate = (e, view) => {
+    e.stopPropagation();
+    updateMutation.mutate({ viewId: view.id, name: view.name, filterConfig: getCurrentFilters() });
   };
 
   const handleLoad = (view) => {
@@ -71,9 +83,18 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
           }`}
         >
           {view.name}
+          {activeViewId === view.id && (
+            <span
+              onClick={(e) => handleUpdate(e, view)}
+              className="ml-0.5 hover:text-blue-800 cursor-pointer"
+              title={t('savedViews.update')}
+            >
+              {updateMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+            </span>
+          )}
           <span
             onClick={(e) => handleDelete(e, view.id)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5 hover:text-red-500 cursor-pointer"
+            className={`${activeViewId === view.id ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity ml-0.5 hover:text-red-500 cursor-pointer`}
           >
             <X size={12} />
           </span>

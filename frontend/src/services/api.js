@@ -140,6 +140,11 @@ export const apiService = {
     return response.data;
   },
 
+  async updateSavedView(viewId, name, filterConfig) {
+    const response = await api.put(`/views/${viewId}`, { name, filter_config: filterConfig });
+    return response.data;
+  },
+
   async deleteSavedView(viewId) {
     await api.delete(`/views/${viewId}`);
   },
