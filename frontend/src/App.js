@@ -79,7 +79,8 @@ const AppContent = () => {
             <ProtectedRoute>
               <Layout>
                 <Routes>
-                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/" element={<Navigate to="/inactive-management" replace />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/courses/:courseId" element={<CourseDetail />} />
                   <Route path="/participants" element={<Participants />} />
                   <Route path="/participants/:participantId" element={<ParticipantDetail />} />
