@@ -25,7 +25,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
       id: 'dashboard',
       label: t('sidebar.dashboard'),
       icon: BookOpen,
-      path: '/',
+      path: '/dashboard',
       active: true
     },
     {

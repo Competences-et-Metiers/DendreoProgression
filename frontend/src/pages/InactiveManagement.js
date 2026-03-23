@@ -35,7 +35,7 @@ const InactiveManagement = () => {
   // State with sessionStorage persistence
   const [groupByCourse, setGroupByCourse] = useState(() => {
     const cached = sessionStorage.getItem('inactiveManagement.groupByCourse');
-    return cached ? JSON.parse(cached) : true;
+    return cached !== null ? JSON.parse(cached) : false;
   });
 
   const [filters, setFilters] = useState(() => {
