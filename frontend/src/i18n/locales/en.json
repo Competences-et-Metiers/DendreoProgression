@@ -408,6 +408,7 @@
   },
   "savedViews": {
     "save": "Save view",
+    "update": "Update view with current filters",
     "namePlaceholder": "View name..."
   },
   "settings": {

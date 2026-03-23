@@ -463,7 +463,7 @@ const InactiveManagement = () => {
         list.push({ id: c.id_action_formation, title: c.course_title });
       }
     });
-    return list;
+    return list.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
   }, [data]);
 
   const formateurList = useMemo(() => {
@@ -486,7 +486,7 @@ const InactiveManagement = () => {
     (data.by_course || []).forEach(c => {
       (c.participants || []).forEach(p => processFormateurs(p.formateurs));
     });
-    return Array.from(uniqueFormateurs.values());
+    return Array.from(uniqueFormateurs.values()).sort((a, b) => (a.prenom || '').localeCompare(b.prenom || ''));
   }, [data]);
 
   const categoryList = useMemo(() => {
