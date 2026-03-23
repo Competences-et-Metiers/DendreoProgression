@@ -31,14 +31,14 @@ import { generateInactivityReport } from '../utils/pdfExport';
 const InactiveManagement = () => {
   const { t, i18n } = useTranslation();
 
-  // State with localStorage persistence
+  // State with sessionStorage persistence
   const [groupByCourse, setGroupByCourse] = useState(() => {
-    const cached = localStorage.getItem('inactiveManagement.groupByCourse');
+    const cached = sessionStorage.getItem('inactiveManagement.groupByCourse');
     return cached ? JSON.parse(cached) : true;
   });
 
   const [filters, setFilters] = useState(() => {
-    const cached = localStorage.getItem('inactiveManagement.filters');
+    const cached = sessionStorage.getItem('inactiveManagement.filters');
     if (cached) {
       const parsed = JSON.parse(cached);
       // Migrate old filter format
@@ -133,11 +133,16 @@ const InactiveManagement = () => {
   });
 
   // Global search
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => {
+    return localStorage.getItem('inactiveManagement.searchTerm') || '';
+  });
 
   // Pagination
   const PAGE_SIZE_OPTIONS = [25, 50, 100, 0]; // 0 = all
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.pageSize');
+    return cached ? JSON.parse(cached) : 50;
+  });
   const [currentPage, setCurrentPage] = useState(1);
 
   // Persist state to localStorage
@@ -180,6 +185,14 @@ const InactiveManagement = () => {
   useEffect(() => {
     localStorage.setItem('inactiveManagement.cvPlannedIsActive', JSON.stringify(cvPlannedIsActive));
   }, [cvPlannedIsActive]);
+
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.searchTerm', searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.pageSize', JSON.stringify(pageSize));
+  }, [pageSize]);
 
   // Reset pagination when filters change
   useEffect(() => {
