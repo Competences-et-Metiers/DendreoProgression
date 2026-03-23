@@ -218,3 +218,17 @@ class AdminSyncConfig(Base):
 
     # Relationship
     updated_by = relationship("User")
+
+
+class UserView(Base):
+    """Saved filter views for InactiveManagement page."""
+    __tablename__ = "user_views"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    filter_config = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User")

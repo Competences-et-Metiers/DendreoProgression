@@ -238,6 +238,22 @@ class MicrosoftLoginRequest(BaseModel):
     id_token: str
 
 
+class UserViewCreate(BaseModel):
+    name: str
+    filter_config: dict
+
+
+class UserViewResponse(BaseModel):
+    id: int
+    name: str
+    filter_config: dict
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class MicrosoftConfigResponse(BaseModel):
     enabled: bool
     client_id: Optional[str] = None
