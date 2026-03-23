@@ -128,6 +128,21 @@ export const apiService = {
     const response = await api.get('/sync/last-sync');
     return response.data;
   },
+
+  // Saved views
+  async getSavedViews() {
+    const response = await api.get('/views/');
+    return response.data;
+  },
+
+  async createSavedView(name, filterConfig) {
+    const response = await api.post('/views/', { name, filter_config: filterConfig });
+    return response.data;
+  },
+
+  async deleteSavedView(viewId) {
+    await api.delete(`/views/${viewId}`);
+  },
 };
 
 export default api; 

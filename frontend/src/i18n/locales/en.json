@@ -406,6 +406,10 @@
       "colEmail": "Email"
     }
   },
+  "savedViews": {
+    "save": "Save view",
+    "namePlaceholder": "View name..."
+  },
   "settings": {
     "title": "Settings",
     "subtitle": "Configure application options",

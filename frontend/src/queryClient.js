@@ -52,4 +52,7 @@ export const queryKeys = {
   
   // Sync
   syncStats: ['sync', 'stats'],
+
+  // Saved views
+  savedViews: ['savedViews'],
 }; 
