@@ -115,6 +115,7 @@ class ParticipantHubspotData(Base):
     id_lap = Column(String, nullable=True)  # LAP ID from laps.php response
     c_url_transaction_hubspot = Column(String, nullable=True)
     c_id_transaction_hubspot = Column(String, nullable=True)
+    is_manual_link = Column(Boolean, default=False, nullable=False)  # True = staff-set link, sync won't overwrite
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

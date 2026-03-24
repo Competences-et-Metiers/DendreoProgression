@@ -21,6 +21,8 @@ import {
   StopCircle,
   FolderSync,
   AlertTriangle,
+  X,
+  ChevronRight,
 } from 'lucide-react';
 
 // Confirmation Modal Component
@@ -88,6 +90,9 @@ const AdminSyncDashboard = () => {
   const [hubspotDailyLimit, setHubspotDailyLimit] = useState('');
   const [hubspotWeeklyLimit, setHubspotWeeklyLimit] = useState('');
   const [hubspotMonthlyLimit, setHubspotMonthlyLimit] = useState('');
+
+  // Sync detail modal
+  const [selectedSync, setSelectedSync] = useState(null);
 
   // Live log state
   const [liveLog, setLiveLog] = useState('');
@@ -942,7 +947,7 @@ const AdminSyncDashboard = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">API Calls (D/H)</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Duration</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Error</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -954,7 +959,7 @@ const AdminSyncDashboard = () => {
                   </tr>
                 ) : (
                   syncHistory.map((sync) => (
-                    <tr key={sync.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={sync.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setSelectedSync(sync)}>
                       <td className="px-6 py-3 text-sm text-gray-700">{formatDateTime(sync.last_sync_at)}</td>
                       <td className="px-6 py-3 text-sm text-gray-700">{formatSyncType(sync.sync_type)}</td>
                       <td className="px-6 py-3">
@@ -967,7 +972,9 @@ const AdminSyncDashboard = () => {
                         {sync.api_calls_count}{sync.hubspot_api_calls_count > 0 ? ` / ${sync.hubspot_api_calls_count}` : ''}
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-700">{formatDuration(sync.duration_seconds)}</td>
-                      <td className="px-6 py-3 text-sm text-red-600 max-w-[200px] truncate">{sync.error_message || '-'}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700">
+                        <ChevronRight size={16} className="text-gray-400" />
+                      </td>
                     </tr>
                   ))
                 )}
@@ -976,6 +983,188 @@ const AdminSyncDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Sync Detail Modal */}
+      {selectedSync && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setSelectedSync(null)} />
+          <div className="relative bg-white rounded-xl shadow-xl border border-gray-200 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Sync Summary</h3>
+                <p className="text-sm text-gray-500 mt-0.5">{formatDateTime(selectedSync.last_sync_at)} &mdash; {formatSyncType(selectedSync.sync_type)}</p>
+              </div>
+              <button onClick={() => setSelectedSync(null)} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
+                <X size={20} className="text-gray-500" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              {/* Status & Duration */}
+              <div className="flex items-center gap-4">
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusStyle(selectedSync.status)}`}>
+                  {getStatusIcon(selectedSync.status)}
+                  {selectedSync.status}
+                </span>
+                <span className="text-sm text-gray-600">Duration: <span className="font-medium text-gray-900">{formatDuration(selectedSync.duration_seconds)}</span></span>
+              </div>
+
+              {/* Error message */}
+              {selectedSync.error_message && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                  {selectedSync.error_message}
+                </div>
+              )}
+
+              {/* API Calls */}
+              <div className="bg-gray-50 rounded-lg p-3">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">API Calls</h4>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>Dendreo: <span className="font-medium">{selectedSync.api_calls_count}</span></div>
+                  <div>HubSpot: <span className="font-medium">{selectedSync.hubspot_api_calls_count || 0}</span></div>
+                </div>
+              </div>
+
+              {/* Stats */}
+              {selectedSync.stats && (
+                <>
+                  {/* ADFs (Courses) */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">ADFs (Courses)</h4>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-green-600 font-semibold">{selectedSync.stats.courses_created || 0}</div>
+                        <div className="text-xs text-gray-500">Created</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-blue-600 font-semibold">{selectedSync.stats.courses_updated || 0}</div>
+                        <div className="text-xs text-gray-500">Updated</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-red-600 font-semibold">{selectedSync.stats.courses_removed || 0}</div>
+                        <div className="text-xs text-gray-500">Removed</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Participants */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Participants</h4>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-green-600 font-semibold">{selectedSync.stats.participants_created || 0}</div>
+                        <div className="text-xs text-gray-500">Created</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-blue-600 font-semibold">{selectedSync.stats.participants_updated || 0}</div>
+                        <div className="text-xs text-gray-500">Updated</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-red-600 font-semibold">{selectedSync.stats.participants_removed || 0}</div>
+                        <div className="text-xs text-gray-500">Removed</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Enrollments */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Enrollments</h4>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-green-600 font-semibold">{selectedSync.stats.participant_courses_created || 0}</div>
+                        <div className="text-xs text-gray-500">Created</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-blue-600 font-semibold">{selectedSync.stats.participant_courses_updated || 0}</div>
+                        <div className="text-xs text-gray-500">Updated</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-red-600 font-semibold">{selectedSync.stats.participant_courses_removed || 0}</div>
+                        <div className="text-xs text-gray-500">Removed</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Modules */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Modules</h4>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-green-600 font-semibold">{selectedSync.stats.modules_created || 0}</div>
+                        <div className="text-xs text-gray-500">Created</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-blue-600 font-semibold">{selectedSync.stats.modules_updated || 0}</div>
+                        <div className="text-xs text-gray-500">Updated</div>
+                      </div>
+                      <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-red-600 font-semibold">{selectedSync.stats.modules_removed || 0}</div>
+                        <div className="text-xs text-gray-500">Removed</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Creneaux */}
+                  {(selectedSync.stats.creneaux_created > 0 || selectedSync.stats.creneaux_updated > 0) && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Liverooms</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="text-center p-2 bg-white rounded border">
+                          <div className="text-green-600 font-semibold">{selectedSync.stats.creneaux_created || 0}</div>
+                          <div className="text-xs text-gray-500">Slots Created</div>
+                        </div>
+                        <div className="text-center p-2 bg-white rounded border">
+                          <div className="text-blue-600 font-semibold">{selectedSync.stats.creneau_participants_created || 0}</div>
+                          <div className="text-xs text-gray-500">Attendees Created</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* HubSpot */}
+                  {selectedSync.stats.hubspot_updates_total > 0 && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">HubSpot</h4>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="text-center p-2 bg-white rounded border">
+                          <div className="font-semibold">{selectedSync.stats.hubspot_updates_total || 0}</div>
+                          <div className="text-xs text-gray-500">Total</div>
+                        </div>
+                        <div className="text-center p-2 bg-white rounded border">
+                          <div className="text-green-600 font-semibold">{selectedSync.stats.hubspot_updates_successful || 0}</div>
+                          <div className="text-xs text-gray-500">Successful</div>
+                        </div>
+                        <div className="text-center p-2 bg-white rounded border">
+                          <div className="text-red-600 font-semibold">{selectedSync.stats.hubspot_updates_failed || 0}</div>
+                          <div className="text-xs text-gray-500">Failed</div>
+                        </div>
+                      </div>
+                      {selectedSync.stats.hubspot_data_created > 0 && (
+                        <div className="mt-2 text-xs text-gray-500">New HubSpot records: {selectedSync.stats.hubspot_data_created}</div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Categories */}
+                  {selectedSync.stats.categories_synced > 0 && (
+                    <div className="text-sm text-gray-600">Categories synced: <span className="font-medium">{selectedSync.stats.categories_synced}</span></div>
+                  )}
+
+                  {/* Skipped ADFs */}
+                  {selectedSync.stats.adfs_skipped_api_limit > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                      {selectedSync.stats.adfs_skipped_api_limit} ADF(s) skipped due to API limit
+                    </div>
+                  )}
+                </>
+              )}
+
+              {!selectedSync.stats && (
+                <p className="text-sm text-gray-500 italic">No detailed stats available for this sync.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Modal */}
       <ConfirmModal

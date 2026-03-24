@@ -55,4 +55,7 @@ export const queryKeys = {
 
   // Interventions
   interventionTimeline: (participantId, adf) => ['interventions', 'timeline', participantId, adf],
+
+  // HubSpot deals
+  hubspotDeals: (email) => ['hubspot', 'deals', email],
 }; 

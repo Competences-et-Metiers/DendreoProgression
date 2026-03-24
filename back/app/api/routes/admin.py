@@ -81,6 +81,7 @@ class SyncHistoryItem(BaseModel):
     hubspot_api_calls_count: int = 0
     duration_seconds: Optional[float]
     error_message: Optional[str]
+    stats: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -584,7 +585,18 @@ async def get_sync_history(
         SyncMetadata.sync_type.in_(['sync_all', 'sync_adf'])
     ).order_by(SyncMetadata.last_sync_at.desc()).limit(limit).all()
 
-    return syncs
+    result = []
+    for sync in syncs:
+        item = SyncHistoryItem.model_validate(sync)
+        if sync.stats:
+            import ast
+            try:
+                item.stats = ast.literal_eval(sync.stats) if isinstance(sync.stats, str) else sync.stats
+            except (ValueError, SyntaxError):
+                item.stats = None
+        result.append(item)
+
+    return result
 
 
 @router.post("/sync/resume", response_model=SyncCommandResponse)

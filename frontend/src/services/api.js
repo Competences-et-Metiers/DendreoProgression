@@ -103,6 +103,29 @@ export const apiService = {
     return response.data;
   },
 
+  // HubSpot Deals
+  async getHubspotDeals(email) {
+    const response = await api.get(`/hubspot/deals/${encodeURIComponent(email)}`);
+    return response.data;
+  },
+
+  async linkDeal(participantId, idActionFormation, dealId) {
+    const response = await api.post('/hubspot/link-deal', {
+      participant_id: participantId,
+      id_action_formation: idActionFormation,
+      deal_id: dealId,
+    });
+    return response.data;
+  },
+
+  async unlinkDeal(participantId, idActionFormation) {
+    const response = await api.post('/hubspot/unlink-deal', {
+      participant_id: participantId,
+      id_action_formation: idActionFormation,
+    });
+    return response.data;
+  },
+
   // Interventions
   async createIntervention(data) {
     const response = await api.post('/interventions/', data);

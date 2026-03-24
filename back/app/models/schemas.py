@@ -317,3 +317,19 @@ class ParticipantTimelineResponse(BaseModel):
     has_active_snooze: bool = False
     snooze_until: Optional[datetime] = None
     is_dismissed: bool = False
+
+
+# HubSpot deal linking schemas
+class DealInfo(BaseModel):
+    id: str
+    dealname: str
+    amount: Optional[str] = None
+
+class LinkDealRequest(BaseModel):
+    participant_id: int
+    id_action_formation: str
+    deal_id: str
+
+class UnlinkDealRequest(BaseModel):
+    participant_id: int
+    id_action_formation: str

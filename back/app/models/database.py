@@ -115,6 +115,17 @@ def create_tables():
                 logger.info("Ensured courses.categorie_module_id column exists")
             except Exception as e:
                 logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(
+                    "ALTER TABLE participant_hubspot_data "
+                    "ADD COLUMN IF NOT EXISTS is_manual_link BOOLEAN NOT NULL DEFAULT FALSE"
+                ))
+                conn.commit()
+                logger.info("Ensured participant_hubspot_data.is_manual_link column exists")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
         
         # Verify tables were created using text() for SQLAlchemy 2.0+ compatibility
         with engine.connect() as conn:

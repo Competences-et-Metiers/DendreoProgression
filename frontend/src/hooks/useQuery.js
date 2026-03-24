@@ -164,6 +164,45 @@ export const useDeleteHubspotNote = () => {
   });
 };
 
+// HubSpot Deal hooks
+export const useHubspotDeals = (email, enabled = false) => {
+  return useQuery({
+    queryKey: queryKeys.hubspotDeals(email),
+    queryFn: () => apiService.getHubspotDeals(email),
+    enabled: enabled && !!email,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useLinkDeal = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ participantId, idActionFormation, dealId }) =>
+      apiService.linkDeal(participantId, idActionFormation, dealId),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.participantDetails(variables.participantId),
+      });
+    },
+  });
+};
+
+export const useUnlinkDeal = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ participantId, idActionFormation }) =>
+      apiService.unlinkDeal(participantId, idActionFormation),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.participantDetails(variables.participantId),
+      });
+    },
+  });
+};
+
 // Mutation hooks for cache invalidation
 export const useSyncMutation = () => {
   const queryClient = useQueryClient();

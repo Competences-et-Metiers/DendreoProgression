@@ -180,6 +180,62 @@ class HubSpotClient:
             logger.error(f"Error fetching HubSpot calls: {e}")
             return []
 
+    async def get_deals_for_contact(self, email: str) -> List[Dict[str, Any]]:
+        """Fetch all deals associated with a HubSpot contact by email.
+        Returns list of dicts: [{id, dealname, amount}, ...]."""
+        if not self.api_key:
+            return []
+
+        try:
+            contact = await self.get_contact_by_email(email)
+        except Exception:
+            return []
+
+        if not contact:
+            return []
+
+        # Extract deal IDs from associations
+        deal_ids = []
+        associations = contact.get('associations', {})
+        deals_assoc = associations.get('deals', {})
+        for result in deals_assoc.get('results', []):
+            deal_id = result.get('id')
+            if deal_id:
+                deal_ids.append(deal_id)
+
+        if not deal_ids:
+            return []
+
+        # Batch read deal details
+        headers = self._get_headers()
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                batch_url = f"{self.base_url}/crm/v3/objects/deals/batch/read"
+                batch_body = {
+                    "properties": ["dealname", "amount"],
+                    "inputs": [{"id": did} for did in deal_ids[:100]]
+                }
+                response = await client.post(batch_url, json=batch_body, headers=headers)
+                response.raise_for_status()
+                batch_data = response.json()
+
+                deals = []
+                for result in batch_data.get('results', []):
+                    props = result.get('properties', {})
+                    deals.append({
+                        'id': result.get('id'),
+                        'dealname': props.get('dealname', ''),
+                        'amount': props.get('amount'),
+                    })
+                return deals
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HubSpot API error fetching deals for {email}: {e.response.status_code}")
+            return []
+        except Exception as e:
+            logger.error(f"Error fetching HubSpot deals for {email}: {e}")
+            return []
+
     async def get_owner_by_email(self, email: str) -> Optional[str]:
         """Look up a HubSpot owner ID by email. Returns owner ID or None."""
         if not self.api_key or not email:

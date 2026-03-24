@@ -492,5 +492,14 @@
     "error": "Identifiants invalides",
     "or": "ou",
     "microsoftSignIn": "Se connecter avec Microsoft"
+  },
+  "hubspotDeal": {
+    "deal": "Deal",
+    "linkDeal": "Lier un deal",
+    "unlink": "Dissocier le deal",
+    "openDeal": "Ouvrir le deal dans HubSpot",
+    "noEmail": "Aucune adresse email disponible",
+    "noDeals": "Aucun deal trouvé pour ce contact",
+    "fetchError": "Impossible de charger les deals depuis HubSpot"
   }
 } 

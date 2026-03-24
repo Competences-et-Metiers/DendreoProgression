@@ -573,8 +573,15 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
             # Get planned duration from the course
             planned_duration_hours = course.planned_duration_hours or 0
 
+            # Get HubSpot deal data for this participant and ADF
+            hubspot_deal_data = db.query(ParticipantHubspotData).filter(
+                ParticipantHubspotData.participant_id == participant.id,
+                ParticipantHubspotData.id_action_formation == adf_id
+            ).first()
+
             courses_data.append({
                 "course_id": course.id,
+                "id_action_formation": adf_id,
                 "course_title": course.intitule,
                 "progression": calculated_progression,
                 "activity_status": pc.activity_status,
@@ -585,6 +592,10 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                 "total_modules": len(modules),
                 "total_time_spent": total_time_spent,
                 "planned_duration_hours": planned_duration_hours,
+                "hubspot_deal": {
+                    "deal_id": hubspot_deal_data.c_id_transaction_hubspot,
+                    "deal_url": hubspot_deal_data.c_url_transaction_hubspot,
+                } if hubspot_deal_data and hubspot_deal_data.c_id_transaction_hubspot else None,
                 "modules": [
                     {
                         "id": module.id,

@@ -468,5 +468,14 @@
     "error": "Invalid credentials",
     "or": "or",
     "microsoftSignIn": "Sign in with Microsoft"
+  },
+  "hubspotDeal": {
+    "deal": "Deal",
+    "linkDeal": "Link Deal",
+    "unlink": "Unlink deal",
+    "openDeal": "Open deal in HubSpot",
+    "noEmail": "No email address available",
+    "noDeals": "No deals found for this contact",
+    "fetchError": "Failed to load deals from HubSpot"
   }
 } 
