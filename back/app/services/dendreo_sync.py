@@ -330,11 +330,15 @@ class DendreoSync:
                                 ).first()
 
                                 if hubspot_data:
-                                    hubspot_data.id_lap = id_lap
-                                    hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
-                                    hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
-                                    hubspot_data.updated_at = datetime.utcnow()
-                                    self.stats["hubspot_data_updated"] += 1
+                                    if hubspot_data.is_manual_link:
+                                        hubspot_data.id_lap = id_lap
+                                        hubspot_data.updated_at = datetime.utcnow()
+                                    else:
+                                        hubspot_data.id_lap = id_lap
+                                        hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
+                                        hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
+                                        hubspot_data.updated_at = datetime.utcnow()
+                                        self.stats["hubspot_data_updated"] += 1
                                 else:
                                     try:
                                         hubspot_data = ParticipantHubspotData(
@@ -354,7 +358,7 @@ class DendreoSync:
                                                 ParticipantHubspotData.participant_id == participant.id,
                                                 ParticipantHubspotData.id_action_formation == id_adf
                                             ).first()
-                                            if hubspot_data:
+                                            if hubspot_data and not hubspot_data.is_manual_link:
                                                 hubspot_data.id_lap = id_lap
                                                 hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
                                                 hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
@@ -897,13 +901,19 @@ class DendreoSync:
                 ).first()
                 
                 if hubspot_data:
-                    # Update existing record
-                    hubspot_data.id_lap = id_lap
-                    hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
-                    hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
-                    hubspot_data.updated_at = datetime.utcnow()
-                    self.stats["hubspot_data_updated"] += 1
-                    logger.debug(f"Updated HubSpot data for participant {participant.id_participant} in ADF {id_adf}")
+                    if hubspot_data.is_manual_link:
+                        # Only update id_lap, preserve manual deal link
+                        hubspot_data.id_lap = id_lap
+                        hubspot_data.updated_at = datetime.utcnow()
+                        logger.debug(f"Preserved manual deal link for participant {participant.id_participant} in ADF {id_adf}")
+                    else:
+                        # Update existing record
+                        hubspot_data.id_lap = id_lap
+                        hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
+                        hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
+                        hubspot_data.updated_at = datetime.utcnow()
+                        self.stats["hubspot_data_updated"] += 1
+                        logger.debug(f"Updated HubSpot data for participant {participant.id_participant} in ADF {id_adf}")
                 else:
                     # Create new record, but handle potential race condition
                     try:
@@ -927,7 +937,7 @@ class DendreoSync:
                                 ParticipantHubspotData.participant_id == participant.id,
                                 ParticipantHubspotData.id_action_formation == id_adf
                             ).first()
-                            if hubspot_data:
+                            if hubspot_data and not hubspot_data.is_manual_link:
                                 hubspot_data.id_lap = id_lap
                                 hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
                                 hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot

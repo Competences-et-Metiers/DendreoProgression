@@ -53,6 +53,12 @@ export const queryKeys = {
   // Sync
   syncStats: ['sync', 'stats'],
 
+  // Interventions
+  interventionTimeline: (participantId, adf) => ['interventions', 'timeline', participantId, adf],
+
+  // HubSpot deals
+  hubspotDeals: (email) => ['hubspot', 'deals', email],
+
   // Saved views
   savedViews: ['savedViews'],
 }; 

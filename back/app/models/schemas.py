@@ -136,6 +136,11 @@ class InactiveParticipantDetail(BaseModel):
     category_name: Optional[str] = None
     category_color: Optional[str] = None
 
+    # Intervention status (populated by inactivity service)
+    has_active_snooze: Optional[bool] = False
+    snooze_until: Optional[datetime] = None
+    is_dismissed: Optional[bool] = False
+
     class Config:
         from_attributes = True
 
@@ -270,3 +275,77 @@ class ModuleCategoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# Intervention schemas
+class InterventionCreate(BaseModel):
+    """Request body for creating an intervention."""
+    participant_id: int
+    participant_course_id: Optional[int] = None
+    id_action_formation: Optional[str] = None
+    intervention_type: str  # 'snooze', 'note', 'email', 'call', 'dismiss'
+    details: Optional[dict] = None  # Type-specific payload
+
+class InterventionResponse(BaseModel):
+    """Single intervention record."""
+    id: int
+    participant_id: int
+    participant_course_id: Optional[int] = None
+    id_action_formation: Optional[str] = None
+    user_id: int
+    user_display_name: Optional[str] = None
+    intervention_type: str
+    details: Optional[dict] = None
+    hubspot_note_id: Optional[str] = None
+    snooze_until: Optional[datetime] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class TimelineEntry(BaseModel):
+    """Unified timeline entry merging local interventions + HubSpot data."""
+    source: str  # 'local', 'hubspot_note', 'hubspot_call'
+    timestamp: Optional[datetime] = None
+    # Local intervention fields
+    intervention_id: Optional[int] = None
+    intervention_type: Optional[str] = None
+    user_id: Optional[int] = None
+    user_display_name: Optional[str] = None
+    details: Optional[dict] = None
+    is_active: Optional[bool] = None
+    snooze_until: Optional[datetime] = None
+    # HubSpot fields
+    hubspot_id: Optional[str] = None
+    body: Optional[str] = None
+    call_duration: Optional[int] = None
+    call_direction: Optional[str] = None
+    call_recording_url: Optional[str] = None
+    hubspot_owner_id: Optional[str] = None
+    hubspot_owner_name: Optional[str] = None
+
+class ParticipantTimelineResponse(BaseModel):
+    """Full timeline for a participant in a specific ADF context."""
+    participant_id: int
+    id_action_formation: Optional[str] = None
+    entries: List[TimelineEntry] = []
+    has_active_snooze: bool = False
+    snooze_until: Optional[datetime] = None
+    is_dismissed: bool = False
+
+
+# HubSpot deal linking schemas
+class DealInfo(BaseModel):
+    id: str
+    dealname: str
+    amount: Optional[str] = None
+
+class LinkDealRequest(BaseModel):
+    participant_id: int
+    id_action_formation: str
+    deal_id: str
+
+class UnlinkDealRequest(BaseModel):
+    participant_id: int
+    id_action_formation: str

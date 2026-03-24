@@ -161,7 +161,9 @@
     "apply": "Appliquer",
     "daysInactive": "jours d'inactivité",
     "enrolled": "Inscrit il y a",
-    "daysAgo": "jours"
+    "daysAgo": "jours",
+    "yes": "Oui",
+    "no": "Non"
   },
   "navigation": {
     "dashboard": "Tableau de bord",
@@ -428,6 +430,49 @@
       "colDaysInactive": "Jours d'inactivité",
       "colProgression": "Progression %",
       "colEmail": "Email"
+    },
+    "interventions": {
+      "title": "Interventions",
+      "timeline": "Historique",
+      "call": "Appeler",
+      "callTooltip": "Ouvrir la fiche HubSpot",
+      "snooze": "Reporter",
+      "snoozeTooltip": "Masquer temporairement ce participant",
+      "snoozeDays": "Nombre de jours",
+      "snoozePlaceholder": "Ex: En vacances, projet en pause...",
+      "snoozeConfirm": "Confirmer le report",
+      "snoozeActive": "Reporté jusqu'au",
+      "cancelSnooze": "Annuler le report",
+      "email": "Email",
+      "emailTooltip": "Envoyer un email",
+      "note": "Note",
+      "notePlaceholder": "Ajouter une note...",
+      "noteSubmit": "Enregistrer",
+      "dismiss": "Écarter",
+      "dismissTooltip": "Retirer définitivement de la liste",
+      "dismissConfirm": "Confirmer",
+      "dismissWarning": "Ce participant ne sera plus affiché dans la liste des inactifs pour cette formation.",
+      "reverseDismiss": "Réintégrer",
+      "showSnoozed": "Afficher reportés",
+      "showDismissed": "Afficher écartés",
+      "sources": {
+        "local": "Action interne",
+        "hubspot_note": "Note HubSpot",
+        "hubspot_call": "Appel Ringover"
+      },
+      "noEntries": "Aucune intervention enregistrée",
+      "listenRecording": "Écouter l'enregistrement",
+      "callConfirmMessage": "L'appel a-t-il été effectué ?",
+      "emailConfirmMessage": "L'email a-t-il été envoyé ?",
+      "deleteNote": "Supprimer",
+      "filters": {
+        "all": "Tous",
+        "calls": "Appels",
+        "snooze": "Reports",
+        "notes": "Notes",
+        "email": "Emails",
+        "dismiss": "Écartés"
+      }
     }
   },
   "savedViews": {
@@ -452,5 +497,14 @@
     "error": "Identifiants invalides",
     "or": "ou",
     "microsoftSignIn": "Se connecter avec Microsoft"
+  },
+  "hubspotDeal": {
+    "deal": "Deal",
+    "linkDeal": "Lier un deal",
+    "unlink": "Dissocier le deal",
+    "openDeal": "Ouvrir le deal dans HubSpot",
+    "noEmail": "Aucune adresse email disponible",
+    "noDeals": "Aucun deal trouvé pour ce contact",
+    "fetchError": "Impossible de charger les deals depuis HubSpot"
   }
 } 

@@ -103,6 +103,59 @@ export const apiService = {
     return response.data;
   },
 
+  // HubSpot Deals
+  async getHubspotDeals(email) {
+    const response = await api.get(`/hubspot/deals/${encodeURIComponent(email)}`);
+    return response.data;
+  },
+
+  async linkDeal(participantId, idActionFormation, dealId) {
+    const response = await api.post('/hubspot/link-deal', {
+      participant_id: participantId,
+      id_action_formation: idActionFormation,
+      deal_id: dealId,
+    });
+    return response.data;
+  },
+
+  async unlinkDeal(participantId, idActionFormation) {
+    const response = await api.post('/hubspot/unlink-deal', {
+      participant_id: participantId,
+      id_action_formation: idActionFormation,
+    });
+    return response.data;
+  },
+
+  // Interventions
+  async createIntervention(data) {
+    const response = await api.post('/interventions/', data);
+    return response.data;
+  },
+
+  async getParticipantTimeline(participantId, idActionFormation = null) {
+    const params = {};
+    if (idActionFormation) params.id_action_formation = idActionFormation;
+    const response = await api.get(`/interventions/timeline/${participantId}`, { params });
+    return response.data;
+  },
+
+  async cancelIntervention(interventionId) {
+    const response = await api.post(`/interventions/${interventionId}/cancel`);
+    return response.data;
+  },
+
+  async deleteIntervention(interventionId) {
+    const response = await api.delete(`/interventions/${interventionId}`);
+    return response.data;
+  },
+
+  async deleteHubspotNote(hubspotNoteId, participantId, idActionFormation = null) {
+    const params = { participant_id: participantId };
+    if (idActionFormation) params.id_action_formation = idActionFormation;
+    const response = await api.delete(`/interventions/hubspot-note/${hubspotNoteId}`, { params });
+    return response.data;
+  },
+
   // Sync operations
   async syncAll() {
     const response = await api.post('/sync/sync-all');

@@ -145,6 +145,13 @@ class InactivityService:
             'newly_enrolled_excluded': 0
         }
 
+        # Pre-build snooze and dismiss sets from InterventionService
+        from app.services.intervention_service import InterventionService
+        intervention_svc = InterventionService(self.db)
+        snoozed_set = intervention_svc.get_snoozed_participant_ids()
+        snoozed_details = intervention_svc.get_snoozed_details_map()
+        dismissed_set = intervention_svc.get_dismissed_participant_ids()
+
         all_details: List[InactiveParticipantDetail] = []
         by_course_map: Dict[str, List[InactiveParticipantDetail]] = {}
 
@@ -284,7 +291,10 @@ class InactivityService:
                 inactivity_reason=inactivity_reason,
                 formateurs=formateurs,
                 category_name=cat_info.get('name'),
-                category_color=cat_info.get('color')
+                category_color=cat_info.get('color'),
+                has_active_snooze=(participant_id, adf_id) in snoozed_set,
+                snooze_until=snoozed_details.get((participant_id, adf_id)),
+                is_dismissed=(participant_id, adf_id) in dismissed_set,
             )
 
             all_details.append(detail)

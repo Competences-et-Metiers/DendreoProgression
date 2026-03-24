@@ -156,7 +156,9 @@
     "moduleProgressDetails": "Module Progress Details",
     "timeSpent": "Time Spent",
     "plannedDuration": "Planned Duration",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "yes": "Yes",
+    "no": "No"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -404,6 +406,49 @@
       "colDaysInactive": "Days Inactive",
       "colProgression": "Progression %",
       "colEmail": "Email"
+    },
+    "interventions": {
+      "title": "Interventions",
+      "timeline": "History",
+      "call": "Call",
+      "callTooltip": "Open HubSpot contact",
+      "snooze": "Snooze",
+      "snoozeTooltip": "Temporarily hide this participant",
+      "snoozeDays": "Number of days",
+      "snoozePlaceholder": "e.g. On vacation, project paused...",
+      "snoozeConfirm": "Confirm snooze",
+      "snoozeActive": "Snoozed until",
+      "cancelSnooze": "Cancel snooze",
+      "email": "Email",
+      "emailTooltip": "Send an email",
+      "note": "Note",
+      "notePlaceholder": "Add a note...",
+      "noteSubmit": "Save",
+      "dismiss": "Dismiss",
+      "dismissTooltip": "Permanently remove from list",
+      "dismissConfirm": "Confirm",
+      "dismissWarning": "This participant will no longer appear in the inactive list for this course.",
+      "reverseDismiss": "Reinstate",
+      "showSnoozed": "Show snoozed",
+      "showDismissed": "Show dismissed",
+      "sources": {
+        "local": "Internal action",
+        "hubspot_note": "HubSpot Note",
+        "hubspot_call": "Ringover Call"
+      },
+      "noEntries": "No interventions recorded",
+      "listenRecording": "Listen to recording",
+      "callConfirmMessage": "Was the call made?",
+      "emailConfirmMessage": "Was the email sent?",
+      "deleteNote": "Delete",
+      "filters": {
+        "all": "All",
+        "calls": "Calls",
+        "snooze": "Snoozes",
+        "notes": "Notes",
+        "email": "Emails",
+        "dismiss": "Dismissed"
+      }
     }
   },
   "savedViews": {
@@ -428,5 +473,14 @@
     "error": "Invalid credentials",
     "or": "or",
     "microsoftSignIn": "Sign in with Microsoft"
+  },
+  "hubspotDeal": {
+    "deal": "Deal",
+    "linkDeal": "Link Deal",
+    "unlink": "Unlink deal",
+    "openDeal": "Open deal in HubSpot",
+    "noEmail": "No email address available",
+    "noDeals": "No deals found for this contact",
+    "fetchError": "Failed to load deals from HubSpot"
   }
 } 

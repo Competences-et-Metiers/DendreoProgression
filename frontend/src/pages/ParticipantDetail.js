@@ -6,11 +6,12 @@ import ProgressBar from '../components/ProgressBar';
 import { useParticipantDetails } from '../hooks/useQuery';
 import { apiService } from '../services/api';
 import * as timeUtils from '../utils/timeUtils';
-import { 
-  ArrowLeft, 
-  User, 
-  BookOpen, 
-  Target, 
+import DealLinkButton from '../components/DealLinkButton';
+import {
+  ArrowLeft,
+  User,
+  BookOpen,
+  Target,
   Mail,
   Calendar,
   CheckCircle,
@@ -311,6 +312,12 @@ const ParticipantDetail = () => {
                           {course.course_title || t('common.courseTitle', { id: course.course_id })}
                         </h3>
                         <div className="flex items-center space-x-2">
+                          <DealLinkButton
+                            participantId={parseInt(participantId)}
+                            idActionFormation={course.id_action_formation}
+                            email={participantData?.participant?.email}
+                            hubspotDeal={course.hubspot_deal}
+                          />
                           {getProgressBadge(course.progression)}
                           {course.modules && course.modules.length > 0 && (
                             <button

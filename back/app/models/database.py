@@ -100,7 +100,7 @@ def create_tables():
     """Create all database tables with proper error handling."""
     try:
         # Import all models to ensure they're registered
-        from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, SyncMetadata, User, Creneau, CreneauParticipant, ModuleCategory, UserView
+        from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, SyncMetadata, User, Creneau, CreneauParticipant, ModuleCategory, Intervention, UserView
 
         logger.info("Creating database tables...")
 
@@ -113,6 +113,17 @@ def create_tables():
                 conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS categorie_module_id VARCHAR"))
                 conn.commit()
                 logger.info("Ensured courses.categorie_module_id column exists")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(
+                    "ALTER TABLE participant_hubspot_data "
+                    "ADD COLUMN IF NOT EXISTS is_manual_link BOOLEAN NOT NULL DEFAULT FALSE"
+                ))
+                conn.commit()
+                logger.info("Ensured participant_hubspot_data.is_manual_link column exists")
             except Exception as e:
                 logger.debug(f"Column migration note: {e}")
         

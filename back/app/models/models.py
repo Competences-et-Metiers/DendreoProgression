@@ -20,6 +20,7 @@ class Participant(Base):
     # Relationships
     courses = relationship("ParticipantCourse", back_populates="participant")
     hubspot_data = relationship("ParticipantHubspotData", back_populates="participant")
+    interventions = relationship("Intervention", back_populates="participant", foreign_keys="[Intervention.participant_id]")
 
 class ModuleCategory(Base):
     """Module category from Dendreo categories_module API."""
@@ -114,6 +115,7 @@ class ParticipantHubspotData(Base):
     id_lap = Column(String, nullable=True)  # LAP ID from laps.php response
     c_url_transaction_hubspot = Column(String, nullable=True)
     c_id_transaction_hubspot = Column(String, nullable=True)
+    is_manual_link = Column(Boolean, default=False, nullable=False)  # True = staff-set link, sync won't overwrite
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -177,6 +179,45 @@ class CreneauParticipant(Base):
     # Relationships
     creneau = relationship("Creneau", back_populates="participants")
     participant = relationship("Participant")
+
+
+class Intervention(Base):
+    """Staff intervention record for participant inactivity tracking."""
+    __tablename__ = "interventions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    participant_id = Column(Integer, ForeignKey("participants.id"), nullable=False, index=True)
+    participant_course_id = Column(Integer, ForeignKey("participant_courses.id"), nullable=True)
+    id_action_formation = Column(String, nullable=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Type: 'snooze', 'note', 'email', 'call', 'dismiss'
+    intervention_type = Column(String(20), nullable=False, index=True)
+
+    # Flexible JSON details per type:
+    # snooze: {snooze_days: int, reason: str}
+    # note: {text: str}
+    # email: {recipient: str}
+    # call: {hubspot_contact_url: str}
+    # dismiss: {reason: str}
+    details = Column(JSON, nullable=True)
+
+    # HubSpot linkage (if a note was pushed to HS)
+    hubspot_note_id = Column(String, nullable=True)
+
+    # Snooze tracking (dedicated column for efficient SQL filtering)
+    snooze_until = Column(DateTime(timezone=True), nullable=True, index=True)
+
+    # Active flag (for reversing dismissals or cancelling snoozes)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    participant = relationship("Participant", back_populates="interventions")
+    participant_course = relationship("ParticipantCourse")
+    user = relationship("User")
 
 
 class User(Base):
