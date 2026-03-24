@@ -586,16 +586,26 @@ async def get_sync_history(
         SyncMetadata.sync_type.in_(['sync_all', 'sync_adf'])
     ).order_by(SyncMetadata.last_sync_at.desc()).limit(limit).all()
 
+    import ast
     result = []
     for sync in syncs:
-        item = SyncHistoryItem.model_validate(sync)
+        parsed_stats = None
         if sync.stats:
-            import ast
             try:
-                item.stats = ast.literal_eval(sync.stats) if isinstance(sync.stats, str) else sync.stats
+                parsed_stats = ast.literal_eval(sync.stats) if isinstance(sync.stats, str) else sync.stats
             except (ValueError, SyntaxError):
-                item.stats = None
-        result.append(item)
+                pass
+        result.append(SyncHistoryItem(
+            id=sync.id,
+            sync_type=sync.sync_type,
+            last_sync_at=sync.last_sync_at,
+            status=sync.status,
+            api_calls_count=sync.api_calls_count or 0,
+            hubspot_api_calls_count=sync.hubspot_api_calls_count or 0,
+            duration_seconds=sync.duration_seconds,
+            error_message=sync.error_message,
+            stats=parsed_stats,
+        ))
 
     return result
 
