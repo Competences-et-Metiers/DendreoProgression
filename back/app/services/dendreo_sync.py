@@ -208,6 +208,17 @@ class DendreoSync:
                 id_etape_process = adf.get('id_etape_process')
                 # Convert to string to handle both string and integer types
                 if not id_etape_process or str(id_etape_process) not in ['5', '6', '7']:
+                    # Update status of existing courses whose etape changed to inactive
+                    if id_adf:
+                        stale_courses = self.db.query(Course).filter(
+                            Course.id_action_formation == str(id_adf),
+                            Course.status.in_(['5', '6', '7'])
+                        ).all()
+                        if stale_courses:
+                            for c in stale_courses:
+                                c.status = str(id_etape_process) if id_etape_process else None
+                            self.db.commit()
+                            logger.info(f"📝 Updated {len(stale_courses)} course(s) for ADF {id_adf}: etape → {id_etape_process}")
                     if adf_idx <= 10:  # Log first 10 skips to avoid spam
                         logger.info(f"⏭️  Skipping inactive ADF {id_adf} with status {id_etape_process} (type: {type(id_etape_process)})")
                     continue
@@ -699,11 +710,19 @@ class DendreoSync:
         for adf in adf_batch:
             # Only process active ADFs (status 5, 6, or 7)
             id_etape_process = adf.get('id_etape_process')
-            if not id_etape_process or str(id_etape_process) not in ['5', '6', '7']:
-                logger.debug(f"Skipping inactive ADF with status {id_etape_process}")
-                continue
-
             id_adf = adf.get('id_action_de_formation')
+            if not id_etape_process or str(id_etape_process) not in ['5', '6', '7']:
+                # Update status of existing courses whose etape changed to inactive
+                if id_adf:
+                    stale_courses = self.db.query(Course).filter(
+                        Course.id_action_formation == str(id_adf),
+                        Course.status.in_(['5', '6', '7'])
+                    ).all()
+                    if stale_courses:
+                        for c in stale_courses:
+                            c.status = str(id_etape_process) if id_etape_process else None
+                        logger.info(f"📝 Updated {len(stale_courses)} course(s) for ADF {id_adf}: etape → {id_etape_process}")
+                continue
             if not id_adf:
                 logger.warning("Skipping ADF - missing id_action_de_formation")
                 continue

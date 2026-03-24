@@ -30,18 +30,19 @@ import {
 import api from '../services/api';
 import { generateInactivityReport } from '../utils/pdfExport';
 import InterventionPanel from '../components/InterventionPanel';
+import SavedViewsBar from '../components/SavedViewsBar';
 
 const InactiveManagement = () => {
   const { t, i18n } = useTranslation();
 
-  // State with localStorage persistence
+  // State with sessionStorage persistence
   const [groupByCourse, setGroupByCourse] = useState(() => {
-    const cached = localStorage.getItem('inactiveManagement.groupByCourse');
-    return cached ? JSON.parse(cached) : true;
+    const cached = sessionStorage.getItem('inactiveManagement.groupByCourse');
+    return cached !== null ? JSON.parse(cached) : false;
   });
 
   const [filters, setFilters] = useState(() => {
-    const cached = localStorage.getItem('inactiveManagement.filters');
+    const cached = sessionStorage.getItem('inactiveManagement.filters');
     if (cached) {
       const parsed = JSON.parse(cached);
       // Migrate old filter format
@@ -153,11 +154,16 @@ const InactiveManagement = () => {
   }, []);
 
   // Global search
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(() => {
+    return localStorage.getItem('inactiveManagement.searchTerm') || '';
+  });
 
   // Pagination
   const PAGE_SIZE_OPTIONS = [25, 50, 100, 0]; // 0 = all
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.pageSize');
+    return cached ? JSON.parse(cached) : 50;
+  });
   const [currentPage, setCurrentPage] = useState(1);
 
   // Persist state to localStorage
@@ -200,6 +206,14 @@ const InactiveManagement = () => {
   useEffect(() => {
     localStorage.setItem('inactiveManagement.cvPlannedIsActive', JSON.stringify(cvPlannedIsActive));
   }, [cvPlannedIsActive]);
+
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.searchTerm', searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.pageSize', JSON.stringify(pageSize));
+  }, [pageSize]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -531,6 +545,37 @@ const InactiveManagement = () => {
     setFilters(f => ({ ...f, atRiskThreshold: 14, atRiskEnabled: true, inactivityThreshold: 30, excludeRecentDays: 0 }));
   }, []);
 
+  const collectCurrentFilters = useCallback(() => ({
+    filters: {
+      atRiskThreshold: filters.atRiskThreshold,
+      atRiskEnabled: filters.atRiskEnabled,
+      inactivityThreshold: filters.inactivityThreshold,
+      excludeRecentDays: filters.excludeRecentDays,
+    },
+    statusFilter,
+    selectedADFs,
+    selectedFormateurs,
+    selectedCategories,
+    progressionRange,
+    cvPlannedIsActive,
+    sortBy,
+    sortDirection,
+    groupByCourse,
+  }), [filters, statusFilter, selectedADFs, selectedFormateurs, selectedCategories, progressionRange, cvPlannedIsActive, sortBy, sortDirection, groupByCourse]);
+
+  const applyView = useCallback((config) => {
+    if (config.filters) setFilters(f => ({ ...f, ...config.filters }));
+    if (config.statusFilter) setStatusFilter(config.statusFilter);
+    if (config.selectedADFs) setSelectedADFs(config.selectedADFs);
+    if (config.selectedFormateurs) setSelectedFormateurs(config.selectedFormateurs);
+    if (config.selectedCategories) setSelectedCategories(config.selectedCategories);
+    if (config.progressionRange) setProgressionRange(config.progressionRange);
+    if (config.cvPlannedIsActive !== undefined) setCvPlannedIsActive(config.cvPlannedIsActive);
+    if (config.sortBy) setSortBy(config.sortBy);
+    if (config.sortDirection) setSortDirection(config.sortDirection);
+    if (config.groupByCourse !== undefined) setGroupByCourse(config.groupByCourse);
+  }, []);
+
   const handleDownloadPDF = async () => {
     if (!data) return;
 
@@ -642,6 +687,13 @@ const InactiveManagement = () => {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Saved Views */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <SavedViewsBar onLoadView={applyView} getCurrentFilters={collectCurrentFilters} />
         </div>
       </div>
 

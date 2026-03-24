@@ -475,6 +475,10 @@
       }
     }
   },
+  "savedViews": {
+    "save": "Sauvegarder la vue",
+    "namePlaceholder": "Nom de la vue..."
+  },
   "settings": {
     "title": "Paramètres",
     "subtitle": "Configurer les options de l'application",

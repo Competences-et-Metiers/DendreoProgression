@@ -179,6 +179,7 @@ def start_sync_process(command: List[str]) -> Dict[str, Any]:
     """Start sync subprocess in background, redirect output to log file."""
     global _sync_process, _sync_log_file
     try:
+        os.makedirs(os.path.dirname(SYNC_LOG_PATH), exist_ok=True)
         with open(SYNC_LOG_PATH, "w") as f:
             f.write("")
 

@@ -58,4 +58,7 @@ export const queryKeys = {
 
   // HubSpot deals
   hubspotDeals: (email) => ['hubspot', 'deals', email],
+
+  // Saved views
+  savedViews: ['savedViews'],
 }; 
