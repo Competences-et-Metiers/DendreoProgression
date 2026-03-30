@@ -456,7 +456,10 @@
   "savedViews": {
     "save": "Save view",
     "update": "Update view with current filters",
-    "namePlaceholder": "View name..."
+    "namePlaceholder": "View name...",
+    "deleteConfirm": "Delete this view?",
+    "deleteYes": "Delete",
+    "deleteNo": "Cancel"
   },
   "adminInterventions": {
     "title": "Intervention Log",
