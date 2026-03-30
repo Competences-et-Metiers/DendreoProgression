@@ -1705,7 +1705,7 @@ const InactiveManagement = () => {
                             <div className="flex items-center gap-2">
                               <Link
                                 to={`/participants/${participant.id}`}
-                                className="font-medium text-gray-900 hover:text-primary-600 transition-colors"
+                                className="font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                               >
                                 {participant.nom} {participant.prenom}
                               </Link>
@@ -1721,11 +1721,11 @@ const InactiveManagement = () => {
                                   <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
                                 </>
                               )}
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
                                 ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                               </span>
                             </div>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
                               <span className="flex items-center gap-1">
                                 <Calendar size={14} />
                                 Ajouté: {formatDate(participant.enrollment_date)}
@@ -1739,8 +1739,8 @@ const InactiveManagement = () => {
                                 {participant.last_activity_source && (
                                   <span className={`opacity-0 group-hover/source:opacity-100 transition-opacity inline-flex items-center ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
                                     participant.last_activity_source === 'elearning'
-                                      ? 'bg-blue-50 text-blue-600'
-                                      : 'bg-violet-50 text-violet-600'
+                                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                                      : 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400'
                                   }`}>
                                     {t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}
                                   </span>
@@ -1748,14 +1748,14 @@ const InactiveManagement = () => {
                               </span>
                               {participant.upcoming_sessions_count > 0 && participant.next_session_date ? (
                                 <span
-                                  className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full cursor-default"
+                                  className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default"
                                   title={`${new Date(participant.next_session_date).toLocaleDateString()}\n${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
                                 >
                                   <CalendarClock size={12} />
                                   CV dans {Math.max(0, Math.ceil((new Date(participant.next_session_date) - new Date()) / (1000 * 60 * 60 * 24)))}j
                                 </span>
                               ) : (
-                                <span className="flex items-center gap-1 text-xs bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full cursor-default">
+                                <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
                                   <CalendarClock size={12} />
                                   pas de CV programmées
                                 </span>
@@ -1803,7 +1803,7 @@ const InactiveManagement = () => {
                         {/* Expand button for intervention panel */}
                         <button
                           onClick={() => toggleParticipantExpand(pKey)}
-                          className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors"
+                          className="ml-2 p-1 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors"
                           title={t('inactiveManagement.interventions.title')}
                         >
                           {expandedParticipants.has(pKey)
