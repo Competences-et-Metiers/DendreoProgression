@@ -56,6 +56,8 @@ class DendreoSync:
             "hubspot_status": "unknown",
             "hubspot_error": None,
             "adfs_skipped_api_limit": 0,
+            "adfs_status_updated": 0,
+            "adfs_left_tracker": [],
             "dendreo_api_limit": None,
             "hubspot_api_limit": None
         }
@@ -218,6 +220,13 @@ class DendreoSync:
                             for c in stale_courses:
                                 c.status = str(id_etape_process) if id_etape_process else None
                             self.db.commit()
+                            self.stats["adfs_status_updated"] += 1
+                            self.stats["adfs_left_tracker"].append({
+                                "id_adf": str(id_adf),
+                                "intitule": adf.get('intitule', ''),
+                                "old_status": "5/6/7",
+                                "new_status": str(id_etape_process) if id_etape_process else "None"
+                            })
                             logger.info(f"📝 Updated {len(stale_courses)} course(s) for ADF {id_adf}: etape → {id_etape_process}")
                     if adf_idx <= 10:  # Log first 10 skips to avoid spam
                         logger.info(f"⏭️  Skipping inactive ADF {id_adf} with status {id_etape_process} (type: {type(id_etape_process)})")
@@ -721,6 +730,13 @@ class DendreoSync:
                     if stale_courses:
                         for c in stale_courses:
                             c.status = str(id_etape_process) if id_etape_process else None
+                        self.stats["adfs_status_updated"] += 1
+                        self.stats["adfs_left_tracker"].append({
+                            "id_adf": str(id_adf),
+                            "intitule": adf.get('intitule', ''),
+                            "old_status": "5/6/7",
+                            "new_status": str(id_etape_process) if id_etape_process else "None"
+                        })
                         logger.info(f"📝 Updated {len(stale_courses)} course(s) for ADF {id_adf}: etape → {id_etape_process}")
                 continue
             if not id_adf:

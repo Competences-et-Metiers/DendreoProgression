@@ -945,6 +945,7 @@ const AdminSyncDashboard = () => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Timestamp</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Summary</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">API Calls (D/H)</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Duration</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"></th>
@@ -953,7 +954,7 @@ const AdminSyncDashboard = () => {
               <tbody className="divide-y divide-gray-200">
                 {syncHistory.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
                       No sync history available
                     </td>
                   </tr>
@@ -967,6 +968,23 @@ const AdminSyncDashboard = () => {
                           {getStatusIcon(sync.status)}
                           {sync.status}
                         </span>
+                      </td>
+                      <td className="px-6 py-3 text-xs text-gray-500">
+                        {sync.stats ? (
+                          <span className="flex flex-wrap gap-x-2 gap-y-0.5">
+                            {(sync.stats.courses_created > 0 || sync.stats.courses_updated > 0 || sync.stats.courses_removed > 0) && (
+                              <span>ADFs: <span className="text-green-600">+{sync.stats.courses_created || 0}</span> <span className="text-blue-600">~{sync.stats.courses_updated || 0}</span> <span className="text-red-600">-{sync.stats.courses_removed || 0}</span></span>
+                            )}
+                            {(sync.stats.participants_created > 0 || sync.stats.participants_updated > 0) && (
+                              <span>P: <span className="text-green-600">+{sync.stats.participants_created || 0}</span> <span className="text-blue-600">~{sync.stats.participants_updated || 0}</span></span>
+                            )}
+                            {sync.stats.adfs_status_updated > 0 && (
+                              <span className="text-amber-600">⚡{sync.stats.adfs_status_updated} status</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="italic">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-3 text-sm text-gray-700">
                         {sync.api_calls_count}{sync.hubspot_api_calls_count > 0 ? ` / ${sync.hubspot_api_calls_count}` : ''}
@@ -1153,6 +1171,29 @@ const AdminSyncDashboard = () => {
                   {selectedSync.stats.adfs_skipped_api_limit > 0 && (
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
                       {selectedSync.stats.adfs_skipped_api_limit} ADF(s) skipped due to API limit
+                    </div>
+                  )}
+
+                  {/* ADF Status Changes */}
+                  {selectedSync.stats.adfs_status_updated > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                      <h4 className="text-xs font-semibold text-amber-700 uppercase mb-2">
+                        ADF Status Updated ({selectedSync.stats.adfs_status_updated})
+                      </h4>
+                      {selectedSync.stats.adfs_left_tracker && selectedSync.stats.adfs_left_tracker.length > 0 && (
+                        <div className="space-y-1.5">
+                          {selectedSync.stats.adfs_left_tracker.map((adf, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-xs bg-white rounded border border-amber-100 px-2 py-1.5">
+                              <span className="text-gray-700 truncate mr-2" title={adf.intitule}>
+                                <span className="font-mono text-gray-400">#{adf.id_adf}</span> {adf.intitule}
+                              </span>
+                              <span className="text-amber-600 font-medium whitespace-nowrap">
+                                {adf.old_status} → {adf.new_status}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
