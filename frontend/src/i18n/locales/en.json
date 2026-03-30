@@ -366,7 +366,11 @@
       "active": "Active",
       "atRisk": "At Risk",
       "inactive": "Inactive",
-      "neverStarted": "Never Started"
+      "neverStarted": "Never Started",
+      "snoozed": "Snoozed",
+      "dismissed": "Dismissed",
+      "showInterventions": "Show intervention counters",
+      "hideInterventions": "Hide intervention counters"
     },
     "status": {
       "active": "Active",
@@ -388,6 +392,11 @@
       "selectAll": "Select all",
       "deselectAll": "Deselect all",
       "selectedCount": "category(ies) selected"
+    },
+    "statusFilter": {
+      "title": "Filter by status",
+      "selectAll": "All",
+      "deselectAll": "None"
     },
     "searchPlaceholder": "Search by name, course or category...",
     "modifyThreshold": "Modify threshold",
@@ -488,7 +497,13 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Configure application options",
-    "placeholder": "Application settings will be available soon. You will be able to customize the interface and notifications."
+    "placeholder": "Application settings will be available soon. You will be able to customize the interface and notifications.",
+    "inactiveManagement": {
+      "title": "Inactive Management",
+      "subtitle": "Display options for the inactive management page",
+      "showInterventionCounters": "Intervention counters",
+      "showInterventionCountersDesc": "Show Snoozed and Dismissed counters in the statistics"
+    }
   },
   "login": {
     "title": "Login",

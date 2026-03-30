@@ -55,7 +55,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
       label: t('sidebar.settings'),
       icon: Settings,
       path: '/settings',
-      active: false
+      active: true
     }
   ];
 
