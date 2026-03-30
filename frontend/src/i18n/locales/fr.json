@@ -380,7 +380,9 @@
       "active": "Actif",
       "atRisk": "À risque",
       "inactive": "Inactif",
-      "neverStarted": "Jamais"
+      "neverStarted": "Jamais",
+      "snoozed": "Reportés",
+      "dismissed": "Écartés"
     },
     "filters": {
       "title": "Filtres et seuils",
@@ -393,7 +395,8 @@
       "byInactivity": "Trier par inactivité",
       "byName": "Trier par nom",
       "byProgression": "Trier par progression",
-      "byStatus": "Trier par statut"
+      "byStatus": "Trier par statut",
+      "byIntervention": "Trier par intervention"
     },
     "statusFilter": {
       "title": "Filtrer par statut"
@@ -479,6 +482,30 @@
     "save": "Sauvegarder la vue",
     "update": "Mettre à jour avec les filtres actuels",
     "namePlaceholder": "Nom de la vue..."
+  },
+  "adminInterventions": {
+    "title": "Journal des interventions",
+    "subtitle": "Historique de toutes les interventions effectuées par le personnel",
+    "searchPlaceholder": "Rechercher par nom de participant...",
+    "newestFirst": "Plus récent",
+    "oldestFirst": "Plus ancien",
+    "active": "Actif",
+    "cancelled": "Annulé",
+    "staff": "Intervenant",
+    "resetFilters": "Réinitialiser les filtres",
+    "results": "résultats",
+    "noResults": "Aucune intervention trouvée",
+    "stats": {
+      "total": "Total",
+      "activeSnoozes": "Reports actifs"
+    },
+    "table": {
+      "date": "Date",
+      "participant": "Participant",
+      "staff": "Intervenant",
+      "status": "Statut",
+      "details": "Détails"
+    }
   },
   "settings": {
     "title": "Paramètres",

@@ -61,4 +61,8 @@ export const queryKeys = {
 
   // Saved views
   savedViews: ['savedViews'],
+
+  // Admin interventions
+  adminInterventions: (params) => ['admin', 'interventions', params],
+  adminInterventionStats: ['admin', 'interventions', 'stats'],
 }; 

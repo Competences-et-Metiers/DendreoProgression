@@ -11,7 +11,8 @@ import {
   Menu,
   ChevronLeft,
   BookOpen,
-  Shield
+  Shield,
+  ClipboardList,
 } from 'lucide-react';
 
 const Sidebar = ({ collapsed, onToggle }) => {
@@ -67,6 +68,14 @@ const Sidebar = ({ collapsed, onToggle }) => {
           label: 'Admin: Sync',
           icon: Shield,
           path: '/admin/sync',
+          active: true,
+          isAdmin: true
+        },
+        {
+          id: 'admin-interventions',
+          label: 'Admin: Interventions',
+          icon: ClipboardList,
+          path: '/admin/interventions',
           active: true,
           isAdmin: true
         },

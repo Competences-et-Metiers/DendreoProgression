@@ -219,6 +219,9 @@ async def cancel_intervention(
     if not intervention:
         raise HTTPException(status_code=404, detail="Intervention not found")
 
+    if intervention.user_id != current_user.id and current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Only the creator or an admin can cancel this intervention")
+
     service = InterventionService(db)
     success = service.cancel_intervention(intervention_id, current_user.id)
 

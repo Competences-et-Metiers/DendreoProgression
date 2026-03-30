@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from sqlalchemy import func, extract
+from fastapi import APIRouter, Depends, HTTPException, Query as QueryParam, status
+from sqlalchemy.orm import Session, subqueryload
+from sqlalchemy import func, extract, desc, asc
 from app.models.database import get_db
-from app.models.models import User, SyncMetadata, AdminSyncConfig, ModuleCategory
+from app.models.models import User, SyncMetadata, AdminSyncConfig, ModuleCategory, Intervention, Participant
 from app.auth.dependencies import require_admin
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -883,4 +883,141 @@ async def get_live_log(
         "api_counters": api_counters,
         "final_status": final_status,
         "final_message": final_message
+    }
+
+
+# ─── Admin Interventions Log ────────────────────────────────────────────────
+
+@router.get("/interventions", dependencies=[Depends(require_admin)])
+async def get_admin_interventions(
+    page: int = QueryParam(1, ge=1),
+    page_size: int = QueryParam(50, ge=1, le=200),
+    sort_order: str = QueryParam("desc", pattern="^(asc|desc)$"),
+    intervention_type: Optional[str] = QueryParam(None),
+    is_active: Optional[bool] = QueryParam(None),
+    user_id: Optional[int] = QueryParam(None),
+    search: Optional[str] = QueryParam(None),
+    date_from: Optional[str] = QueryParam(None),
+    date_to: Optional[str] = QueryParam(None),
+    db: Session = Depends(get_db),
+):
+    """Admin endpoint: list all interventions with filtering, pagination, and stats."""
+    # Base query with joins
+    query = db.query(Intervention).options(
+        subqueryload(Intervention.participant),
+        subqueryload(Intervention.user),
+    )
+
+    # Filters
+    if intervention_type:
+        query = query.filter(Intervention.intervention_type == intervention_type)
+    if is_active is not None:
+        query = query.filter(Intervention.is_active == is_active)
+    if user_id:
+        query = query.filter(Intervention.user_id == user_id)
+    if search:
+        term = f"%{search}%"
+        query = query.join(Participant, Participant.id == Intervention.participant_id).filter(
+            func.concat(Participant.nom, ' ', Participant.prenom).ilike(term)
+        )
+    if date_from:
+        try:
+            dt_from = datetime.fromisoformat(date_from)
+            query = query.filter(Intervention.created_at >= dt_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt_to = datetime.fromisoformat(date_to)
+            # Include the full day
+            dt_to = dt_to.replace(hour=23, minute=59, second=59)
+            query = query.filter(Intervention.created_at <= dt_to)
+        except ValueError:
+            pass
+
+    # Total count for pagination
+    total = query.count()
+
+    # Sort
+    order_fn = desc if sort_order == "desc" else asc
+    query = query.order_by(order_fn(Intervention.created_at))
+
+    # Paginate
+    offset = (page - 1) * page_size
+    interventions = query.offset(offset).limit(page_size).all()
+
+    # Build response items
+    items = []
+    for iv in interventions:
+        items.append({
+            "id": iv.id,
+            "intervention_type": iv.intervention_type,
+            "details": iv.details,
+            "is_active": iv.is_active,
+            "snooze_until": iv.snooze_until.isoformat() if iv.snooze_until else None,
+            "hubspot_note_id": iv.hubspot_note_id,
+            "created_at": iv.created_at.isoformat() if iv.created_at else None,
+            "participant_id": iv.participant_id,
+            "participant_name": f"{iv.participant.nom} {iv.participant.prenom}" if iv.participant else None,
+            "id_action_formation": iv.id_action_formation,
+            "user_id": iv.user_id,
+            "user_display_name": iv.user.display_name or iv.user.username if iv.user else None,
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": max(1, -(-total // page_size)),  # ceil division
+    }
+
+
+@router.get("/interventions/stats", dependencies=[Depends(require_admin)])
+async def get_admin_intervention_stats(
+    db: Session = Depends(get_db),
+):
+    """Admin endpoint: aggregate intervention stats."""
+    rows = db.query(
+        Intervention.intervention_type,
+        func.count(Intervention.id),
+    ).group_by(Intervention.intervention_type).all()
+
+    by_type = {r[0]: r[1] for r in rows}
+    total = sum(by_type.values())
+
+    # Active snoozes / dismissals
+    active_snoozes = db.query(func.count(Intervention.id)).filter(
+        Intervention.intervention_type == 'snooze',
+        Intervention.is_active == True,
+        Intervention.snooze_until > func.now(),
+    ).scalar()
+
+    active_dismissals = db.query(func.count(Intervention.id)).filter(
+        Intervention.intervention_type == 'dismiss',
+        Intervention.is_active == True,
+    ).scalar()
+
+    # Staff members who have created interventions
+    staff_rows = db.query(
+        User.id,
+        User.display_name,
+        User.username,
+        func.count(Intervention.id).label("count"),
+    ).join(Intervention, Intervention.user_id == User.id
+    ).group_by(User.id, User.display_name, User.username
+    ).order_by(desc(func.count(Intervention.id))
+    ).all()
+
+    staff = [
+        {"id": r.id, "display_name": r.display_name or r.username, "count": r.count}
+        for r in staff_rows
+    ]
+
+    return {
+        "total": total,
+        "by_type": by_type,
+        "active_snoozes": active_snoozes,
+        "active_dismissals": active_dismissals,
+        "staff": staff,
     }

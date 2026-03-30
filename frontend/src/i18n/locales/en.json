@@ -372,7 +372,9 @@
       "active": "Active",
       "atRisk": "At Risk",
       "inactive": "Inactive",
-      "neverStarted": "Never Started"
+      "neverStarted": "Never Started",
+      "snoozed": "Snoozed",
+      "dismissed": "Dismissed"
     },
     "lastActivitySource": "Last activity source",
     "activitySource": {
@@ -455,6 +457,30 @@
     "save": "Save view",
     "update": "Update view with current filters",
     "namePlaceholder": "View name..."
+  },
+  "adminInterventions": {
+    "title": "Intervention Log",
+    "subtitle": "History of all staff interventions",
+    "searchPlaceholder": "Search by participant name...",
+    "newestFirst": "Newest first",
+    "oldestFirst": "Oldest first",
+    "active": "Active",
+    "cancelled": "Cancelled",
+    "staff": "Staff",
+    "resetFilters": "Reset filters",
+    "results": "results",
+    "noResults": "No interventions found",
+    "stats": {
+      "total": "Total",
+      "activeSnoozes": "Active snoozes"
+    },
+    "table": {
+      "date": "Date",
+      "participant": "Participant",
+      "staff": "Staff",
+      "status": "Status",
+      "details": "Details"
+    }
   },
   "settings": {
     "title": "Settings",

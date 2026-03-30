@@ -100,6 +100,28 @@ export const adminService = {
     const response = await api.post('/admin/sync/categories');
     return response.data;
   },
+
+  // ─── Admin Interventions ───
+
+  getInterventions: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', params.page);
+    if (params.page_size) query.set('page_size', params.page_size);
+    if (params.sort_order) query.set('sort_order', params.sort_order);
+    if (params.intervention_type) query.set('intervention_type', params.intervention_type);
+    if (params.is_active !== undefined && params.is_active !== null) query.set('is_active', params.is_active);
+    if (params.user_id) query.set('user_id', params.user_id);
+    if (params.search) query.set('search', params.search);
+    if (params.date_from) query.set('date_from', params.date_from);
+    if (params.date_to) query.set('date_to', params.date_to);
+    const response = await api.get(`/admin/interventions?${query.toString()}`);
+    return response.data;
+  },
+
+  getInterventionStats: async () => {
+    const response = await api.get('/admin/interventions/stats');
+    return response.data;
+  },
 };
 
 export default adminService;

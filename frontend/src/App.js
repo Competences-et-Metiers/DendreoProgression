@@ -16,6 +16,7 @@ import Account from './pages/Account';
 import InactiveManagement from './pages/InactiveManagement';
 import Settings from './pages/Settings';
 import AdminSyncDashboard from './pages/AdminSyncDashboard';
+import AdminInterventions from './pages/AdminInterventions';
 import { Loader2 } from 'lucide-react';
 
 // Protected route wrapper
@@ -92,6 +93,14 @@ const AppContent = () => {
                     element={
                       <AdminRoute>
                         <AdminSyncDashboard />
+                      </AdminRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/interventions"
+                    element={
+                      <AdminRoute>
+                        <AdminInterventions />
                       </AdminRoute>
                     }
                   />
