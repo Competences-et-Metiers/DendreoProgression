@@ -1,12 +1,12 @@
 import React from 'react';
 import { clsx } from 'clsx';
 
-const ProgressBar = ({ 
-  percentage, 
-  className = '', 
-  showPercentage = true, 
+const ProgressBar = ({
+  percentage,
+  className = '',
+  showPercentage = true,
   size = 'medium',
-  color = 'primary' 
+  color = 'primary'
 }) => {
   const sizeClasses = {
     small: 'h-2',
@@ -34,7 +34,7 @@ const ProgressBar = ({
   return (
     <div className={clsx('w-full', className)}>
       <div className={clsx(
-        'bg-gray-200 rounded-full overflow-hidden',
+        'bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden',
         sizeClasses[size]
       )}>
         <div
@@ -47,11 +47,11 @@ const ProgressBar = ({
       </div>
       {showPercentage && (
         <div className="flex justify-between items-center mt-1">
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-gray-600 dark:text-gray-400">
             {percentage.toFixed(1)}%
           </span>
           {percentage >= 100 && (
-            <span className="text-xs text-green-600 font-medium">
+            <span className="text-xs text-green-600 dark:text-green-400 font-medium">
               Completed
             </span>
           )}
@@ -61,4 +61,4 @@ const ProgressBar = ({
   );
 };
 
-export default ProgressBar; 
+export default ProgressBar;

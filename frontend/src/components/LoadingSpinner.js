@@ -11,11 +11,11 @@ const LoadingSpinner = ({ size = 'medium', className = '' }) => {
   return (
     <div className={clsx('flex justify-center items-center', className)}>
       <div className={clsx(
-        'animate-spin rounded-full border-2 border-gray-300 border-t-primary-500',
+        'animate-spin rounded-full border-2 border-gray-300 dark:border-slate-600 border-t-primary-500',
         sizeClasses[size]
       )} />
     </div>
   );
 };
 
-export default LoadingSpinner; 
+export default LoadingSpinner;

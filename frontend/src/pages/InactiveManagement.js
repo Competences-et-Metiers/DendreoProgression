@@ -286,38 +286,38 @@ const InactiveManagement = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'active':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800';
       case 'at_risk':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800';
       case 'inactive':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800';
       case 'never_started':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 border-purple-200 dark:border-purple-800';
       case 'snoozed':
-        return 'bg-amber-100 text-amber-800 border-amber-200';
+        return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 border-amber-200 dark:border-amber-800';
       case 'dismissed':
-        return 'bg-gray-200 text-gray-700 border-gray-300';
+        return 'bg-gray-200 dark:bg-slate-600 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-slate-600';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-slate-700';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
       case 'active':
-        return <CheckCircle2 size={16} className="text-green-600" />;
+        return <CheckCircle2 size={16} className="text-green-600 dark:text-green-400" />;
       case 'at_risk':
-        return <AlertTriangle size={16} className="text-yellow-600" />;
+        return <AlertTriangle size={16} className="text-yellow-600 dark:text-yellow-400" />;
       case 'inactive':
-        return <UserX size={16} className="text-red-600" />;
+        return <UserX size={16} className="text-red-600 dark:text-red-400" />;
       case 'never_started':
-        return <Clock size={16} className="text-purple-600" />;
+        return <Clock size={16} className="text-purple-600 dark:text-purple-400" />;
       case 'snoozed':
-        return <AlarmClock size={16} className="text-amber-600" />;
+        return <AlarmClock size={16} className="text-amber-600 dark:text-amber-400" />;
       case 'dismissed':
-        return <Ban size={16} className="text-gray-600" />;
+        return <Ban size={16} className="text-gray-600 dark:text-gray-400" />;
       default:
-        return <Clock size={16} className="text-gray-600" />;
+        return <Clock size={16} className="text-gray-600 dark:text-gray-400" />;
     }
   };
 
@@ -667,20 +667,20 @@ const InactiveManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg mr-4">
-                <UserX size={24} className="text-orange-600" />
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg mr-4">
+                <UserX size={24} className="text-orange-600 dark:text-orange-400" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
                   {t('inactiveManagement.title')}
                 </h1>
-                <p className="text-gray-600 mt-1">
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
                   {t('inactiveManagement.subtitle')}
                 </p>
               </div>
@@ -691,7 +691,7 @@ const InactiveManagement = () => {
               {hasActiveFilters && (
                 <button
                   onClick={resetAllFilters}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                 >
                   <X size={18} />
                   <span className="font-medium">{t('inactiveManagement.removeFilters')}</span>
@@ -702,8 +702,8 @@ const InactiveManagement = () => {
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
                   showFilters
-                    ? 'bg-primary-50 border-primary-200 text-primary-700'
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400'
+                    : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
                 }`}
               >
                 <Settings size={18} />
@@ -712,7 +712,7 @@ const InactiveManagement = () => {
 
               <button
                 onClick={() => setGroupByCourse(!groupByCourse)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <BarChart3 size={18} />
                 <span className="font-medium">
@@ -723,7 +723,7 @@ const InactiveManagement = () => {
               <button
                 onClick={handleDownloadPDF}
                 disabled={!data || isLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download size={18} />
                 <span className="font-medium">{t('inactiveManagement.downloadPdf')}</span>
@@ -734,7 +734,7 @@ const InactiveManagement = () => {
       </div>
 
       {/* Saved Views */}
-      <div className="bg-white border-b border-gray-100">
+      <div className="bg-white dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <SavedViewsBar onLoadView={applyView} getCurrentFilters={collectCurrentFilters} />
         </div>
@@ -744,17 +744,17 @@ const InactiveManagement = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filters Panel */}
         {showFilters && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 mb-6">
             <div className="flex items-center gap-2 mb-4">
-              <Settings size={20} className="text-gray-600" />
-              <h3 className="text-lg font-semibold text-gray-900">
+              <Settings size={20} className="text-gray-600 dark:text-gray-400" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 {t('inactiveManagement.filters.title')}
               </h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={filters.atRiskEnabled}
@@ -767,7 +767,7 @@ const InactiveManagement = () => {
                   type="number"
                   value={filters.atRiskThreshold}
                   onChange={(e) => setFilters({ ...filters, atRiskThreshold: parseInt(e.target.value) })}
-                  className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${!filters.atRiskEnabled ? 'opacity-40 pointer-events-none' : ''}`}
+                  className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-white ${!filters.atRiskEnabled ? 'opacity-40 pointer-events-none' : ''}`}
                   min="1"
                   max="365"
                   disabled={!filters.atRiskEnabled}
@@ -775,28 +775,28 @@ const InactiveManagement = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('inactiveManagement.filters.inactiveThreshold')}
                 </label>
                 <input
                   type="number"
                   value={filters.inactivityThreshold}
                   onChange={(e) => setFilters({ ...filters, inactivityThreshold: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
                   min="1"
                   max="365"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('inactiveManagement.filters.excludeRecentDays')}
                 </label>
                 <input
                   type="number"
                   value={filters.excludeRecentDays}
                   onChange={(e) => setFilters({ ...filters, excludeRecentDays: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
                   min="0"
                   max="90"
                 />
@@ -815,21 +815,21 @@ const InactiveManagement = () => {
         )}
 
         {/* Sorting & Filters */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 space-y-4">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 mb-6 space-y-4">
           {/* Search Bar */}
           <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t('inactiveManagement.searchPlaceholder')}
-              className="w-full pl-9 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+              className="w-full pl-9 pr-8 py-2 border border-gray-200 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white dark:placeholder-gray-500"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
               >
                 <X size={14} />
               </button>
@@ -840,7 +840,7 @@ const InactiveManagement = () => {
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Sorting - horizontal pills */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-gray-600 flex items-center gap-1 mr-1">
+              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
                 <ArrowUpDown size={14} />
                 {t('inactiveManagement.sorting.title')}
               </span>
@@ -855,7 +855,7 @@ const InactiveManagement = () => {
                   key={key}
                   onClick={() => toggleSort(key)}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
-                    sortBy === key ? 'bg-primary-50 border-primary-200 text-primary-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    sortBy === key ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
                   }`}
                 >
                   {label}
@@ -867,16 +867,16 @@ const InactiveManagement = () => {
             </div>
 
             {/* Divider */}
-            <div className="hidden lg:block w-px bg-gray-200" />
+            <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
 
             {/* Status Filter - horizontal pills */}
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-gray-600 flex items-center gap-1 mr-1">
+              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
                 <Filter size={14} />
                 Statut
               </span>
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                statusFilter.active ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-gray-200 text-gray-400'
+                statusFilter.active ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
               }`}>
                 <input type="checkbox" checked={statusFilter.active} onChange={() => toggleStatusFilter('active')} className="sr-only" />
                 <CheckCircle2 size={12} />
@@ -884,7 +884,7 @@ const InactiveManagement = () => {
               </label>
               {filters.atRiskEnabled && (
                 <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                  statusFilter.at_risk ? 'bg-yellow-50 border-yellow-200 text-yellow-700' : 'bg-white border-gray-200 text-gray-400'
+                  statusFilter.at_risk ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
                 }`}>
                   <input type="checkbox" checked={statusFilter.at_risk} onChange={() => toggleStatusFilter('at_risk')} className="sr-only" />
                   <AlertTriangle size={12} />
@@ -892,28 +892,28 @@ const InactiveManagement = () => {
                 </label>
               )}
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                statusFilter.inactive ? 'bg-red-50 border-red-200 text-red-700' : 'bg-white border-gray-200 text-gray-400'
+                statusFilter.inactive ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
               }`}>
                 <input type="checkbox" checked={statusFilter.inactive} onChange={() => toggleStatusFilter('inactive')} className="sr-only" />
                 <UserX size={12} />
                 {t('inactiveManagement.status.inactive')}
               </label>
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                statusFilter.never_started ? 'bg-purple-50 border-purple-200 text-purple-700' : 'bg-white border-gray-200 text-gray-400'
+                statusFilter.never_started ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
               }`}>
                 <input type="checkbox" checked={statusFilter.never_started} onChange={() => toggleStatusFilter('never_started')} className="sr-only" />
                 <Clock size={12} />
                 {t('inactiveManagement.status.neverStarted')}
               </label>
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                statusFilter.snoozed ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-gray-200 text-gray-400'
+                statusFilter.snoozed ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
               }`}>
                 <input type="checkbox" checked={statusFilter.snoozed} onChange={() => toggleStatusFilter('snoozed')} className="sr-only" />
                 <AlarmClock size={12} />
                 {t('inactiveManagement.status.snoozed')}
               </label>
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                statusFilter.dismissed ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-white border-gray-200 text-gray-400'
+                statusFilter.dismissed ? 'bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
               }`}>
                 <input type="checkbox" checked={statusFilter.dismissed} onChange={() => toggleStatusFilter('dismissed')} className="sr-only" />
                 <Ban size={12} />
@@ -929,7 +929,7 @@ const InactiveManagement = () => {
                     : { active: true, at_risk: true, inactive: true, never_started: true, snoozed: true, dismissed: true }
                   );
                 }}
-                className="px-2.5 py-1.5 rounded-full border border-gray-200 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+                className="px-2.5 py-1.5 rounded-full border border-gray-200 dark:border-slate-700 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 {statusFilter.active && statusFilter.at_risk && statusFilter.inactive && statusFilter.never_started && statusFilter.snoozed && statusFilter.dismissed
                   ? t('inactiveManagement.statusFilter.deselectAll')
@@ -939,12 +939,12 @@ const InactiveManagement = () => {
             </div>
 
             {/* Divider */}
-            <div className="hidden lg:block w-px bg-gray-200" />
+            <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
 
             {/* CV planifié = Actif toggle */}
             <div className="flex items-center gap-2">
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                cvPlannedIsActive ? 'bg-teal-50 border-teal-200 text-teal-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                cvPlannedIsActive ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
               }`}>
                 <input type="checkbox" checked={cvPlannedIsActive} onChange={() => setCvPlannedIsActive(!cvPlannedIsActive)} className="sr-only" />
                 <CalendarClock size={12} />
@@ -955,18 +955,18 @@ const InactiveManagement = () => {
           </div>
 
           {/* Row 2: ADF + Formateur + Category Filters side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 border-t border-gray-100 pt-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 border-t border-gray-100 dark:border-slate-700 pt-4">
             {/* ADF Filter */}
             <div>
               <button
                 onClick={() => setShowAdfDropdown(!showAdfDropdown)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <BookOpen size={16} className="text-gray-600" />
-                  <span className="text-sm font-medium text-gray-900">Filtrer par formation (ADF)</span>
+                  <BookOpen size={16} className="text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">Filtrer par formation (ADF)</span>
                   {selectedADFs.length > 0 && (
-                    <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
+                    <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium rounded-full">
                       {selectedADFs.length}
                     </span>
                   )}
@@ -990,10 +990,10 @@ const InactiveManagement = () => {
                       value={adfSearchTerm}
                       onChange={(e) => setAdfSearchTerm(e.target.value)}
                       placeholder="Rechercher une formation..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white dark:placeholder-gray-500"
                     />
                     {selectedButHiddenADFs.length > 0 && (
-                      <div className="space-y-1 border border-primary-200 bg-primary-50/50 rounded-lg p-2">
+                      <div className="space-y-1 border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 rounded-lg p-2">
                         <p className="text-[10px] font-medium text-primary-600 uppercase tracking-wide px-2">Sélectionnées</p>
                         {selectedButHiddenADFs.map((adf) => (
                           <label key={adf.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-primary-100/50 cursor-pointer transition-colors">
@@ -1008,12 +1008,12 @@ const InactiveManagement = () => {
                         ))}
                       </div>
                     )}
-                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 rounded-lg p-2">
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-slate-700 rounded-lg p-2">
                       {filteredADFs.length === 0 ? (
-                        <p className="text-sm text-gray-500 text-center py-2">Aucune formation trouvée</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">Aucune formation trouvée</p>
                       ) : (
                         <>
-                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
+                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors border-b border-gray-200 dark:border-slate-700">
                             <input
                               type="checkbox"
                               checked={filteredADFs.length > 0 && filteredADFs.every(adf => selectedADFs.includes(adf.id))}
@@ -1027,12 +1027,12 @@ const InactiveManagement = () => {
                               }}
                               className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                             />
-                            <span className="text-xs font-semibold text-gray-700">
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                               {filteredADFs.length > 0 && filteredADFs.every(adf => selectedADFs.includes(adf.id)) ? 'Tout désélectionner' : 'Tout sélectionner'}
                             </span>
                           </label>
                           {filteredADFs.map((adf) => (
-                            <label key={adf.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors">
+                            <label key={adf.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors">
                               <input
                                 type="checkbox"
                                 checked={selectedADFs.includes(adf.id)}
@@ -1045,14 +1045,14 @@ const InactiveManagement = () => {
                                 }}
                                 className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
                               />
-                              <span className="text-xs text-gray-700 leading-tight">{adf.title}</span>
+                              <span className="text-xs text-gray-700 dark:text-gray-300 leading-tight">{adf.title}</span>
                             </label>
                           ))}
                         </>
                       )}
                     </div>
                     {selectedADFs.length > 0 && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {selectedADFs.length} formation{selectedADFs.length > 1 ? 's' : ''} sélectionnée{selectedADFs.length > 1 ? 's' : ''}
                       </p>
                     )}
@@ -1065,13 +1065,13 @@ const InactiveManagement = () => {
             <div>
               <button
                 onClick={() => setShowFormateurDropdown(!showFormateurDropdown)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <User size={16} className="text-gray-600" />
-                  <span className="text-sm font-medium text-gray-900">Filtrer par formateur</span>
+                  <User size={16} className="text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">Filtrer par formateur</span>
                   {selectedFormateurs.length > 0 && (
-                    <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
+                    <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium rounded-full">
                       {selectedFormateurs.length}
                     </span>
                   )}
@@ -1095,10 +1095,10 @@ const InactiveManagement = () => {
                       value={formateurSearchTerm}
                       onChange={(e) => setFormateurSearchTerm(e.target.value)}
                       placeholder="Rechercher un formateur..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white dark:placeholder-gray-500"
                     />
                     {selectedButHiddenFormateurs.length > 0 && (
-                      <div className="space-y-1 border border-primary-200 bg-primary-50/50 rounded-lg p-2">
+                      <div className="space-y-1 border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 rounded-lg p-2">
                         <p className="text-[10px] font-medium text-primary-600 uppercase tracking-wide px-2">Sélectionnés</p>
                         {selectedButHiddenFormateurs.map((formateur) => (
                           <label key={formateur.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-primary-100/50 cursor-pointer transition-colors">
@@ -1113,12 +1113,12 @@ const InactiveManagement = () => {
                         ))}
                       </div>
                     )}
-                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 rounded-lg p-2">
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-slate-700 rounded-lg p-2">
                       {filteredFormateurs.length === 0 ? (
-                        <p className="text-sm text-gray-500 text-center py-2">Aucun formateur trouvé</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">Aucun formateur trouvé</p>
                       ) : (
                         <>
-                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
+                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors border-b border-gray-200 dark:border-slate-700">
                             <input
                               type="checkbox"
                               checked={filteredFormateurs.length > 0 && filteredFormateurs.every(f => selectedFormateurs.includes(f.id))}
@@ -1132,12 +1132,12 @@ const InactiveManagement = () => {
                               }}
                               className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                             />
-                            <span className="text-xs font-semibold text-gray-700">
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                               {filteredFormateurs.length > 0 && filteredFormateurs.every(f => selectedFormateurs.includes(f.id)) ? 'Tout désélectionner' : 'Tout sélectionner'}
                             </span>
                           </label>
                           {filteredFormateurs.map((formateur) => (
-                            <label key={formateur.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors">
+                            <label key={formateur.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors">
                               <input
                                 type="checkbox"
                                 checked={selectedFormateurs.includes(formateur.id)}
@@ -1150,14 +1150,14 @@ const InactiveManagement = () => {
                                 }}
                                 className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
                               />
-                              <span className="text-xs text-gray-700 leading-tight">{formateur.fullName || 'Formateur sans nom'}</span>
+                              <span className="text-xs text-gray-700 dark:text-gray-300 leading-tight">{formateur.fullName || 'Formateur sans nom'}</span>
                             </label>
                           ))}
                         </>
                       )}
                     </div>
                     {selectedFormateurs.length > 0 && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {selectedFormateurs.length} formateur{selectedFormateurs.length > 1 ? 's' : ''} sélectionné{selectedFormateurs.length > 1 ? 's' : ''}
                       </p>
                     )}
@@ -1170,13 +1170,13 @@ const InactiveManagement = () => {
             <div>
               <button
                 onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <Filter size={16} className="text-gray-600" />
-                  <span className="text-sm font-medium text-gray-900">{t('inactiveManagement.categoryFilter.title')}</span>
+                  <Filter size={16} className="text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{t('inactiveManagement.categoryFilter.title')}</span>
                   {selectedCategories.length > 0 && (
-                    <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full">
+                    <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium rounded-full">
                       {selectedCategories.length}
                     </span>
                   )}
@@ -1200,10 +1200,10 @@ const InactiveManagement = () => {
                       value={categorySearchTerm}
                       onChange={(e) => setCategorySearchTerm(e.target.value)}
                       placeholder={t('inactiveManagement.categoryFilter.searchPlaceholder')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white dark:placeholder-gray-500"
                     />
                     {selectedButHiddenCategories.length > 0 && (
-                      <div className="space-y-1 border border-primary-200 bg-primary-50/50 rounded-lg p-2">
+                      <div className="space-y-1 border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 rounded-lg p-2">
                         <p className="text-[10px] font-medium text-primary-600 uppercase tracking-wide px-2">Sélectionnées</p>
                         {selectedButHiddenCategories.map((cat) => (
                           <label key={cat.name} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-primary-100/50 cursor-pointer transition-colors">
@@ -1226,12 +1226,12 @@ const InactiveManagement = () => {
                         ))}
                       </div>
                     )}
-                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 rounded-lg p-2">
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-slate-700 rounded-lg p-2">
                       {filteredCategories.length === 0 ? (
-                        <p className="text-sm text-gray-500 text-center py-2">{t('inactiveManagement.categoryFilter.noResults')}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">{t('inactiveManagement.categoryFilter.noResults')}</p>
                       ) : (
                         <>
-                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-200">
+                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors border-b border-gray-200 dark:border-slate-700">
                             <input
                               type="checkbox"
                               checked={filteredCategories.length > 0 && filteredCategories.every(cat => selectedCategories.includes(cat.name))}
@@ -1245,12 +1245,12 @@ const InactiveManagement = () => {
                               }}
                               className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                             />
-                            <span className="text-xs font-semibold text-gray-700">
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                               {filteredCategories.length > 0 && filteredCategories.every(cat => selectedCategories.includes(cat.name)) ? t('inactiveManagement.categoryFilter.deselectAll') : t('inactiveManagement.categoryFilter.selectAll')}
                             </span>
                           </label>
                           {filteredCategories.map((cat) => (
-                            <label key={cat.name} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 cursor-pointer transition-colors">
+                            <label key={cat.name} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors">
                               <input
                                 type="checkbox"
                                 checked={selectedCategories.includes(cat.name)}
@@ -1263,7 +1263,7 @@ const InactiveManagement = () => {
                                 }}
                                 className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
                               />
-                              <span className="text-xs text-gray-700 leading-tight flex items-center gap-1.5">
+                              <span className="text-xs text-gray-700 dark:text-gray-300 leading-tight flex items-center gap-1.5">
                                 {cat.color && (
                                   <span
                                     className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -1278,7 +1278,7 @@ const InactiveManagement = () => {
                       )}
                     </div>
                     {selectedCategories.length > 0 && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         {selectedCategories.length} {t('inactiveManagement.categoryFilter.selectedCount')}
                       </p>
                     )}
@@ -1298,8 +1298,8 @@ const InactiveManagement = () => {
 
         {/* Error State */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <p className="text-red-800">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+            <p className="text-red-800 dark:text-red-400">
               {t('common.error')}: {error.message}
             </p>
           </div>
@@ -1309,90 +1309,90 @@ const InactiveManagement = () => {
         {data && !isLoading && (
           <>
             <div className={showInterventionCounters ? "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6" : "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6"}>
-              <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-gray-600">{t('inactiveManagement.stats.total')}</p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">{filteredStats.total}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{t('inactiveManagement.stats.total')}</p>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{filteredStats.total}</p>
                   </div>
-                  <div className="p-3 bg-gray-100 rounded-lg">
-                    <User size={24} className="text-gray-600" />
+                  <div className="p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                    <User size={24} className="text-gray-600 dark:text-gray-400" />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border border-green-200 p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-lg border border-green-200 dark:border-green-800 p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-green-700">{t('inactiveManagement.stats.active')}</p>
-                    <p className="text-3xl font-bold text-green-900 mt-2">{filteredStats.active}</p>
+                    <p className="text-sm text-green-700 dark:text-green-400">{t('inactiveManagement.stats.active')}</p>
+                    <p className="text-3xl font-bold text-green-900 dark:text-green-100 mt-2">{filteredStats.active}</p>
                   </div>
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <CheckCircle2 size={24} className="text-green-600" />
+                  <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <CheckCircle2 size={24} className="text-green-600 dark:text-green-400" />
                   </div>
                 </div>
               </div>
 
               {filters.atRiskEnabled && (
-                <div className="bg-white rounded-lg border border-yellow-200 p-6">
+                <div className="bg-white dark:bg-slate-800 rounded-lg border border-yellow-200 dark:border-yellow-800 p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-yellow-700">{t('inactiveManagement.stats.atRisk')}</p>
-                      <p className="text-3xl font-bold text-yellow-900 mt-2">{filteredStats.at_risk}</p>
+                      <p className="text-sm text-yellow-700 dark:text-yellow-400">{t('inactiveManagement.stats.atRisk')}</p>
+                      <p className="text-3xl font-bold text-yellow-900 dark:text-yellow-100 mt-2">{filteredStats.at_risk}</p>
                     </div>
-                    <div className="p-3 bg-yellow-100 rounded-lg">
-                      <AlertTriangle size={24} className="text-yellow-600" />
+                    <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                      <AlertTriangle size={24} className="text-yellow-600 dark:text-yellow-400" />
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="bg-white rounded-lg border border-red-200 p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-800 p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-red-700">{t('inactiveManagement.stats.inactive')}</p>
-                    <p className="text-3xl font-bold text-red-900 mt-2">{filteredStats.inactive}</p>
+                    <p className="text-sm text-red-700 dark:text-red-400">{t('inactiveManagement.stats.inactive')}</p>
+                    <p className="text-3xl font-bold text-red-900 dark:text-red-100 mt-2">{filteredStats.inactive}</p>
                   </div>
-                  <div className="p-3 bg-red-100 rounded-lg">
-                    <UserX size={24} className="text-red-600" />
+                  <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                    <UserX size={24} className="text-red-600 dark:text-red-400" />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg border border-purple-200 p-6">
+              <div className="bg-white dark:bg-slate-800 rounded-lg border border-purple-200 dark:border-purple-800 p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-purple-700">{t('inactiveManagement.stats.neverStarted')}</p>
-                    <p className="text-3xl font-bold text-purple-900 mt-2">{filteredStats.never_started}</p>
+                    <p className="text-sm text-purple-700 dark:text-purple-400">{t('inactiveManagement.stats.neverStarted')}</p>
+                    <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 mt-2">{filteredStats.never_started}</p>
                   </div>
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <Clock size={24} className="text-purple-600" />
+                  <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <Clock size={24} className="text-purple-600 dark:text-purple-400" />
                   </div>
                 </div>
               </div>
 
               {showInterventionCounters && (
                 <>
-                  <div className="bg-white rounded-lg border border-amber-200 p-6">
+                  <div className="bg-white dark:bg-slate-800 rounded-lg border border-amber-200 dark:border-amber-800 p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-amber-700">{t('inactiveManagement.stats.snoozed')}</p>
-                        <p className="text-3xl font-bold text-amber-900 mt-2">{filteredStats.snoozed}</p>
+                        <p className="text-sm text-amber-700 dark:text-amber-400">{t('inactiveManagement.stats.snoozed')}</p>
+                        <p className="text-3xl font-bold text-amber-900 dark:text-amber-100 mt-2">{filteredStats.snoozed}</p>
                       </div>
-                      <div className="p-3 bg-amber-100 rounded-lg">
-                        <AlarmClock size={24} className="text-amber-600" />
+                      <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+                        <AlarmClock size={24} className="text-amber-600 dark:text-amber-400" />
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-lg border border-gray-300 p-6">
+                  <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm text-gray-600">{t('inactiveManagement.stats.dismissed')}</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-2">{filteredStats.dismissed}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{t('inactiveManagement.stats.dismissed')}</p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{filteredStats.dismissed}</p>
                       </div>
-                      <div className="p-3 bg-gray-100 rounded-lg">
-                        <Ban size={24} className="text-gray-500" />
+                      <div className="p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                        <Ban size={24} className="text-gray-500 dark:text-gray-400" />
                       </div>
                     </div>
                   </div>
@@ -1405,36 +1405,36 @@ const InactiveManagement = () => {
             <div className="flex items-center gap-6 mb-4 flex-wrap">
               {/* Per page */}
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">{t('pagination.show')}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('pagination.show')}</span>
                 {PAGE_SIZE_OPTIONS.map((size) => (
                   <button
                     key={size}
                     onClick={() => setPageSize(size)}
                     className={`px-3 py-1 rounded-full border text-xs font-medium transition-colors ${
                       pageSize === size
-                        ? 'bg-primary-50 border-primary-200 text-primary-700'
-                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400'
+                        : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
                     }`}
                   >
                     {size === 0 ? t('common.all') : size}
                   </button>
                 ))}
-                <span className="text-sm text-gray-600">{t('pagination.perPage')}</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{t('pagination.perPage')}</span>
               </div>
 
               {/* Divider */}
-              <div className="w-px h-6 bg-gray-200" />
+              <div className="w-px h-6 bg-gray-200 dark:bg-slate-600" />
 
               {/* Progression Range Slider */}
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-gray-600 flex items-center gap-1 whitespace-nowrap">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-1 whitespace-nowrap">
                   <BarChart3 size={14} />
                   Progression
                 </span>
-                <span className="text-xs font-medium text-gray-500 w-10 text-right">{progressionRange[0]}%</span>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-10 text-right">{progressionRange[0]}%</span>
                 <div className="relative w-40 h-5 flex items-center">
                   {/* Track background */}
-                  <div className="absolute inset-x-0 h-1.5 bg-gray-200 rounded-full" />
+                  <div className="absolute inset-x-0 h-1.5 bg-gray-200 dark:bg-slate-600 rounded-full" />
                   {/* Active range highlight */}
                   <div
                     className="absolute h-1.5 bg-primary-400 rounded-full"
@@ -1470,11 +1470,11 @@ const InactiveManagement = () => {
                     style={{ zIndex: 2 }}
                   />
                 </div>
-                <span className="text-xs font-medium text-gray-500 w-10">{progressionRange[1]}%</span>
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-10">{progressionRange[1]}%</span>
                 {(progressionRange[0] > 0 || progressionRange[1] < 100) && (
                   <button
                     onClick={() => setProgressionRange([0, 100])}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                     title="Reset"
                   >
                     <X size={14} />
@@ -1483,10 +1483,10 @@ const InactiveManagement = () => {
               </div>
 
               {/* Divider */}
-              <div className="w-px h-6 bg-gray-200" />
+              <div className="w-px h-6 bg-gray-200 dark:bg-slate-600" />
 
               {/* Result count */}
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
                 Nb de résultats: {totalItems}
               </span>
             </div>
@@ -1495,38 +1495,38 @@ const InactiveManagement = () => {
             {groupByCourse && data.by_course && (
               <div className="space-y-4">
                 {paginatedGroups.map((course) => (
-                    <div key={course.course_id} className="bg-white rounded-lg border border-gray-200">
+                    <div key={course.course_id} className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                       {/* Course Header */}
-                      <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200">
+                      <div className="px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-slate-700">
                         <div className="flex items-center gap-4 flex-1">
-                          <div className="p-2 bg-primary-100 rounded-lg">
-                            <BookOpen size={20} className="text-primary-600" />
+                          <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+                            <BookOpen size={20} className="text-primary-600 dark:text-primary-400" />
                           </div>
                           <div className="text-left flex-1">
                             <Link
                               to={`/courses/${course.course_id}`}
-                              className="font-semibold text-gray-900 hover:text-primary-600 transition-colors"
+                              className="font-semibold text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                             >
                               {course.course_title}
                             </Link>
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                               {t('inactiveManagement.showing')}: {course.filteredParticipants.length} / {course.total_participants}
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                            <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full text-sm font-medium">
                               {course.active_count} {t('inactiveManagement.status.active')}
                             </span>
                             {filters.atRiskEnabled && (
-                              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                              <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full text-sm font-medium">
                                 {course.at_risk_count} {t('inactiveManagement.status.atRisk')}
                               </span>
                             )}
-                            <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                            <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 rounded-full text-sm font-medium">
                               {course.inactive_count} {t('inactiveManagement.status.inactive')}
                             </span>
                             {course.never_started_count > 0 && (
-                              <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                              <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 rounded-full text-sm font-medium">
                                 {course.never_started_count} {t('inactiveManagement.status.neverStarted')}
                               </span>
                             )}
@@ -1534,26 +1534,26 @@ const InactiveManagement = () => {
                         </div>
                         <button
                           onClick={() => toggleCourse(course.course_id)}
-                          className="ml-4 p-1 hover:bg-gray-100 rounded transition-colors"
+                          className="ml-4 p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors"
                         >
                           {expandedCourses.has(course.course_id) ? (
-                            <ChevronDown size={20} className="text-gray-400" />
+                            <ChevronDown size={20} className="text-gray-400 dark:text-gray-500" />
                           ) : (
-                            <ChevronRight size={20} className="text-gray-400" />
+                            <ChevronRight size={20} className="text-gray-400 dark:text-gray-500" />
                           )}
                         </button>
                       </div>
 
                       {/* Participants List */}
                       {expandedCourses.has(course.course_id) && (
-                        <div className="divide-y divide-gray-200">
+                        <div className="divide-y divide-gray-200 dark:divide-slate-700">
                           {course.filteredParticipants.map((participant) => {
                             const pKey = `${participant.id}-${participant.id_action_formation}`;
                             return (
                             <div key={participant.id} className={`transition-colors ${
-                              participant.is_dismissed ? 'opacity-40 bg-gray-50' :
-                              participant.has_active_snooze ? 'opacity-60 bg-amber-50/30' :
-                              'hover:bg-gray-50'
+                              participant.is_dismissed ? 'opacity-40 bg-gray-50 dark:bg-slate-900' :
+                              participant.has_active_snooze ? 'opacity-60 bg-amber-50/30 dark:bg-amber-900/10' :
+                              'hover:bg-gray-50 dark:hover:bg-slate-700'
                             }`}>
                               <div className="px-6 py-4">
                               <div className="flex items-center justify-between">
@@ -1569,15 +1569,15 @@ const InactiveManagement = () => {
                                     <div className="flex items-center gap-2">
                                       <Link
                                         to={`/participants/${participant.id}`}
-                                        className="font-medium text-gray-900 hover:text-primary-600 transition-colors"
+                                        className="font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                                       >
                                         {participant.nom} {participant.prenom}
                                       </Link>
-                                      <span className="text-sm text-gray-500">
+                                      <span className="text-sm text-gray-500 dark:text-gray-400">
                                         ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                                    <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
                                       <span className="flex items-center gap-1">
                                         <Calendar size={14} />
                                         Ajouté: {formatDate(participant.enrollment_date)}
@@ -1591,8 +1591,8 @@ const InactiveManagement = () => {
                                         {participant.last_activity_source && (
                                           <span className={`opacity-0 group-hover/source:opacity-100 transition-opacity inline-flex items-center ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
                                             participant.last_activity_source === 'elearning'
-                                              ? 'bg-blue-50 text-blue-600'
-                                              : 'bg-violet-50 text-violet-600'
+                                              ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                                              : 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400'
                                           }`}>
                                             {t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}
                                           </span>
@@ -1600,21 +1600,21 @@ const InactiveManagement = () => {
                                       </span>
                                       {participant.upcoming_sessions_count > 0 && participant.next_session_date ? (
                                         <span
-                                          className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full cursor-default"
+                                          className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default"
                                           title={`${new Date(participant.next_session_date).toLocaleDateString()}\n${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
                                         >
                                           <CalendarClock size={12} />
                                           CV dans {Math.max(0, Math.ceil((new Date(participant.next_session_date) - new Date()) / (1000 * 60 * 60 * 24)))}j
                                         </span>
                                       ) : (
-                                        <span className="flex items-center gap-1 text-xs bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full cursor-default">
+                                        <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
                                           <CalendarClock size={12} />
                                           pas de CV programmées
                                         </span>
                                       )}
                                       {participant.total_planned_duration_hours > 0 && (
                                         <span
-                                          className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full cursor-default"
+                                          className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full cursor-default"
                                           title={participant.liveroom_planned_duration_hours > 0
                                             ? `E-learning: ${Math.round(participant.total_time_spent_hours - (participant.liveroom_time_spent_hours || 0))}h / ${Math.round(participant.total_planned_duration_hours - (participant.liveroom_planned_duration_hours || 0))}h\nClasse virtuelle: ${Math.round(participant.liveroom_time_spent_hours || 0)}h / ${Math.round(participant.liveroom_planned_duration_hours || 0)}h`
                                             : ''}
@@ -1625,7 +1625,7 @@ const InactiveManagement = () => {
                                       )}
                                       {participant.formateurs && participant.formateurs.length > 0 && (
                                         <span
-                                          className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full cursor-default"
+                                          className="flex items-center gap-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full cursor-default"
                                           title={participant.formateurs.map(f => `${f.prenom || ''} ${f.nom || ''}`.trim()).join(', ')}
                                         >
                                           <User size={12} />
@@ -1655,12 +1655,12 @@ const InactiveManagement = () => {
                                 {/* Expand button for intervention panel */}
                                 <button
                                   onClick={() => toggleParticipantExpand(pKey)}
-                                  className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors"
+                                  className="ml-2 p-1 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors"
                                   title={t('inactiveManagement.interventions.title')}
                                 >
                                   {expandedParticipants.has(pKey)
-                                    ? <ChevronDown size={16} className="text-gray-400" />
-                                    : <ChevronRight size={16} className="text-gray-400" />
+                                    ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-500" />
+                                    : <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
                                   }
                                 </button>
                               </div>
@@ -1681,15 +1681,15 @@ const InactiveManagement = () => {
 
             {/* Flat List View */}
             {!groupByCourse && data.participants && (
-              <div className="bg-white rounded-lg border border-gray-200">
-                <div className="divide-y divide-gray-200">
+              <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+                <div className="divide-y divide-gray-200 dark:divide-slate-700">
                   {paginatedFlat.map((participant) => {
                     const pKey = `${participant.id}-${participant.id_action_formation}`;
                     return (
                     <div key={`${participant.id}-${participant.course_id}`} className={`transition-colors ${
-                      participant.is_dismissed ? 'opacity-40 bg-gray-50' :
-                      participant.has_active_snooze ? 'opacity-60 bg-amber-50/30' :
-                      'hover:bg-gray-50'
+                      participant.is_dismissed ? 'opacity-40 bg-gray-50 dark:bg-slate-900' :
+                      participant.has_active_snooze ? 'opacity-60 bg-amber-50/30 dark:bg-amber-900/10' :
+                      'hover:bg-gray-50 dark:hover:bg-slate-700'
                     }`}>
                       <div className="px-6 py-4">
                       <div className="flex items-center justify-between">
@@ -1705,27 +1705,27 @@ const InactiveManagement = () => {
                             <div className="flex items-center gap-2">
                               <Link
                                 to={`/participants/${participant.id}`}
-                                className="font-medium text-gray-900 hover:text-primary-600 transition-colors"
+                                className="font-medium text-gray-900 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                               >
                                 {participant.nom} {participant.prenom}
                               </Link>
-                              <span className="text-sm text-gray-500">•</span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
                               {participant.course_title && participant.course_id && (
                                 <>
                                   <Link
                                     to={`/courses/${participant.course_id}`}
-                                    className="text-sm text-gray-500 hover:text-primary-600 transition-colors"
+                                    className="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
                                   >
                                     {participant.course_title}
                                   </Link>
-                                  <span className="text-sm text-gray-500">•</span>
+                                  <span className="text-sm text-gray-500 dark:text-gray-400">•</span>
                                 </>
                               )}
-                              <span className="text-sm text-gray-500">
+                              <span className="text-sm text-gray-500 dark:text-gray-400">
                                 ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                               </span>
                             </div>
-                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
                               <span className="flex items-center gap-1">
                                 <Calendar size={14} />
                                 Ajouté: {formatDate(participant.enrollment_date)}
@@ -1739,8 +1739,8 @@ const InactiveManagement = () => {
                                 {participant.last_activity_source && (
                                   <span className={`opacity-0 group-hover/source:opacity-100 transition-opacity inline-flex items-center ml-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
                                     participant.last_activity_source === 'elearning'
-                                      ? 'bg-blue-50 text-blue-600'
-                                      : 'bg-violet-50 text-violet-600'
+                                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'
+                                      : 'bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400'
                                   }`}>
                                     {t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}
                                   </span>
@@ -1748,21 +1748,21 @@ const InactiveManagement = () => {
                               </span>
                               {participant.upcoming_sessions_count > 0 && participant.next_session_date ? (
                                 <span
-                                  className="flex items-center gap-1 text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full cursor-default"
+                                  className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default"
                                   title={`${new Date(participant.next_session_date).toLocaleDateString()}\n${participant.upcoming_sessions_count} session${participant.upcoming_sessions_count > 1 ? 's' : ''} à venir`}
                                 >
                                   <CalendarClock size={12} />
                                   CV dans {Math.max(0, Math.ceil((new Date(participant.next_session_date) - new Date()) / (1000 * 60 * 60 * 24)))}j
                                 </span>
                               ) : (
-                                <span className="flex items-center gap-1 text-xs bg-gray-50 text-gray-400 px-2 py-0.5 rounded-full cursor-default">
+                                <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
                                   <CalendarClock size={12} />
                                   pas de CV programmées
                                 </span>
                               )}
                               {participant.total_planned_duration_hours > 0 && (
                                 <span
-                                  className="flex items-center gap-1 text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full cursor-default"
+                                  className="flex items-center gap-1 text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full cursor-default"
                                   title={participant.liveroom_planned_duration_hours > 0
                                     ? `E-learning: ${Math.round(participant.total_time_spent_hours - (participant.liveroom_time_spent_hours || 0))}h / ${Math.round(participant.total_planned_duration_hours - (participant.liveroom_planned_duration_hours || 0))}h\nClasse virtuelle: ${Math.round(participant.liveroom_time_spent_hours || 0)}h / ${Math.round(participant.liveroom_planned_duration_hours || 0)}h`
                                     : ''}
@@ -1773,7 +1773,7 @@ const InactiveManagement = () => {
                               )}
                               {participant.formateurs && participant.formateurs.length > 0 && (
                                 <span
-                                  className="flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full cursor-default"
+                                  className="flex items-center gap-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full cursor-default"
                                   title={participant.formateurs.map(f => `${f.prenom || ''} ${f.nom || ''}`.trim()).join(', ')}
                                 >
                                   <User size={12} />
@@ -1803,7 +1803,7 @@ const InactiveManagement = () => {
                         {/* Expand button for intervention panel */}
                         <button
                           onClick={() => toggleParticipantExpand(pKey)}
-                          className="ml-2 p-1 hover:bg-gray-200 rounded transition-colors"
+                          className="ml-2 p-1 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors"
                           title={t('inactiveManagement.interventions.title')}
                         >
                           {expandedParticipants.has(pKey)
@@ -1826,15 +1826,15 @@ const InactiveManagement = () => {
 
             {/* Pagination Controls */}
             {pageSize !== 0 && totalPages > 1 && (
-              <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-6 py-3 mt-4">
-                <p className="text-sm text-gray-600">
+              <div className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 px-6 py-3 mt-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   {t('pagination.showing', { start: pageStart + 1, end: pageEnd, total: totalItems })}
                 </p>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => setCurrentPage(1)}
                     disabled={safePage <= 1}
-                    className="px-2 py-1.5 rounded border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="px-2 py-1.5 rounded border border-gray-200 dark:border-slate-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     title={t('pagination.firstPage')}
                   >
                     1
@@ -1842,18 +1842,18 @@ const InactiveManagement = () => {
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={safePage <= 1}
-                    className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="p-1.5 rounded border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     title={t('pagination.previousPage')}
                   >
                     <ChevronLeft size={16} />
                   </button>
-                  <span className="px-3 py-1.5 text-sm font-medium text-gray-900">
+                  <span className="px-3 py-1.5 text-sm font-medium text-gray-900 dark:text-white">
                     {safePage} / {totalPages}
                   </span>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={safePage >= totalPages}
-                    className="p-1.5 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="p-1.5 rounded border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     title={t('pagination.nextPage')}
                   >
                     <ChevronRight size={16} />
@@ -1861,7 +1861,7 @@ const InactiveManagement = () => {
                   <button
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={safePage >= totalPages}
-                    className="px-2 py-1.5 rounded border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="px-2 py-1.5 rounded border border-gray-200 dark:border-slate-700 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     title={t('pagination.lastPage')}
                   >
                     {totalPages}
@@ -1872,12 +1872,12 @@ const InactiveManagement = () => {
 
             {/* Empty State */}
             {data.total_participants === 0 && (
-              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                <UserX size={64} className="mx-auto text-gray-400 mb-4" />
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-12 text-center">
+                <UserX size={64} className="mx-auto text-gray-400 dark:text-gray-500 mb-4" />
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                   {t('inactiveManagement.noInactive')}
                 </h2>
-                <p className="text-gray-600 max-w-md mx-auto">
+                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
                   {t('inactiveManagement.noInactiveDescription')}
                 </p>
               </div>

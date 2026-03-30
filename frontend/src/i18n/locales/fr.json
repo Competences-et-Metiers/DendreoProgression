@@ -520,6 +520,14 @@
     "title": "Paramètres",
     "subtitle": "Configurer les options de l'application",
     "placeholder": "Les paramètres de l'application seront bientôt disponibles. Vous pourrez personnaliser l'interface et les notifications.",
+    "darkMode": "Mode sombre",
+    "lightMode": "Mode clair",
+    "appearance": {
+      "title": "Apparence",
+      "subtitle": "Personnaliser l'apparence de l'application",
+      "theme": "Mode sombre",
+      "themeDesc": "Basculer entre le mode clair et le mode sombre"
+    },
     "inactiveManagement": {
       "title": "Gestion des inactifs",
       "subtitle": "Options d'affichage de la page de gestion des inactifs",

@@ -101,7 +101,7 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <Bookmark size={16} className="text-gray-400 flex-shrink-0" />
+      <Bookmark size={16} className="text-gray-400 dark:text-gray-500 flex-shrink-0" />
 
       {isLoading && <Loader2 size={14} className="animate-spin text-gray-400" />}
 
@@ -111,8 +111,8 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
             onClick={() => handleLoad(view)}
             className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
               activeViewId === view.id
-                ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-300 dark:border-blue-800'
+                : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600'
             }`}
           >
             {view.name}
@@ -135,8 +135,8 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
 
           {/* Delete confirmation popover */}
           {confirmDeleteId === view.id && (
-            <div className="absolute top-full left-0 mt-1.5 z-20 bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[180px]">
-              <p className="text-xs text-gray-600 mb-2">{t('savedViews.deleteConfirm')}</p>
+            <div className="absolute top-full left-0 mt-1.5 z-20 bg-white dark:bg-slate-800 rounded-lg shadow-lg dark:shadow-slate-900/50 border border-gray-200 dark:border-slate-700 p-3 min-w-[180px]">
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">{t('savedViews.deleteConfirm')}</p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={(e) => handleDeleteConfirm(e, view.id)}
@@ -148,7 +148,7 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
                 </button>
                 <button
                   onClick={handleDeleteCancel}
-                  className="px-2.5 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                  className="px-2.5 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
                 >
                   {t('savedViews.deleteNo')}
                 </button>
@@ -169,20 +169,20 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
               if (e.key === 'Escape') { setShowNameInput(false); setViewName(''); }
             }}
             placeholder={t('savedViews.namePlaceholder')}
-            className="px-2.5 py-1 text-sm border border-gray-300 rounded-full focus:outline-none focus:border-blue-400 w-40"
+            className="px-2.5 py-1 text-sm border border-gray-300 dark:border-slate-600 rounded-full focus:outline-none focus:border-blue-400 w-40 dark:bg-slate-700 dark:text-white"
             autoFocus
             disabled={createMutation.isPending}
           />
           <button
             onClick={handleSave}
             disabled={!viewName.trim() || createMutation.isPending}
-            className="p-1 rounded-full text-green-600 hover:bg-green-50 disabled:opacity-40"
+            className="p-1 rounded-full text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:opacity-40"
           >
             {createMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
           </button>
           <button
             onClick={() => { setShowNameInput(false); setViewName(''); }}
-            className="p-1 rounded-full text-gray-400 hover:bg-gray-100"
+            className="p-1 rounded-full text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-slate-700"
           >
             <X size={14} />
           </button>
@@ -190,7 +190,7 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
       ) : (
         <button
           onClick={() => setShowNameInput(true)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm text-gray-500 border border-dashed border-gray-300 hover:border-gray-400 hover:text-gray-600 transition-colors"
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-slate-600 hover:border-gray-400 dark:hover:border-slate-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
         >
           <Plus size={14} />
           {t('savedViews.save')}

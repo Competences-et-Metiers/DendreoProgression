@@ -47,7 +47,7 @@ const DealLinkButton = ({ participantId, idActionFormation, email, hubspotDeal }
           href={hubspotDeal.deal_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition-colors"
+          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
           title={t('hubspotDeal.openDeal')}
         >
           <ExternalLink size={10} className="mr-1" />
@@ -56,7 +56,7 @@ const DealLinkButton = ({ participantId, idActionFormation, email, hubspotDeal }
         <button
           onClick={handleUnlink}
           disabled={unlinkMutation.isPending}
-          className="ml-1 opacity-0 group-hover/deal:opacity-100 p-0.5 text-gray-400 hover:text-red-500 transition-all"
+          className="ml-1 opacity-0 group-hover/deal:opacity-100 p-0.5 text-gray-400 dark:text-gray-500 hover:text-red-500 transition-all"
           title={t('hubspotDeal.unlink')}
         >
           {unlinkMutation.isPending ? (
@@ -74,7 +74,7 @@ const DealLinkButton = ({ participantId, idActionFormation, email, hubspotDeal }
       <button
         onClick={() => setShowDropdown(!showDropdown)}
         disabled={!email}
-        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 hover:bg-gray-100 hover:text-gray-700 transition-colors disabled:opacity-30"
+        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-30"
         title={!email ? t('hubspotDeal.noEmail') : t('hubspotDeal.linkDeal')}
       >
         <Link2 size={10} className="mr-1" />
@@ -85,9 +85,9 @@ const DealLinkButton = ({ participantId, idActionFormation, email, hubspotDeal }
       {showDropdown && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setShowDropdown(false)} />
-          <div className="absolute right-0 mt-1 w-72 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-60 overflow-y-auto">
+          <div className="absolute right-0 mt-1 w-72 bg-white dark:bg-slate-800 rounded-lg shadow-lg dark:shadow-slate-900/50 border border-gray-200 dark:border-slate-700 z-20 max-h-60 overflow-y-auto">
             {dealsLoading && (
-              <div className="p-4 text-center text-sm text-gray-500">
+              <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
                 <Loader size={16} className="animate-spin inline mr-2" />
                 {t('common.loading')}
               </div>
@@ -98,7 +98,7 @@ const DealLinkButton = ({ participantId, idActionFormation, email, hubspotDeal }
               </div>
             )}
             {dealsData && dealsData.deals?.length === 0 && (
-              <div className="p-4 text-center text-sm text-gray-500">
+              <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
                 {t('hubspotDeal.noDeals')}
               </div>
             )}
@@ -107,13 +107,13 @@ const DealLinkButton = ({ participantId, idActionFormation, email, hubspotDeal }
                 key={deal.id}
                 onClick={() => handleLink(deal)}
                 disabled={linkMutation.isPending}
-                className="w-full px-4 py-2.5 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                className="w-full px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-slate-700 border-b border-gray-100 dark:border-slate-700 last:border-b-0 transition-colors"
               >
-                <div className="text-sm font-medium text-gray-900 truncate">
+                <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
                   {deal.dealname || `Deal #${deal.id}`}
                 </div>
                 {deal.amount && (
-                  <div className="text-xs text-gray-500 mt-0.5">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                     {formatAmount(deal.amount)}
                   </div>
                 )}

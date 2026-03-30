@@ -41,18 +41,18 @@ const ConfirmModal = ({ isOpen, title, message, variant = 'primary', confirmLabe
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-xl shadow-xl border border-gray-200 max-w-md w-full mx-4 p-6">
+      <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 max-w-md w-full mx-4 p-6">
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 p-2 bg-gray-50 rounded-lg">{style.icon}</div>
+          <div className="flex-shrink-0 p-2 bg-gray-50 dark:bg-slate-900 rounded-lg">{style.icon}</div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            <p className="mt-2 text-sm text-gray-600 whitespace-pre-line">{message}</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400 whitespace-pre-line">{message}</p>
           </div>
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
           >
             Cancel
           </button>
@@ -373,13 +373,13 @@ const AdminSyncDashboard = () => {
   const getStatusStyle = (status) => {
     switch (status) {
       case 'success':
-        return 'bg-green-100 text-green-800 border-green-200';
+        return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800';
       case 'error':
-        return 'bg-red-100 text-red-800 border-red-200';
+        return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800';
       case 'in_progress':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
+        return 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-slate-700';
     }
   };
 
@@ -400,22 +400,22 @@ const AdminSyncDashboard = () => {
       case 'in_progress':
         return <Loader2 size={14} className="text-yellow-600 animate-spin" />;
       default:
-        return <Clock size={14} className="text-gray-600" />;
+        return <Clock size={14} className="text-gray-600 dark:text-gray-400" />;
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b border-gray-200">
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+        <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center">
-              <div className="p-2 bg-indigo-100 rounded-lg mr-4">
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg mr-4">
                 <Shield size={24} className="text-indigo-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Sync Management</h1>
-                <p className="text-gray-600 mt-1">Admin dashboard</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sync Management</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">Admin dashboard</p>
               </div>
             </div>
           </div>
@@ -428,23 +428,23 @@ const AdminSyncDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="p-2 bg-indigo-100 rounded-lg mr-4">
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg mr-4">
                 <Shield size={24} className="text-indigo-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Sync Management</h1>
-                <p className="text-gray-600 mt-1">Monitor API usage and control synchronization</p>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sync Management</h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">Monitor API usage and control synchronization</p>
               </div>
             </div>
             <button
               onClick={loadDashboardData}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
             >
               <RefreshCw size={18} />
               <span className="font-medium">Refresh</span>
@@ -458,26 +458,26 @@ const AdminSyncDashboard = () => {
 
         {/* API Usage Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Last Sync</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{apiUsage?.last_sync?.api_calls || 0}</p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400">Last Sync</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{apiUsage?.last_sync?.api_calls || 0}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {formatDuration(apiUsage?.last_sync?.duration_seconds)}
                 </p>
               </div>
-              <div className="p-3 bg-gray-100 rounded-lg">
-                <Activity size={24} className="text-gray-600" />
+              <div className="p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                <Activity size={24} className="text-gray-600 dark:text-gray-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-blue-200 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-blue-800 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-700">Today</p>
-                <p className="text-3xl font-bold text-blue-900 mt-2">{apiUsage?.today?.api_calls || 0}</p>
+                <p className="text-sm text-blue-700 dark:text-blue-400">Today</p>
+                <p className="text-3xl font-bold text-blue-900 dark:text-blue-100 mt-2">{apiUsage?.today?.api_calls || 0}</p>
                 <div className="text-xs mt-1 space-y-0.5">
                   <p className="text-blue-600">
                     D: {apiUsage?.today?.dendreo_calls || 0}{apiUsage?.today?.dendreo_limit ? ` / ${apiUsage.today.dendreo_limit}` : ''}
@@ -486,17 +486,17 @@ const AdminSyncDashboard = () => {
                   <p className="text-blue-500">{apiUsage?.today?.sync_count || 0} syncs</p>
                 </div>
               </div>
-              <div className="p-3 bg-blue-100 rounded-lg">
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                 <Zap size={24} className="text-blue-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-purple-200 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-purple-200 dark:border-purple-800 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-purple-700">This Week</p>
-                <p className="text-3xl font-bold text-purple-900 mt-2">{apiUsage?.this_week?.api_calls || 0}</p>
+                <p className="text-sm text-purple-700 dark:text-purple-400">This Week</p>
+                <p className="text-3xl font-bold text-purple-900 dark:text-purple-100 mt-2">{apiUsage?.this_week?.api_calls || 0}</p>
                 <div className="text-xs mt-1 space-y-0.5">
                   <p className="text-purple-600">
                     D: {apiUsage?.this_week?.dendreo_calls || 0}{apiUsage?.this_week?.dendreo_limit ? ` / ${apiUsage.this_week.dendreo_limit}` : ''}
@@ -505,17 +505,17 @@ const AdminSyncDashboard = () => {
                   <p className="text-purple-500">{apiUsage?.this_week?.sync_count || 0} syncs</p>
                 </div>
               </div>
-              <div className="p-3 bg-purple-100 rounded-lg">
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                 <Activity size={24} className="text-purple-600" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-lg border border-indigo-200 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-indigo-200 dark:border-indigo-800 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-indigo-700">This Month</p>
-                <p className="text-3xl font-bold text-indigo-900 mt-2">{apiUsage?.this_month?.api_calls || 0}</p>
+                <p className="text-sm text-indigo-700 dark:text-indigo-400">This Month</p>
+                <p className="text-3xl font-bold text-indigo-900 dark:text-indigo-100 mt-2">{apiUsage?.this_month?.api_calls || 0}</p>
                 <div className="text-xs mt-1 space-y-0.5">
                   <p className="text-indigo-600">
                     D: {apiUsage?.this_month?.dendreo_calls || 0}{apiUsage?.this_month?.dendreo_limit ? ` / ${apiUsage.this_month.dendreo_limit}` : ''}
@@ -524,7 +524,7 @@ const AdminSyncDashboard = () => {
                   <p className="text-indigo-500">{apiUsage?.this_month?.sync_count || 0} syncs</p>
                 </div>
               </div>
-              <div className="p-3 bg-indigo-100 rounded-lg">
+              <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
                 <Activity size={24} className="text-indigo-600" />
               </div>
             </div>
@@ -534,16 +534,16 @@ const AdminSyncDashboard = () => {
         {/* Status + Config Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Current Status */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Zap size={20} className="text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Current Status</h2>
+              <Zap size={20} className="text-gray-600 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Current Status</h2>
             </div>
             <div className="flex items-center gap-4 mb-4">
               <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
                 syncStatus?.is_running
-                  ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                  : 'bg-green-100 text-green-800 border border-green-200'
+                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-800'
+                  : 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-800'
               }`}>
                 {syncStatus?.is_running ? (
                   <><Loader2 size={16} className="animate-spin" /> Sync Running</>
@@ -553,10 +553,10 @@ const AdminSyncDashboard = () => {
               </span>
             </div>
             {syncStatus?.last_sync && (
-              <div className="space-y-2 text-sm text-gray-600">
+              <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex items-center justify-between">
                   <span>Last Sync</span>
-                  <span className="font-medium text-gray-900">{formatDateTime(syncStatus.last_sync.last_sync_at)}</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatDateTime(syncStatus.last_sync.last_sync_at)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Status</span>
@@ -567,21 +567,21 @@ const AdminSyncDashboard = () => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span>API Calls</span>
-                  <span className="font-medium text-gray-900">{syncStatus.last_sync.api_calls_count}</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{syncStatus.last_sync.api_calls_count}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Duration</span>
-                  <span className="font-medium text-gray-900">{formatDuration(syncStatus.last_sync.duration_seconds)}</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{formatDuration(syncStatus.last_sync.duration_seconds)}</span>
                 </div>
               </div>
             )}
           </div>
 
           {/* Configuration */}
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <Settings size={20} className="text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Configuration</h2>
+              <Settings size={20} className="text-gray-600 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Configuration</h2>
             </div>
             <div className="space-y-5">
               {/* Enable/Disable Toggle */}
@@ -593,9 +593,9 @@ const AdminSyncDashboard = () => {
                     onChange={handleToggleCron}
                     className="w-5 h-5 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
                   />
-                  <span className="font-medium text-gray-900">Enable Scheduled Syncs</span>
+                  <span className="font-medium text-gray-900 dark:text-white">Enable Scheduled Syncs</span>
                 </label>
-                <p className="text-sm text-gray-500 mt-1 ml-8">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-8">
                   {syncConfig?.cron_enabled
                     ? 'Syncs will run on the schedule below'
                     : 'Scheduled syncs are disabled (manual only)'}
@@ -604,7 +604,7 @@ const AdminSyncDashboard = () => {
 
               {/* Schedule Days */}
               <div>
-                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-2">
+                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   <CalendarDays size={14} />
                   Schedule Days
                 </label>
@@ -618,7 +618,7 @@ const AdminSyncDashboard = () => {
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                           isActive
                             ? 'bg-primary-600 text-white border-primary-600'
-                            : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                            : 'bg-white dark:bg-slate-700 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
                         }`}
                       >
                         {label}
@@ -630,7 +630,7 @@ const AdminSyncDashboard = () => {
 
               {/* Schedule Time */}
               <div>
-                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-2">
+                <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   <Clock size={14} />
                   Schedule Time (Europe/Paris)
                 </label>
@@ -638,13 +638,13 @@ const AdminSyncDashboard = () => {
                   type="time"
                   value={scheduleTime}
                   onChange={(e) => setScheduleTime(e.target.value)}
-                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                  className="w-32 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                 />
               </div>
 
               {/* Cooldown Hours */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Cooldown Hours
                 </label>
                 <input
@@ -653,24 +653,24 @@ const AdminSyncDashboard = () => {
                   step="0.5"
                   value={cooldownHours}
                   onChange={(e) => setCooldownHours(e.target.value)}
-                  className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                  className="w-24 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                 />
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   Scheduled sync is skipped if the last successful sync (including force sync) was less than {cooldownHours}h ago
                 </p>
               </div>
 
               {/* API Limits */}
-              <div className="border-t border-gray-200 pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+              <div className="border-t border-gray-200 dark:border-slate-700 pt-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   API Call Limits
                 </label>
 
                 {/* Per-Sync Limits */}
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Per Sync</p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Per Sync</p>
                 <div className="grid grid-cols-2 gap-4 mb-3">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Dendreo</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Dendreo</label>
                     <input
                       type="number"
                       min="0"
@@ -678,11 +678,11 @@ const AdminSyncDashboard = () => {
                       placeholder="Unlimited"
                       value={dendreoApiLimit}
                       onChange={(e) => setDendreoApiLimit(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">HubSpot</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">HubSpot</label>
                     <input
                       type="number"
                       min="0"
@@ -690,16 +690,16 @@ const AdminSyncDashboard = () => {
                       placeholder="Unlimited"
                       value={hubspotApiLimit}
                       onChange={(e) => setHubspotApiLimit(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                     />
                   </div>
                 </div>
 
                 {/* Period Limits */}
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-4">Daily</p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 mt-4">Daily</p>
                 <div className="grid grid-cols-2 gap-4 mb-3">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Dendreo</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Dendreo</label>
                     <input
                       type="number"
                       min="0"
@@ -707,11 +707,11 @@ const AdminSyncDashboard = () => {
                       placeholder="Unlimited"
                       value={dendreoDailyLimit}
                       onChange={(e) => setDendreoDailyLimit(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">HubSpot</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">HubSpot</label>
                     <input
                       type="number"
                       min="0"
@@ -719,15 +719,15 @@ const AdminSyncDashboard = () => {
                       placeholder="Unlimited"
                       value={hubspotDailyLimit}
                       onChange={(e) => setHubspotDailyLimit(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                     />
                   </div>
                 </div>
 
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Weekly</p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Weekly</p>
                 <div className="grid grid-cols-2 gap-4 mb-3">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Dendreo</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Dendreo</label>
                     <input
                       type="number"
                       min="0"
@@ -735,11 +735,11 @@ const AdminSyncDashboard = () => {
                       placeholder="Unlimited"
                       value={dendreoWeeklyLimit}
                       onChange={(e) => setDendreoWeeklyLimit(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">HubSpot</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">HubSpot</label>
                     <input
                       type="number"
                       min="0"
@@ -747,15 +747,15 @@ const AdminSyncDashboard = () => {
                       placeholder="Unlimited"
                       value={hubspotWeeklyLimit}
                       onChange={(e) => setHubspotWeeklyLimit(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                     />
                   </div>
                 </div>
 
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Monthly</p>
+                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Monthly</p>
                 <div className="grid grid-cols-2 gap-4 mb-3">
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Dendreo</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Dendreo</label>
                     <input
                       type="number"
                       min="0"
@@ -763,11 +763,11 @@ const AdminSyncDashboard = () => {
                       placeholder="Unlimited"
                       value={dendreoMonthlyLimit}
                       onChange={(e) => setDendreoMonthlyLimit(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">HubSpot</label>
+                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">HubSpot</label>
                     <input
                       type="number"
                       min="0"
@@ -775,12 +775,12 @@ const AdminSyncDashboard = () => {
                       placeholder="Unlimited"
                       value={hubspotMonthlyLimit}
                       onChange={(e) => setHubspotMonthlyLimit(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
                     />
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                   0 or empty = unlimited. Per-sync limits skip remaining ADFs. Period limits block new syncs from starting.
                 </p>
               </div>
@@ -798,16 +798,16 @@ const AdminSyncDashboard = () => {
         </div>
 
         {/* Sync Actions */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 mb-6">
           <div className="flex items-center gap-2 mb-4">
-            <Play size={20} className="text-gray-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Sync Actions</h2>
+            <Play size={20} className="text-gray-600 dark:text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sync Actions</h2>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleDryRun}
               disabled={isPollingLog}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FlaskConical size={18} />
               Dry Run
@@ -846,7 +846,7 @@ const AdminSyncDashboard = () => {
                 value={adfId}
                 onChange={(e) => setAdfId(e.target.value)}
                 disabled={isPollingLog}
-                className="w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                className="w-28 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
               />
               <button
                 onClick={handleSyncAdf}
@@ -870,12 +870,12 @@ const AdminSyncDashboard = () => {
           {actionOutput && (
             <div className={`mt-4 p-3 rounded-lg border ${
               actionOutput.status === 'started'
-                ? 'bg-blue-50 border-blue-200'
+                ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
                 : actionOutput.status === 'error'
-                ? 'bg-red-50 border-red-200'
+                ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
                 : actionOutput.status === 'warning'
-                ? 'bg-amber-50 border-amber-200'
-                : 'bg-green-50 border-green-200'
+                ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800'
+                : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
             }`}>
               <div className="flex items-center gap-2">
                 {actionOutput.status === 'started' ? (
@@ -931,45 +931,45 @@ const AdminSyncDashboard = () => {
         )}
 
         {/* Sync History */}
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200">
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
             <div className="flex items-center gap-2">
-              <History size={20} className="text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Recent Sync History</h2>
+              <History size={20} className="text-gray-600 dark:text-gray-400" />
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Sync History</h2>
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Timestamp</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Summary</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">API Calls (D/H)</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Duration</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider"></th>
+                <tr className="bg-gray-50 dark:bg-slate-900">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Timestamp</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Summary</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">API Calls (D/H)</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider">Duration</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wider"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {syncHistory.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500">
+                    <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
                       No sync history available
                     </td>
                   </tr>
                 ) : (
                   syncHistory.map((sync) => (
-                    <tr key={sync.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => setSelectedSync(sync)}>
-                      <td className="px-6 py-3 text-sm text-gray-700">{formatDateTime(sync.last_sync_at)}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">{formatSyncType(sync.sync_type)}</td>
+                    <tr key={sync.id} className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-pointer" onClick={() => setSelectedSync(sync)}>
+                      <td className="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{formatDateTime(sync.last_sync_at)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{formatSyncType(sync.sync_type)}</td>
                       <td className="px-6 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusStyle(sync.status)}`}>
                           {getStatusIcon(sync.status)}
                           {sync.status}
                         </span>
                       </td>
-                      <td className="px-6 py-3 text-xs text-gray-500">
+                      <td className="px-6 py-3 text-xs text-gray-500 dark:text-gray-400">
                         {sync.stats ? (
                           <span className="flex flex-wrap gap-x-2 gap-y-0.5">
                             {(sync.stats.courses_created > 0 || sync.stats.courses_updated > 0 || sync.stats.courses_removed > 0) && (
@@ -986,12 +986,12 @@ const AdminSyncDashboard = () => {
                           <span className="italic">—</span>
                         )}
                       </td>
-                      <td className="px-6 py-3 text-sm text-gray-700">
+                      <td className="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">
                         {sync.api_calls_count}{sync.hubspot_api_calls_count > 0 ? ` / ${sync.hubspot_api_calls_count}` : ''}
                       </td>
-                      <td className="px-6 py-3 text-sm text-gray-700">{formatDuration(sync.duration_seconds)}</td>
-                      <td className="px-6 py-3 text-sm text-gray-700">
-                        <ChevronRight size={16} className="text-gray-400" />
+                      <td className="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">{formatDuration(sync.duration_seconds)}</td>
+                      <td className="px-6 py-3 text-sm text-gray-700 dark:text-gray-300">
+                        <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
                       </td>
                     </tr>
                   ))
@@ -1006,14 +1006,14 @@ const AdminSyncDashboard = () => {
       {selectedSync && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="fixed inset-0 bg-black/50" onClick={() => setSelectedSync(null)} />
-          <div className="relative bg-white rounded-xl shadow-xl border border-gray-200 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl flex items-center justify-between">
+          <div className="relative bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-6 py-4 rounded-t-xl flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Sync Summary</h3>
-                <p className="text-sm text-gray-500 mt-0.5">{formatDateTime(selectedSync.last_sync_at)} &mdash; {formatSyncType(selectedSync.sync_type)}</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Sync Summary</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{formatDateTime(selectedSync.last_sync_at)} &mdash; {formatSyncType(selectedSync.sync_type)}</p>
               </div>
-              <button onClick={() => setSelectedSync(null)} className="p-1 rounded-lg hover:bg-gray-100 transition-colors">
-                <X size={20} className="text-gray-500" />
+              <button onClick={() => setSelectedSync(null)} className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                <X size={20} className="text-gray-500 dark:text-gray-400" />
               </button>
             </div>
             <div className="px-6 py-4 space-y-4">
@@ -1023,19 +1023,19 @@ const AdminSyncDashboard = () => {
                   {getStatusIcon(selectedSync.status)}
                   {selectedSync.status}
                 </span>
-                <span className="text-sm text-gray-600">Duration: <span className="font-medium text-gray-900">{formatDuration(selectedSync.duration_seconds)}</span></span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Duration: <span className="font-medium text-gray-900 dark:text-white">{formatDuration(selectedSync.duration_seconds)}</span></span>
               </div>
 
               {/* Error message */}
               {selectedSync.error_message && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 text-sm text-red-700 dark:text-red-400">
                   {selectedSync.error_message}
                 </div>
               )}
 
               {/* API Calls */}
-              <div className="bg-gray-50 rounded-lg p-3">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">API Calls</h4>
+              <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3">
+                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">API Calls</h4>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>Dendreo: <span className="font-medium">{selectedSync.api_calls_count}</span></div>
                   <div>HubSpot: <span className="font-medium">{selectedSync.hubspot_api_calls_count || 0}</span></div>
@@ -1046,93 +1046,93 @@ const AdminSyncDashboard = () => {
               {selectedSync.stats && (
                 <>
                   {/* ADFs (Courses) */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">ADFs (Courses)</h4>
+                  <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">ADFs (Courses)</h4>
                     <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-green-600 font-semibold">{selectedSync.stats.courses_created || 0}</div>
-                        <div className="text-xs text-gray-500">Created</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
                       </div>
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-blue-600 font-semibold">{selectedSync.stats.courses_updated || 0}</div>
-                        <div className="text-xs text-gray-500">Updated</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Updated</div>
                       </div>
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-red-600 font-semibold">{selectedSync.stats.courses_removed || 0}</div>
-                        <div className="text-xs text-gray-500">Removed</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Removed</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Participants */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Participants</h4>
+                  <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Participants</h4>
                     <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-green-600 font-semibold">{selectedSync.stats.participants_created || 0}</div>
-                        <div className="text-xs text-gray-500">Created</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
                       </div>
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-blue-600 font-semibold">{selectedSync.stats.participants_updated || 0}</div>
-                        <div className="text-xs text-gray-500">Updated</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Updated</div>
                       </div>
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-red-600 font-semibold">{selectedSync.stats.participants_removed || 0}</div>
-                        <div className="text-xs text-gray-500">Removed</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Removed</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Enrollments */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Enrollments</h4>
+                  <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Enrollments</h4>
                     <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-green-600 font-semibold">{selectedSync.stats.participant_courses_created || 0}</div>
-                        <div className="text-xs text-gray-500">Created</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
                       </div>
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-blue-600 font-semibold">{selectedSync.stats.participant_courses_updated || 0}</div>
-                        <div className="text-xs text-gray-500">Updated</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Updated</div>
                       </div>
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-red-600 font-semibold">{selectedSync.stats.participant_courses_removed || 0}</div>
-                        <div className="text-xs text-gray-500">Removed</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Removed</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Modules */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Modules</h4>
+                  <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3">
+                    <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Modules</h4>
                     <div className="grid grid-cols-3 gap-2 text-sm">
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-green-600 font-semibold">{selectedSync.stats.modules_created || 0}</div>
-                        <div className="text-xs text-gray-500">Created</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Created</div>
                       </div>
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-blue-600 font-semibold">{selectedSync.stats.modules_updated || 0}</div>
-                        <div className="text-xs text-gray-500">Updated</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Updated</div>
                       </div>
-                      <div className="text-center p-2 bg-white rounded border">
+                      <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                         <div className="text-red-600 font-semibold">{selectedSync.stats.modules_removed || 0}</div>
-                        <div className="text-xs text-gray-500">Removed</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Removed</div>
                       </div>
                     </div>
                   </div>
 
                   {/* Creneaux */}
                   {(selectedSync.stats.creneaux_created > 0 || selectedSync.stats.creneaux_updated > 0) && (
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Liverooms</h4>
+                    <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3">
+                      <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">Liverooms</h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                           <div className="text-green-600 font-semibold">{selectedSync.stats.creneaux_created || 0}</div>
-                          <div className="text-xs text-gray-500">Slots Created</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Slots Created</div>
                         </div>
-                        <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                           <div className="text-blue-600 font-semibold">{selectedSync.stats.creneau_participants_created || 0}</div>
-                          <div className="text-xs text-gray-500">Attendees Created</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Attendees Created</div>
                         </div>
                       </div>
                     </div>
@@ -1140,52 +1140,52 @@ const AdminSyncDashboard = () => {
 
                   {/* HubSpot */}
                   {selectedSync.stats.hubspot_updates_total > 0 && (
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">HubSpot</h4>
+                    <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3">
+                      <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">HubSpot</h4>
                       <div className="grid grid-cols-3 gap-2 text-sm">
-                        <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                           <div className="font-semibold">{selectedSync.stats.hubspot_updates_total || 0}</div>
-                          <div className="text-xs text-gray-500">Total</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
                         </div>
-                        <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                           <div className="text-green-600 font-semibold">{selectedSync.stats.hubspot_updates_successful || 0}</div>
-                          <div className="text-xs text-gray-500">Successful</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Successful</div>
                         </div>
-                        <div className="text-center p-2 bg-white rounded border">
+                        <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
                           <div className="text-red-600 font-semibold">{selectedSync.stats.hubspot_updates_failed || 0}</div>
-                          <div className="text-xs text-gray-500">Failed</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Failed</div>
                         </div>
                       </div>
                       {selectedSync.stats.hubspot_data_created > 0 && (
-                        <div className="mt-2 text-xs text-gray-500">New HubSpot records: {selectedSync.stats.hubspot_data_created}</div>
+                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">New HubSpot records: {selectedSync.stats.hubspot_data_created}</div>
                       )}
                     </div>
                   )}
 
                   {/* Categories */}
                   {selectedSync.stats.categories_synced > 0 && (
-                    <div className="text-sm text-gray-600">Categories synced: <span className="font-medium">{selectedSync.stats.categories_synced}</span></div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Categories synced: <span className="font-medium">{selectedSync.stats.categories_synced}</span></div>
                   )}
 
                   {/* Skipped ADFs */}
                   {selectedSync.stats.adfs_skipped_api_limit > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm text-amber-700 dark:text-amber-400">
                       {selectedSync.stats.adfs_skipped_api_limit} ADF(s) skipped due to API limit
                     </div>
                   )}
 
                   {/* ADF Status Changes */}
                   {selectedSync.stats.adfs_status_updated > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                      <h4 className="text-xs font-semibold text-amber-700 uppercase mb-2">
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                      <h4 className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase mb-2">
                         ADF Status Updated ({selectedSync.stats.adfs_status_updated})
                       </h4>
                       {selectedSync.stats.adfs_left_tracker && selectedSync.stats.adfs_left_tracker.length > 0 && (
                         <div className="space-y-1.5">
                           {selectedSync.stats.adfs_left_tracker.map((adf, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-xs bg-white rounded border border-amber-100 px-2 py-1.5">
-                              <span className="text-gray-700 truncate mr-2" title={adf.intitule}>
-                                <span className="font-mono text-gray-400">#{adf.id_adf}</span> {adf.intitule}
+                            <div key={idx} className="flex items-center justify-between text-xs bg-white dark:bg-slate-800 rounded border border-amber-100 dark:border-amber-800 px-2 py-1.5">
+                              <span className="text-gray-700 dark:text-gray-300 truncate mr-2" title={adf.intitule}>
+                                <span className="font-mono text-gray-400 dark:text-gray-500">#{adf.id_adf}</span> {adf.intitule}
                               </span>
                               <span className="text-amber-600 font-medium whitespace-nowrap">
                                 {adf.old_status} → {adf.new_status}
@@ -1200,7 +1200,7 @@ const AdminSyncDashboard = () => {
               )}
 
               {!selectedSync.stats && (
-                <p className="text-sm text-gray-500 italic">No detailed stats available for this sync.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 italic">No detailed stats available for this sync.</p>
               )}
             </div>
           </div>

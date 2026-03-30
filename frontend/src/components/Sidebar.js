@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import {
   Users,
   UserCircle,
@@ -13,6 +14,8 @@ import {
   BookOpen,
   Shield,
   ClipboardList,
+  Moon,
+  Sun,
 } from 'lucide-react';
 
 const Sidebar = ({ collapsed, onToggle }) => {
@@ -20,6 +23,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, user } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
 
   const baseMenuItems = [
     {
@@ -103,18 +107,18 @@ const Sidebar = ({ collapsed, onToggle }) => {
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-full bg-white border-r border-gray-200 transition-all duration-300 z-40 ${
+      className={`fixed left-0 top-0 h-full bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 transition-all duration-300 z-40 ${
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
       {/* Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-slate-700">
         {!collapsed && (
-          <span className="font-semibold text-gray-900 text-lg">Dendreo</span>
+          <span className="font-semibold text-gray-900 dark:text-white text-lg">Dendreo</span>
         )}
         <button
           onClick={onToggle}
-          className="p-2 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
           title={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
         >
           {collapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
@@ -136,19 +140,19 @@ const Sidebar = ({ collapsed, onToggle }) => {
                   disabled={disabled}
                   className={`w-full flex items-center px-3 py-2.5 rounded-lg transition-colors ${
                     active
-                      ? 'bg-primary-50 text-primary-700 font-medium'
+                      ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 font-medium'
                       : disabled
-                      ? 'text-gray-400 cursor-not-allowed'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                   }`}
                   title={collapsed ? item.label : undefined}
                 >
-                  <Icon size={20} className={`flex-shrink-0 ${active ? 'text-primary-600' : ''}`} />
+                  <Icon size={20} className={`flex-shrink-0 ${active ? 'text-primary-600 dark:text-primary-400' : ''}`} />
                   {!collapsed && (
                     <span className="ml-3 truncate">
                       {item.label}
                       {disabled && (
-                        <span className="ml-2 text-xs text-gray-400">
+                        <span className="ml-2 text-xs text-gray-400 dark:text-gray-600">
                           ({t('sidebar.comingSoon')})
                         </span>
                       )}
@@ -161,11 +165,21 @@ const Sidebar = ({ collapsed, onToggle }) => {
         </ul>
       </nav>
 
-      {/* Footer - Logout */}
-      <div className="absolute bottom-0 left-0 right-0 p-2 border-t border-gray-200">
+      {/* Footer - Theme Toggle + Logout */}
+      <div className="absolute bottom-0 left-0 right-0 p-2 border-t border-gray-200 dark:border-slate-700 space-y-1">
+        <button
+          onClick={toggleTheme}
+          className="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+          title={collapsed ? (isDark ? 'Light mode' : 'Dark mode') : undefined}
+        >
+          {isDark ? <Sun size={20} className="flex-shrink-0" /> : <Moon size={20} className="flex-shrink-0" />}
+          {!collapsed && (
+            <span className="ml-3 truncate">{isDark ? t('settings.lightMode') : t('settings.darkMode')} <span className="text-[10px] text-gray-400 dark:text-gray-500">(Beta)</span></span>
+          )}
+        </button>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
+          className="w-full flex items-center px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors"
           title={collapsed ? t('sidebar.logout') : undefined}
         >
           <LogOut size={20} className="flex-shrink-0" />

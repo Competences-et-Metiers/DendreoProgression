@@ -498,6 +498,14 @@
     "title": "Settings",
     "subtitle": "Configure application options",
     "placeholder": "Application settings will be available soon. You will be able to customize the interface and notifications.",
+    "darkMode": "Dark mode",
+    "lightMode": "Light mode",
+    "appearance": {
+      "title": "Appearance",
+      "subtitle": "Customize the application appearance",
+      "theme": "Dark mode",
+      "themeDesc": "Toggle between light and dark mode"
+    },
     "inactiveManagement": {
       "title": "Inactive Management",
       "subtitle": "Display options for the inactive management page",
