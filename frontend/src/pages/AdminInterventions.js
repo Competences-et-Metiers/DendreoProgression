@@ -472,12 +472,12 @@ const AdminInterventions = () => {
                         </td>
                         <td className="px-5 py-3.5">
                           {iv.is_active ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400"
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400">
                               <CheckCircle2 size={12} />
                               {t('adminInterventions.active')}
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 dark:text-gray-500"
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-400 dark:text-gray-500">
                               <XCircle size={12} />
                               {t('adminInterventions.cancelled')}
                             </span>
