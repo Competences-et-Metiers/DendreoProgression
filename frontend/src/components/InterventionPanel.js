@@ -656,10 +656,11 @@ const InterventionPanel = ({ participant }) => {
 
                   {/* Action buttons for timeline entries */}
                   <div className="flex-shrink-0 flex items-center gap-0.5">
-                    {/* Cancel button for active snoozes/dismissals */}
+                    {/* Cancel button for active snoozes/dismissals — creator or admin only */}
                     {entry.source === 'local' &&
                       entry.is_active &&
-                      (entry.intervention_type === 'snooze' || entry.intervention_type === 'dismiss') && (
+                      (entry.intervention_type === 'snooze' || entry.intervention_type === 'dismiss') &&
+                      (user?.role === 'admin' || entry.user_id === user?.id) && (
                         <button
                           onClick={() => handleCancelIntervention(entry.intervention_id)}
                           disabled={cancelIntervention.isPending}
