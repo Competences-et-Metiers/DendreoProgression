@@ -380,7 +380,9 @@
       "active": "Actif",
       "atRisk": "À risque",
       "inactive": "Inactif",
-      "neverStarted": "Jamais"
+      "neverStarted": "Jamais",
+      "snoozed": "Reportés",
+      "dismissed": "Écartés"
     },
     "filters": {
       "title": "Filtres et seuils",
@@ -393,7 +395,8 @@
       "byInactivity": "Trier par inactivité",
       "byName": "Trier par nom",
       "byProgression": "Trier par progression",
-      "byStatus": "Trier par statut"
+      "byStatus": "Trier par statut",
+      "byIntervention": "Trier par intervention"
     },
     "statusFilter": {
       "title": "Filtrer par statut"

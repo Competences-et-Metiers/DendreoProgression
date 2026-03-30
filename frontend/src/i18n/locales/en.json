@@ -372,7 +372,9 @@
       "active": "Active",
       "atRisk": "At Risk",
       "inactive": "Inactive",
-      "neverStarted": "Never Started"
+      "neverStarted": "Never Started",
+      "snoozed": "Snoozed",
+      "dismissed": "Dismissed"
     },
     "lastActivitySource": "Last activity source",
     "activitySource": {

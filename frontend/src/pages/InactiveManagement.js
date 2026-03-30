@@ -86,15 +86,18 @@ const InactiveManagement = () => {
       const parsed = JSON.parse(cached);
       // Migrate old format if needed
       if ('stalled' in parsed || 'long_inactive' in parsed) {
-        return { active: true, at_risk: true, inactive: true, never_started: true };
+        return { active: true, at_risk: true, inactive: true, never_started: true, snoozed: false, dismissed: false };
       }
       // Migrate: add never_started if missing
       if (!('never_started' in parsed)) {
         parsed.never_started = true;
       }
+      // Migrate: add snoozed/dismissed if missing
+      if (!('snoozed' in parsed)) parsed.snoozed = false;
+      if (!('dismissed' in parsed)) parsed.dismissed = false;
       return parsed;
     }
-    return { active: true, at_risk: true, inactive: true, never_started: true };
+    return { active: true, at_risk: true, inactive: true, never_started: true, snoozed: false, dismissed: false };
   });
 
   // ADF filter state
@@ -136,10 +139,8 @@ const InactiveManagement = () => {
     return cached ? JSON.parse(cached) : false;
   });
 
-  // Intervention expand state + snooze/dismiss toggles
+  // Intervention expand state
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
-  const [showSnoozed, setShowSnoozed] = useState(false);
-  const [showDismissed, setShowDismissed] = useState(false);
 
   const toggleParticipantExpand = useCallback((participantKey) => {
     setExpandedParticipants(prev => {
@@ -270,6 +271,12 @@ const InactiveManagement = () => {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const getDisplayStatus = (participant) => {
+    if (participant.is_dismissed) return 'dismissed';
+    if (participant.has_active_snooze) return 'snoozed';
+    return participant.inactivity_status;
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'active':
@@ -280,6 +287,10 @@ const InactiveManagement = () => {
         return 'bg-red-100 text-red-800 border-red-200';
       case 'never_started':
         return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'snoozed':
+        return 'bg-amber-100 text-amber-800 border-amber-200';
+      case 'dismissed':
+        return 'bg-gray-200 text-gray-700 border-gray-300';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -295,6 +306,10 @@ const InactiveManagement = () => {
         return <UserX size={16} className="text-red-600" />;
       case 'never_started':
         return <Clock size={16} className="text-purple-600" />;
+      case 'snoozed':
+        return <AlarmClock size={16} className="text-amber-600" />;
+      case 'dismissed':
+        return <Ban size={16} className="text-gray-600" />;
       default:
         return <Clock size={16} className="text-gray-600" />;
     }
@@ -310,6 +325,10 @@ const InactiveManagement = () => {
         return t('inactiveManagement.status.inactive');
       case 'never_started':
         return t('inactiveManagement.status.neverStarted');
+      case 'snoozed':
+        return t('inactiveManagement.status.snoozed');
+      case 'dismissed':
+        return t('inactiveManagement.status.dismissed');
       default:
         return status;
     }
@@ -354,11 +373,11 @@ const InactiveManagement = () => {
           return prog >= progressionRange[0] && prog <= progressionRange[1];
         });
       }
-      // Snooze/dismiss visibility
-      if (!showSnoozed) {
+      // Snooze/dismiss visibility (driven by status filter pills)
+      if (!statusFilter.snoozed) {
         filtered = filtered.filter(p => !p.has_active_snooze);
       }
-      if (!showDismissed) {
+      if (!statusFilter.dismissed) {
         filtered = filtered.filter(p => !p.is_dismissed);
       }
       return filtered;
@@ -366,7 +385,11 @@ const InactiveManagement = () => {
 
     // Status filter + sort
     const applySortAndStatus = (participants) => {
-      const withStatus = participants.filter(p => statusFilter[p.inactivity_status]);
+      const withStatus = participants.filter(p =>
+        statusFilter[p.inactivity_status] ||
+        (statusFilter.snoozed && p.has_active_snooze) ||
+        (statusFilter.dismissed && p.is_dismissed)
+      );
       const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
       withStatus.sort((a, b) => {
         let comparison = 0;
@@ -386,6 +409,12 @@ const InactiveManagement = () => {
           case 'status': {
             const order = { never_started: 4, inactive: 3, at_risk: 2, active: 1 };
             comparison = (order[a.inactivity_status] || 0) - (order[b.inactivity_status] || 0);
+            break;
+          }
+          case 'intervention': {
+            // Sort by intervention status: dismissed first, then snoozed, then others
+            const interventionOrder = (p) => p.is_dismissed ? 2 : p.has_active_snooze ? 1 : 0;
+            comparison = interventionOrder(a) - interventionOrder(b);
             break;
           }
           default:
@@ -443,7 +472,7 @@ const InactiveManagement = () => {
       : [];
 
     return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showSnoozed, showDismissed]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive]);
 
   // Pagination: slice data for current page (pageSize 0 = show all)
   const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
@@ -532,10 +561,10 @@ const InactiveManagement = () => {
     return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || !filters.atRiskEnabled || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive;
+  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || statusFilter.snoozed || statusFilter.dismissed || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || !filters.atRiskEnabled || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive;
 
   const resetAllFilters = useCallback(() => {
-    setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true });
+    setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true, snoozed: false, dismissed: false });
     setSelectedADFs([]);
     setSelectedFormateurs([]);
     setSelectedCategories([]);
@@ -608,6 +637,8 @@ const InactiveManagement = () => {
     if (!statusFilter.at_risk) disabledStatuses.push(t('inactiveManagement.status.atRisk'));
     if (!statusFilter.inactive) disabledStatuses.push(t('inactiveManagement.status.inactive'));
     if (!statusFilter.never_started) disabledStatuses.push(t('inactiveManagement.status.neverStarted'));
+    if (statusFilter.snoozed) disabledStatuses.push(t('inactiveManagement.status.snoozed'));
+    if (statusFilter.dismissed) disabledStatuses.push(t('inactiveManagement.status.dismissed'));
     if (disabledStatuses.length > 0) {
       activeFilterDescriptions.push(`${t('inactiveManagement.pdf.filterExcluded')}: ${disabledStatuses.join(', ')}`);
     }
@@ -806,6 +837,7 @@ const InactiveManagement = () => {
                 { key: 'name', label: t('inactiveManagement.sorting.byName') },
                 { key: 'progression', label: t('inactiveManagement.sorting.byProgression') },
                 { key: 'status', label: t('inactiveManagement.sorting.byStatus') },
+                { key: 'intervention', label: t('inactiveManagement.sorting.byIntervention') },
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -861,6 +893,20 @@ const InactiveManagement = () => {
                 <Clock size={12} />
                 {t('inactiveManagement.status.neverStarted')}
               </label>
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                statusFilter.snoozed ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-gray-200 text-gray-400'
+              }`}>
+                <input type="checkbox" checked={statusFilter.snoozed} onChange={() => toggleStatusFilter('snoozed')} className="sr-only" />
+                <AlarmClock size={12} />
+                {t('inactiveManagement.status.snoozed')}
+              </label>
+              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+                statusFilter.dismissed ? 'bg-gray-100 border-gray-300 text-gray-600' : 'bg-white border-gray-200 text-gray-400'
+              }`}>
+                <input type="checkbox" checked={statusFilter.dismissed} onChange={() => toggleStatusFilter('dismissed')} className="sr-only" />
+                <Ban size={12} />
+                {t('inactiveManagement.status.dismissed')}
+              </label>
             </div>
 
             {/* Divider */}
@@ -874,20 +920,6 @@ const InactiveManagement = () => {
                 <input type="checkbox" checked={cvPlannedIsActive} onChange={() => setCvPlannedIsActive(!cvPlannedIsActive)} className="sr-only" />
                 <CalendarClock size={12} />
                 CV planifié = Actif
-              </label>
-              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                showSnoozed ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}>
-                <input type="checkbox" checked={showSnoozed} onChange={() => setShowSnoozed(!showSnoozed)} className="sr-only" />
-                <AlarmClock size={12} />
-                {t('inactiveManagement.interventions.showSnoozed')}
-              </label>
-              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                showDismissed ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}>
-                <input type="checkbox" checked={showDismissed} onChange={() => setShowDismissed(!showDismissed)} className="sr-only" />
-                <Ban size={12} />
-                {t('inactiveManagement.interventions.showDismissed')}
               </label>
             </div>
 
@@ -1468,9 +1500,12 @@ const InactiveManagement = () => {
                               <div className="px-6 py-4">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-4 flex-1">
-                                  <div className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${getStatusColor(participant.inactivity_status)}`}>
-                                    {getStatusIcon(participant.inactivity_status)}
-                                    <span>{getStatusLabel(participant.inactivity_status)}</span>
+                                  <div className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${getStatusColor(getDisplayStatus(participant))}`}>
+                                    {getStatusIcon(getDisplayStatus(participant))}
+                                    <span>{getStatusLabel(getDisplayStatus(participant))}</span>
+                                    {participant.has_active_snooze && participant.snooze_until && (
+                                      <span className="ml-0.5">{new Date(participant.snooze_until).toLocaleDateString('fr-FR')}</span>
+                                    )}
                                   </div>
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
@@ -1483,18 +1518,6 @@ const InactiveManagement = () => {
                                       <span className="text-sm text-gray-500">
                                         ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                                       </span>
-                                      {participant.has_active_snooze && (
-                                        <span className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                                          <AlarmClock size={10} />
-                                          {t('inactiveManagement.interventions.snoozeActive')} {new Date(participant.snooze_until).toLocaleDateString('fr-FR')}
-                                        </span>
-                                      )}
-                                      {participant.is_dismissed && (
-                                        <span className="flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-                                          <Ban size={10} />
-                                          {t('inactiveManagement.interventions.dismiss')}
-                                        </span>
-                                      )}
                                     </div>
                                     <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                                       <span className="flex items-center gap-1">
@@ -1613,9 +1636,12 @@ const InactiveManagement = () => {
                       <div className="px-6 py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 flex-1">
-                          <div className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${getStatusColor(participant.inactivity_status)}`}>
-                            {getStatusIcon(participant.inactivity_status)}
-                            <span>{getStatusLabel(participant.inactivity_status)}</span>
+                          <div className={`px-3 py-1 rounded-full text-xs font-medium border flex items-center gap-1 ${getStatusColor(getDisplayStatus(participant))}`}>
+                            {getStatusIcon(getDisplayStatus(participant))}
+                            <span>{getStatusLabel(getDisplayStatus(participant))}</span>
+                            {participant.has_active_snooze && participant.snooze_until && (
+                              <span className="ml-0.5">{new Date(participant.snooze_until).toLocaleDateString('fr-FR')}</span>
+                            )}
                           </div>
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
@@ -1640,18 +1666,6 @@ const InactiveManagement = () => {
                               <span className="text-sm text-gray-500">
                                 ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                               </span>
-                              {participant.has_active_snooze && (
-                                <span className="flex items-center gap-1 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                                  <AlarmClock size={10} />
-                                  {t('inactiveManagement.interventions.snoozeActive')} {new Date(participant.snooze_until).toLocaleDateString('fr-FR')}
-                                </span>
-                              )}
-                              {participant.is_dismissed && (
-                                <span className="flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-                                  <Ban size={10} />
-                                  {t('inactiveManagement.interventions.dismiss')}
-                                </span>
-                              )}
                             </div>
                             <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
                               <span className="flex items-center gap-1">
