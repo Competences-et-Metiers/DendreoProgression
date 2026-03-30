@@ -53,7 +53,7 @@ const Settings = () => {
                   {isDark ? <Moon size={18} /> : <Sun size={18} />}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{t('settings.appearance.theme')}</p>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{t('settings.appearance.theme')} <span className="text-[10px] text-gray-400 dark:text-gray-500">(Beta)</span></p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.appearance.themeDesc')}</p>
                 </div>
               </div>
