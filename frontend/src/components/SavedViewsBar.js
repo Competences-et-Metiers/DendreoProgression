@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '../services/api';
 import { queryKeys } from '../queryClient';
-import { Bookmark, Plus, X, Check, Loader2, Save } from 'lucide-react';
+import { Bookmark, Plus, X, Check, Loader2, Save, Trash2 } from 'lucide-react';
 
 const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
   const { t } = useTranslation();
@@ -11,6 +11,9 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
   const [showNameInput, setShowNameInput] = useState(false);
   const [viewName, setViewName] = useState('');
   const [activeViewId, setActiveViewId] = useState(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const savedFiltersRef = useRef(null);
 
   const { data: views = [], isLoading } = useQuery({
     queryKey: queryKeys.savedViews,
@@ -20,6 +23,14 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
     refetchOnWindowFocus: false,
   });
 
+  // Track filter changes to detect dirty state
+  useEffect(() => {
+    if (!activeViewId || !savedFiltersRef.current) return;
+    const currentFilters = getCurrentFilters();
+    const changed = JSON.stringify(currentFilters) !== JSON.stringify(savedFiltersRef.current);
+    setIsDirty(changed);
+  });
+
   const createMutation = useMutation({
     mutationFn: ({ name, filterConfig }) => apiService.createSavedView(name, filterConfig),
     onSuccess: (newView) => {
@@ -27,6 +38,8 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
       setShowNameInput(false);
       setViewName('');
       setActiveViewId(newView.id);
+      savedFiltersRef.current = getCurrentFilters();
+      setIsDirty(false);
     },
   });
 
@@ -34,6 +47,8 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
     mutationFn: ({ viewId, name, filterConfig }) => apiService.updateSavedView(viewId, name, filterConfig),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.savedViews });
+      savedFiltersRef.current = getCurrentFilters();
+      setIsDirty(false);
     },
   });
 
@@ -41,7 +56,12 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
     mutationFn: (viewId) => apiService.deleteSavedView(viewId),
     onSuccess: (_, deletedId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.savedViews });
-      if (activeViewId === deletedId) setActiveViewId(null);
+      if (activeViewId === deletedId) {
+        setActiveViewId(null);
+        savedFiltersRef.current = null;
+        setIsDirty(false);
+      }
+      setConfirmDeleteId(null);
     },
   });
 
@@ -58,12 +78,25 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
 
   const handleLoad = (view) => {
     setActiveViewId(view.id);
+    savedFiltersRef.current = view.filter_config;
+    setIsDirty(false);
+    setConfirmDeleteId(null);
     onLoadView(view.filter_config);
   };
 
-  const handleDelete = (e, viewId) => {
+  const handleDeleteClick = (e, viewId) => {
+    e.stopPropagation();
+    setConfirmDeleteId(prev => prev === viewId ? null : viewId);
+  };
+
+  const handleDeleteConfirm = (e, viewId) => {
     e.stopPropagation();
     deleteMutation.mutate(viewId);
+  };
+
+  const handleDeleteCancel = (e) => {
+    e.stopPropagation();
+    setConfirmDeleteId(null);
   };
 
   return (
@@ -73,32 +106,56 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
       {isLoading && <Loader2 size={14} className="animate-spin text-gray-400" />}
 
       {views.map((view) => (
-        <button
-          key={view.id}
-          onClick={() => handleLoad(view)}
-          className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-            activeViewId === view.id
-              ? 'bg-blue-100 text-blue-700 border border-blue-300'
-              : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
-          }`}
-        >
-          {view.name}
-          {activeViewId === view.id && (
-            <span
-              onClick={(e) => handleUpdate(e, view)}
-              className="ml-0.5 hover:text-blue-800 cursor-pointer"
-              title={t('savedViews.update')}
-            >
-              {updateMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-            </span>
-          )}
-          <span
-            onClick={(e) => handleDelete(e, view.id)}
-            className={`${activeViewId === view.id ? '' : 'opacity-0 group-hover:opacity-100'} transition-opacity ml-0.5 hover:text-red-500 cursor-pointer`}
+        <div key={view.id} className="relative">
+          <button
+            onClick={() => handleLoad(view)}
+            className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              activeViewId === view.id
+                ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+            }`}
           >
-            <X size={12} />
-          </span>
-        </button>
+            {view.name}
+            {activeViewId === view.id && isDirty && (
+              <span
+                onClick={(e) => handleUpdate(e, view)}
+                className="ml-0.5 cursor-pointer text-blue-500 hover:text-green-600 transition-colors"
+                title={t('savedViews.update')}
+              >
+                {updateMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+              </span>
+            )}
+            <span
+              onClick={(e) => handleDeleteClick(e, view.id)}
+              className={`${activeViewId === view.id ? '' : 'opacity-0 group-hover:opacity-100'} transition-all ml-0.5 hover:text-red-500 cursor-pointer`}
+            >
+              <Trash2 size={12} />
+            </span>
+          </button>
+
+          {/* Delete confirmation popover */}
+          {confirmDeleteId === view.id && (
+            <div className="absolute top-full left-0 mt-1.5 z-20 bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[180px]">
+              <p className="text-xs text-gray-600 mb-2">{t('savedViews.deleteConfirm')}</p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => handleDeleteConfirm(e, view.id)}
+                  disabled={deleteMutation.isPending}
+                  className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {deleteMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                  {t('savedViews.deleteYes')}
+                </button>
+                <button
+                  onClick={handleDeleteCancel}
+                  className="px-2.5 py-1 text-xs font-medium rounded bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
+                >
+                  {t('savedViews.deleteNo')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       ))}
 
       {showNameInput ? (
