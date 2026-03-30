@@ -352,10 +352,12 @@ const InterventionPanel = ({ participant }) => {
 
         <button
           onClick={handleSnoozeToggle}
+          disabled={participant.has_active_snooze}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            participant.has_active_snooze ? 'opacity-40 cursor-not-allowed bg-amber-50 text-amber-700' :
             showSnoozeForm ? 'bg-amber-200 text-amber-800' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
           }`}
-          title={t('inactiveManagement.interventions.snoozeTooltip')}
+          title={participant.has_active_snooze ? t('inactiveManagement.interventions.snoozeActive') : t('inactiveManagement.interventions.snoozeTooltip')}
         >
           <AlarmClock size={13} />
           {t('inactiveManagement.interventions.snooze')}
@@ -383,10 +385,12 @@ const InterventionPanel = ({ participant }) => {
 
         <button
           onClick={handleDismissToggle}
+          disabled={participant.is_dismissed}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            participant.is_dismissed ? 'opacity-40 cursor-not-allowed bg-red-50 text-red-700' :
             showDismissConfirm ? 'bg-red-200 text-red-800' : 'bg-red-50 text-red-700 hover:bg-red-100'
           }`}
-          title={t('inactiveManagement.interventions.dismissTooltip')}
+          title={participant.is_dismissed ? t('inactiveManagement.interventions.dismiss') : t('inactiveManagement.interventions.dismissTooltip')}
         >
           <Ban size={13} />
           {t('inactiveManagement.interventions.dismiss')}
