@@ -139,6 +139,12 @@ const InactiveManagement = () => {
     return cached ? JSON.parse(cached) : false;
   });
 
+  // Show/hide intervention counters (snoozed/dismissed stat cards) — toggled from Settings page
+  const showInterventionCounters = useMemo(() => {
+    const cached = localStorage.getItem('inactiveManagement.showInterventionCounters');
+    return cached ? JSON.parse(cached) : false;
+  }, []);
+
   // Intervention expand state
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
 
@@ -337,7 +343,7 @@ const InactiveManagement = () => {
   // Consolidated filtering: single useMemo produces stats, flat list, and grouped list
   const { filteredStats, filteredParticipantsFlat, filteredCourseGroups } = useMemo(() => {
     const emptyResult = {
-      filteredStats: { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0 },
+      filteredStats: { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0, snoozed: 0, dismissed: 0 },
       filteredParticipantsFlat: [],
       filteredCourseGroups: [],
     };
@@ -447,10 +453,16 @@ const InactiveManagement = () => {
     // Base filter once for stats + flat view
     const baseFiltered = applyBaseFilters(allParticipants);
 
-    // Stats: single loop instead of 4 separate .filter() calls
-    const stats = { total: baseFiltered.length, active: 0, at_risk: 0, inactive: 0, never_started: 0 };
+    // Stats: single loop — snoozed/dismissed get own counters, not counted toward underlying status
+    const stats = { total: baseFiltered.length, active: 0, at_risk: 0, inactive: 0, never_started: 0, snoozed: 0, dismissed: 0 };
     for (const p of baseFiltered) {
-      if (p.inactivity_status in stats) stats[p.inactivity_status]++;
+      if (p.is_dismissed) {
+        stats.dismissed++;
+      } else if (p.has_active_snooze) {
+        stats.snoozed++;
+      } else if (p.inactivity_status in stats) {
+        stats[p.inactivity_status]++;
+      }
     }
 
     // Flat view: apply status + sort to already-filtered list
@@ -907,6 +919,23 @@ const InactiveManagement = () => {
                 <Ban size={12} />
                 {t('inactiveManagement.status.dismissed')}
               </label>
+
+              {/* Select / Deselect all */}
+              <button
+                onClick={() => {
+                  const allOn = statusFilter.active && statusFilter.at_risk && statusFilter.inactive && statusFilter.never_started && statusFilter.snoozed && statusFilter.dismissed;
+                  setStatusFilter(allOn
+                    ? { active: false, at_risk: false, inactive: false, never_started: false, snoozed: false, dismissed: false }
+                    : { active: true, at_risk: true, inactive: true, never_started: true, snoozed: true, dismissed: true }
+                  );
+                }}
+                className="px-2.5 py-1.5 rounded-full border border-gray-200 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                {statusFilter.active && statusFilter.at_risk && statusFilter.inactive && statusFilter.never_started && statusFilter.snoozed && statusFilter.dismissed
+                  ? t('inactiveManagement.statusFilter.deselectAll')
+                  : t('inactiveManagement.statusFilter.selectAll')
+                }
+              </button>
             </div>
 
             {/* Divider */}
@@ -1279,7 +1308,7 @@ const InactiveManagement = () => {
         {/* Statistics Cards */}
         {data && !isLoading && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-6">
+            <div className={showInterventionCounters ? "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6" : "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6"}>
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1341,6 +1370,35 @@ const InactiveManagement = () => {
                   </div>
                 </div>
               </div>
+
+              {showInterventionCounters && (
+                <>
+                  <div className="bg-white rounded-lg border border-amber-200 p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-amber-700">{t('inactiveManagement.stats.snoozed')}</p>
+                        <p className="text-3xl font-bold text-amber-900 mt-2">{filteredStats.snoozed}</p>
+                      </div>
+                      <div className="p-3 bg-amber-100 rounded-lg">
+                        <AlarmClock size={24} className="text-amber-600" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-lg border border-gray-300 p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-600">{t('inactiveManagement.stats.dismissed')}</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-2">{filteredStats.dismissed}</p>
+                      </div>
+                      <div className="p-3 bg-gray-100 rounded-lg">
+                        <Ban size={24} className="text-gray-500" />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
             </div>
 
             {/* Page Size Selector + Progression Range + Count */}
