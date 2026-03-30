@@ -12,6 +12,11 @@ body {
   background-color: #f8fafc;
 }
 
+.dark body,
+body.dark-body {
+  background-color: #0f172a;
+}
+
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
@@ -35,6 +40,19 @@ code {
   background: #94a3b8;
 }
 
+/* Dark scrollbar */
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
 /* Progress bar animation */
 .progress-bar {
   transition: width 0.3s ease-in-out;
@@ -48,4 +66,8 @@ code {
 .card-hover:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.1);
-} 
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 8px 25px -8px rgba(0, 0, 0, 0.4);
+}

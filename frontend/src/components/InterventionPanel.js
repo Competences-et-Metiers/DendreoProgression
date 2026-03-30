@@ -337,13 +337,13 @@ const InterventionPanel = ({ participant }) => {
   ];
 
   return (
-    <div className="bg-gray-50 border-t border-gray-200 px-6 py-4">
+    <div className="bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 px-6 py-4">
       {/* Action Buttons */}
       <div className="flex items-center gap-2 mb-4">
         <button
           onClick={handleCall}
           disabled={!participant.email || hubspotLoading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title={t('inactiveManagement.interventions.callTooltip')}
         >
           {hubspotLoading ? <Loader2 size={13} className="animate-spin" /> : <Phone size={13} />}
@@ -354,8 +354,8 @@ const InterventionPanel = ({ participant }) => {
           onClick={handleSnoozeToggle}
           disabled={participant.has_active_snooze}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            participant.has_active_snooze ? 'opacity-40 cursor-not-allowed bg-amber-50 text-amber-700' :
-            showSnoozeForm ? 'bg-amber-200 text-amber-800' : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+            participant.has_active_snooze ? 'opacity-40 cursor-not-allowed bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' :
+            showSnoozeForm ? 'bg-amber-200 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30'
           }`}
           title={participant.has_active_snooze ? t('inactiveManagement.interventions.snoozeActive') : t('inactiveManagement.interventions.snoozeTooltip')}
         >
@@ -366,7 +366,7 @@ const InterventionPanel = ({ participant }) => {
         <button
           onClick={handleEmail}
           disabled={!participant.email}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-purple-50 text-purple-700 hover:bg-purple-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           title={t('inactiveManagement.interventions.emailTooltip')}
         >
           <Mail size={13} />
@@ -376,7 +376,7 @@ const InterventionPanel = ({ participant }) => {
         <button
           onClick={handleNoteToggle}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            showNoteInput ? 'bg-green-200 text-green-800' : 'bg-green-50 text-green-700 hover:bg-green-100'
+            showNoteInput ? 'bg-green-200 dark:bg-green-900/40 text-green-800 dark:text-green-300' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
           }`}
         >
           <MessageSquare size={13} />
@@ -387,8 +387,8 @@ const InterventionPanel = ({ participant }) => {
           onClick={handleDismissToggle}
           disabled={participant.is_dismissed}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            participant.is_dismissed ? 'opacity-40 cursor-not-allowed bg-red-50 text-red-700' :
-            showDismissConfirm ? 'bg-red-200 text-red-800' : 'bg-red-50 text-red-700 hover:bg-red-100'
+            participant.is_dismissed ? 'opacity-40 cursor-not-allowed bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' :
+            showDismissConfirm ? 'bg-red-200 dark:bg-red-900/40 text-red-800 dark:text-red-300' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
           }`}
           title={participant.is_dismissed ? t('inactiveManagement.interventions.dismiss') : t('inactiveManagement.interventions.dismissTooltip')}
         >
@@ -399,8 +399,8 @@ const InterventionPanel = ({ participant }) => {
 
       {/* Call Confirmation */}
       {showCallConfirm && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs text-blue-700 mb-2">
+        <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-xs text-blue-700 dark:text-blue-400 mb-2">
             {t('inactiveManagement.interventions.callConfirmMessage')}
           </p>
           <div className="flex items-center gap-2">
@@ -413,7 +413,7 @@ const InterventionPanel = ({ participant }) => {
             </button>
             <button
               onClick={handleCallConfirmNo}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors"
             >
               <X size={12} />
               {t('common.no')}
@@ -424,8 +424,8 @@ const InterventionPanel = ({ participant }) => {
 
       {/* Email Confirmation */}
       {showEmailConfirm && (
-        <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-          <p className="text-xs text-purple-700 mb-2">
+        <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+          <p className="text-xs text-purple-700 dark:text-purple-400 mb-2">
             {t('inactiveManagement.interventions.emailConfirmMessage')}
           </p>
           <div className="flex items-center gap-2">
@@ -439,7 +439,7 @@ const InterventionPanel = ({ participant }) => {
             </button>
             <button
               onClick={handleEmailConfirmNo}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors"
             >
               <X size={12} />
               {t('common.no')}
@@ -450,9 +450,9 @@ const InterventionPanel = ({ participant }) => {
 
       {/* Snooze Form */}
       {showSnoozeForm && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
           <div className="flex items-center gap-3 mb-2">
-            <label className="text-xs font-medium text-amber-800">
+            <label className="text-xs font-medium text-amber-800 dark:text-amber-300">
               {t('inactiveManagement.interventions.snoozeDays')}
             </label>
             <input
@@ -461,14 +461,14 @@ const InterventionPanel = ({ participant }) => {
               max={90}
               value={snoozeDays}
               onChange={(e) => setSnoozeDays(Math.max(1, Math.min(90, parseInt(e.target.value) || 1)))}
-              className="w-16 px-2 py-1 text-xs border border-amber-300 rounded focus:ring-1 focus:ring-amber-400 focus:border-amber-400"
+              className="w-16 px-2 py-1 text-xs border border-amber-300 rounded focus:ring-1 focus:ring-amber-400 focus:border-amber-400 dark:bg-slate-700 dark:text-white dark:border-slate-600"
             />
           </div>
           <textarea
             value={snoozeReason}
             onChange={(e) => setSnoozeReason(e.target.value)}
             placeholder={t('inactiveManagement.interventions.snoozePlaceholder')}
-            className="w-full px-3 py-2 text-xs border border-amber-300 rounded resize-none focus:ring-1 focus:ring-amber-400 focus:border-amber-400"
+            className="w-full px-3 py-2 text-xs border border-amber-300 rounded resize-none focus:ring-1 focus:ring-amber-400 focus:border-amber-400 dark:bg-slate-700 dark:text-white dark:border-slate-600"
             rows={2}
           />
           <div className="flex items-center gap-2 mt-2">
@@ -482,7 +482,7 @@ const InterventionPanel = ({ participant }) => {
             </button>
             <button
               onClick={() => setShowSnoozeForm(false)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors"
             >
               <X size={12} />
             </button>
@@ -492,12 +492,12 @@ const InterventionPanel = ({ participant }) => {
 
       {/* Note Input */}
       {showNoteInput && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div className="mb-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             placeholder={t('inactiveManagement.interventions.notePlaceholder')}
-            className="w-full px-3 py-2 text-xs border border-green-300 rounded resize-none focus:ring-1 focus:ring-green-400 focus:border-green-400"
+            className="w-full px-3 py-2 text-xs border border-green-300 rounded resize-none focus:ring-1 focus:ring-green-400 focus:border-green-400 dark:bg-slate-700 dark:text-white dark:border-slate-600"
             rows={2}
             autoFocus
           />
@@ -512,7 +512,7 @@ const InterventionPanel = ({ participant }) => {
             </button>
             <button
               onClick={() => { setShowNoteInput(false); setNoteText(''); }}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors"
             >
               <X size={12} />
             </button>
@@ -522,8 +522,8 @@ const InterventionPanel = ({ participant }) => {
 
       {/* Dismiss Confirmation */}
       {showDismissConfirm && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-xs text-red-700 mb-2">
+        <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-xs text-red-700 dark:text-red-400 mb-2">
             {t('inactiveManagement.interventions.dismissWarning')}
           </p>
           <div className="flex items-center gap-2">
@@ -537,7 +537,7 @@ const InterventionPanel = ({ participant }) => {
             </button>
             <button
               onClick={() => setShowDismissConfirm(false)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 text-gray-600 hover:bg-gray-300 transition-colors"
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded bg-gray-200 dark:bg-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-slate-500 transition-colors"
             >
               <X size={12} />
             </button>
@@ -546,9 +546,9 @@ const InterventionPanel = ({ participant }) => {
       )}
 
       {/* Timeline */}
-      <div className="border-t border-gray-200 pt-3">
+      <div className="border-t border-gray-200 dark:border-slate-700 pt-3">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+          <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
             {t('inactiveManagement.interventions.timeline')}
           </h4>
         </div>
@@ -565,13 +565,13 @@ const InterventionPanel = ({ participant }) => {
                 onClick={() => { setTimelineFilter(key); setShowAllEntries(false); }}
                 className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-full transition-colors ${
                   isActive
-                    ? 'bg-gray-700 text-white'
-                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    ? 'bg-gray-700 dark:bg-slate-600 text-white'
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600'
                 }`}
               >
                 {icon}
                 {label}
-                <span className={`ml-0.5 ${isActive ? 'text-gray-300' : 'text-gray-400'}`}>
+                <span className={`ml-0.5 ${isActive ? 'text-gray-300 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
                   {count}
                 </span>
               </button>
@@ -584,7 +584,7 @@ const InterventionPanel = ({ participant }) => {
             <Loader2 size={16} className="animate-spin text-gray-400" />
           </div>
         ) : filteredEntries.length === 0 ? (
-          <p className="text-xs text-gray-400 py-2">
+          <p className="text-xs text-gray-400 dark:text-gray-500 py-2">
             {t('inactiveManagement.interventions.noEntries')}
           </p>
         ) : (
@@ -593,7 +593,7 @@ const InterventionPanel = ({ participant }) => {
               {visibleEntries.map((entry, idx) => (
                 <div
                   key={`${entry.source}-${entry.hubspot_id || entry.intervention_id || idx}`}
-                  className={`flex gap-2.5 py-2 ${idx < visibleEntries.length - 1 ? 'border-b border-gray-100' : ''} ${
+                  className={`flex gap-2.5 py-2 ${idx < visibleEntries.length - 1 ? 'border-b border-gray-100 dark:border-slate-700' : ''} ${
                     entry.is_active === false ? 'opacity-40' : ''
                   }`}
                 >
@@ -603,27 +603,27 @@ const InterventionPanel = ({ participant }) => {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="font-medium text-gray-700">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">
                         {getEntryLabel(entry)}
                       </span>
                       {entry.user_display_name && (
-                        <span className="text-gray-400">
+                        <span className="text-gray-400 dark:text-gray-500">
                           {entry.user_display_name}
                         </span>
                       )}
                       {entry.hubspot_owner_name && (
-                        <span className="text-gray-400">
+                        <span className="text-gray-400 dark:text-gray-500">
                           {entry.hubspot_owner_name}
                         </span>
                       )}
-                      <span className="text-gray-300 text-[10px]">
+                      <span className="text-gray-300 dark:text-gray-500 text-[10px]">
                         {formatTimestamp(entry.timestamp)}
                       </span>
                     </div>
 
                     {/* Body */}
                     {getEntryBody(entry) && (
-                      <p className="text-xs text-gray-600 mt-0.5 line-clamp-3 whitespace-pre-line">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-3 whitespace-pre-line">
                         {getEntryBody(entry)}
                       </p>
                     )}
@@ -639,7 +639,7 @@ const InterventionPanel = ({ participant }) => {
                           src={getProxyRecordingUrl(entry.call_recording_url)}
                         />
                         {entry.call_duration && (
-                          <span className="text-[10px] text-gray-400">
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">
                             {formatCallDuration(entry.call_duration)}
                           </span>
                         )}
@@ -664,7 +664,7 @@ const InterventionPanel = ({ participant }) => {
                         <button
                           onClick={() => handleCancelIntervention(entry.intervention_id)}
                           disabled={cancelIntervention.isPending}
-                          className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                          className="p-1 text-gray-400 dark:text-gray-500 hover:text-red-500 transition-colors"
                           title={
                             entry.intervention_type === 'snooze'
                               ? t('inactiveManagement.interventions.cancelSnooze')
@@ -679,7 +679,7 @@ const InterventionPanel = ({ participant }) => {
                       <button
                         onClick={() => handleDeleteEntry(entry)}
                         disabled={deleteIntervention.isPending || deleteHubspotNote.isPending}
-                        className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                        className="p-1 text-gray-300 dark:text-gray-500 hover:text-red-500 transition-colors"
                         title={t('inactiveManagement.interventions.deleteNote')}
                       >
                         <Trash2 size={12} />
@@ -694,7 +694,7 @@ const InterventionPanel = ({ participant }) => {
             {hasMore && (
               <button
                 onClick={() => setShowAllEntries(!showAllEntries)}
-                className="flex items-center gap-1 mt-2 text-[10px] text-gray-400 hover:text-gray-600 transition-colors"
+                className="flex items-center gap-1 mt-2 text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 {showAllEntries ? (
                   <>
