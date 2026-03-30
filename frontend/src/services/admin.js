@@ -100,7 +100,6 @@ export const adminService = {
     const response = await api.post('/admin/sync/categories');
     return response.data;
   },
-};
 
   // ─── Admin Interventions ───
 
