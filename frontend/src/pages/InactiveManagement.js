@@ -453,15 +453,20 @@ const InactiveManagement = () => {
     // Base filter once for stats + flat view
     const baseFiltered = applyBaseFilters(allParticipants);
 
-    // Stats: single loop — snoozed/dismissed get own counters, not counted toward underlying status
-    const stats = { total: baseFiltered.length, active: 0, at_risk: 0, inactive: 0, never_started: 0, snoozed: 0, dismissed: 0 };
+    // Stats: count per display-status, but only include statuses whose filter is active
+    const stats = { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0, snoozed: 0, dismissed: 0 };
     for (const p of baseFiltered) {
+      let key;
       if (p.is_dismissed) {
-        stats.dismissed++;
+        key = 'dismissed';
       } else if (p.has_active_snooze) {
-        stats.snoozed++;
-      } else if (p.inactivity_status in stats) {
-        stats[p.inactivity_status]++;
+        key = 'snoozed';
+      } else {
+        key = p.inactivity_status;
+      }
+      if (key in stats) {
+        stats[key]++;
+        if (statusFilter[key]) stats.total++;
       }
     }
 
