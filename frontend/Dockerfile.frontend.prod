@@ -22,6 +22,8 @@ COPY . .
 ENV NODE_ENV=production
 ENV GENERATE_SOURCEMAP=false
 ENV SKIP_PREFLIGHT_CHECK=true
+# Cap Node.js heap to avoid OOM on memory-constrained hosts
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 # Force API URL to be relative (this will be passed from docker-compose)
 ARG REACT_APP_API_URL=/api
 ENV REACT_APP_API_URL=${REACT_APP_API_URL}
