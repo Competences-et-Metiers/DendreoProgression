@@ -214,7 +214,7 @@ deploy() {
     log_info "Build date: $BUILD_DATE"
     log_info "Build version: $BUILD_VERSION"
     
-    # Build services with cache for faster builds
+    # Build services in parallel (NODE_OPTIONS caps webpack heap to prevent OOM)
     if [[ -n "$build_args" ]]; then
         log_info "Building services with $build_args..."
         docker compose -f docker-compose.prod.yml build $build_args
@@ -541,7 +541,12 @@ main() {
     prepare_sync_scripts
     configure_nginx_ssl
     create_backup
-    clean_docker_cache
+
+    # Only clean Docker cache when explicitly requested (preserves layer cache for faster, lighter builds)
+    if [[ "$FORCE_REBUILD" == "true" ]] || [[ "$1" == "--force-rebuild" ]]; then
+        clean_docker_cache
+    fi
+
     deploy "$@"
     show_status
 }
