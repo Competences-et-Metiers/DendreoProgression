@@ -453,7 +453,7 @@ const InactiveManagement = () => {
     // Base filter once for stats + flat view
     const baseFiltered = applyBaseFilters(allParticipants);
 
-    // Stats: count per display-status, but only include statuses whose filter is active
+    // Stats: only count participants whose status filter is active
     const stats = { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0, snoozed: 0, dismissed: 0 };
     for (const p of baseFiltered) {
       let key;
@@ -464,9 +464,9 @@ const InactiveManagement = () => {
       } else {
         key = p.inactivity_status;
       }
-      if (key in stats) {
+      if (key in stats && statusFilter[key]) {
         stats[key]++;
-        if (statusFilter[key]) stats.total++;
+        stats.total++;
       }
     }
 
