@@ -49,6 +49,8 @@ class Course(Base):
     total_modules = Column(Integer, default=0)  # Total number of e-learning modules
     planned_duration_hours = Column(Float, default=0.0)  # Planned duration in hours from duree_heures
     formateurs = Column(JSON, nullable=True)  # Array of formateur data from ADF
+    date_debut = Column(DateTime(timezone=True), nullable=True)  # Module start date from ADF
+    date_fin = Column(DateTime(timezone=True), nullable=True)  # Module end date from ADF
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

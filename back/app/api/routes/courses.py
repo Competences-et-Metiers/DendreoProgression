@@ -373,8 +373,14 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                     Module.id_lam.in_(lam_ids_modules),
                     Module.participant_id == participant.id
                 ).all()
+                # Build date lookup from Course by id_lam
+                course_dates = {c.id_lam: c for c in db.query(Course).filter(
+                    Course.id_action_formation == course.id_action_formation,
+                    Course.id_lam.in_(lam_ids_modules)
+                ).all()}
             else:
                 modules = []
+                course_dates = {}
             
             # Calculate progression: average of all module progressions
             if modules:
@@ -445,7 +451,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                     "c_id_transaction_hubspot": hubspot_data.c_id_transaction_hubspot if hubspot_data else None,
                     "id_lap": hubspot_data.id_lap if hubspot_data else None
                 } if hubspot_data else None,
-                "modules": [
+                "modules": sorted([
                     {
                         "id": module.id,
                         "id_lmp": module.id_lmp,
@@ -456,11 +462,13 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                         "mode_organisation": module.mode_organisation,
                         "time_spent": module.lms_time_spent,
                         "started_at": module.lms_started_at.isoformat() if module.lms_started_at else None,
-                        "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None
+                        "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None,
+                        "date_debut": course_dates.get(module.id_lam, course).date_debut.isoformat() if course_dates.get(module.id_lam, course).date_debut else None,
+                        "date_fin": course_dates.get(module.id_lam, course).date_fin.isoformat() if course_dates.get(module.id_lam, course).date_fin else None
                     } for module in modules
-                ]
+                ], key=lambda m: m["date_debut"] or "9999")
             })
-        
+
         # Sort participants by progression (descending)
         participants_data.sort(key=lambda x: x["overall_progression"], reverse=True)
         
@@ -544,8 +552,14 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                     Module.id_lam.in_(lam_ids_details),
                     Module.participant_id == participant.id
                 ).all()
+                # Build date lookup from Course by id_lam
+                course_dates_detail = {c.id_lam: c for c in db.query(Course).filter(
+                    Course.id_action_formation == adf_id,
+                    Course.id_lam.in_(lam_ids_details)
+                ).all()}
             else:
                 modules = []
+                course_dates_detail = {}
             
             completed_modules = sum(1 for module in modules if module.lms_progression >= 100)
             
@@ -596,7 +610,7 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                     "deal_id": hubspot_deal_data.c_id_transaction_hubspot,
                     "deal_url": hubspot_deal_data.c_url_transaction_hubspot,
                 } if hubspot_deal_data and hubspot_deal_data.c_id_transaction_hubspot else None,
-                "modules": [
+                "modules": sorted([
                     {
                         "id": module.id,
                         "id_lmp": module.id_lmp,
@@ -607,9 +621,11 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                         "mode_organisation": module.mode_organisation,
                         "time_spent": module.lms_time_spent,
                         "started_at": module.lms_started_at.isoformat() if module.lms_started_at else None,
-                        "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None
+                        "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None,
+                        "date_debut": course_dates_detail.get(module.id_lam, course).date_debut.isoformat() if course_dates_detail.get(module.id_lam, course).date_debut else None,
+                        "date_fin": course_dates_detail.get(module.id_lam, course).date_fin.isoformat() if course_dates_detail.get(module.id_lam, course).date_fin else None
                     } for module in modules
-                ]
+                ], key=lambda m: m["date_debut"] or "9999")
             })
         
         result = {
