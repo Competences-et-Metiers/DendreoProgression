@@ -63,6 +63,32 @@ def _resolve_last_activity(last_elearning, last_liveroom):
         return last_liveroom, "classe_virtuelle"
     return None, None
 
+
+def _get_liveroom_progression(db: Session, participant_id: int, adf_id: str, id_lam: str) -> Optional[float]:
+    """Compute liveroom progression for a module: (attended sessions / total sessions) * 100.
+    Returns None if there are no creneaux for this module."""
+    creneaux = (
+        db.query(Creneau.id)
+        .filter(
+            Creneau.id_action_formation == adf_id,
+            Creneau.id_lam == id_lam
+        )
+        .all()
+    )
+    total = len(creneaux)
+    if total == 0:
+        return None
+
+    creneau_ids = [c.id for c in creneaux]
+    attended = db.query(CreneauParticipant).filter(
+        CreneauParticipant.creneau_id.in_(creneau_ids),
+        CreneauParticipant.participant_id == participant_id,
+        CreneauParticipant.presence == "1"
+    ).count()
+
+    return round((attended / total) * 100, 2)
+
+
 @router.get("/stats")
 async def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get overall dashboard statistics"""
@@ -382,20 +408,46 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 modules = []
                 course_dates = {}
             
-            # Calculate progression: average of all module progressions
-            if modules:
-                total_progression = sum(module.lms_progression for module in modules)
-                calculated_progression = total_progression / len(modules)
+            # Build module data with liveroom-based progression for sync/mixte modules
+            modules_data = []
+            for module in modules:
+                mode = module.mode_organisation or ''
+                if mode in ('elearning_sync', 'mixte'):
+                    liveroom_prog = _get_liveroom_progression(db, participant.id, course.id_action_formation, module.id_lam)
+                    progression = liveroom_prog if liveroom_prog is not None else 0.0
+                else:
+                    progression = module.lms_progression
+
+                c_ref = course_dates.get(module.id_lam, course)
+                modules_data.append({
+                    "id": module.id,
+                    "id_lmp": module.id_lmp,
+                    "id_lam": module.id_lam,
+                    "intitule": module.intitule,
+                    "progression": progression,
+                    "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
+                    "mode_organisation": mode,
+                    "time_spent": module.lms_time_spent,
+                    "started_at": module.lms_started_at.isoformat() if module.lms_started_at else None,
+                    "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None,
+                    "date_debut": c_ref.date_debut.isoformat() if c_ref.date_debut else None,
+                    "date_fin": c_ref.date_fin.isoformat() if c_ref.date_fin else None
+                })
+            modules_data.sort(key=lambda m: m["date_debut"] or "9999")
+
+            # Calculate progression from resolved module progressions
+            if modules_data:
+                calculated_progression = sum(m["progression"] for m in modules_data) / len(modules_data)
             else:
                 calculated_progression = 0.0
 
             # Calculate completed modules (progression >= 100)
-            completed_modules = sum(1 for module in modules if module.lms_progression >= 100)
-            total_modules = len(modules)
-            
+            completed_modules = sum(1 for m in modules_data if m["progression"] >= 100)
+            total_modules = len(modules_data)
+
             # Calculate total time spent across all modules
             total_time_spent = sum(module.lms_time_spent or 0 for module in modules)
-            
+
             # Get earliest start and latest completion dates
             earliest_started_at = None
             latest_completed_at = None
@@ -406,7 +458,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                     earliest_started_at = min(start_dates).isoformat()
                 if completion_dates:
                     latest_completed_at = max(completion_dates).isoformat()
-            
+
             # Get last activity from e-learning modules
             last_elearning = None
             if modules:
@@ -434,7 +486,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "prenom": participant.prenom,
                 "email": participant.email,
                 "id_entreprise": participant.id_entreprise,
-                "overall_progression": round(calculated_progression, 2),  # Use calculated progression
+                "overall_progression": round(calculated_progression, 2),
                 "activity_status": pc.activity_status,
                 "date_add": pc.date_add.isoformat() if pc.date_add else None,
                 "last_activity": last_activity.isoformat() if last_activity else None,
@@ -451,22 +503,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                     "c_id_transaction_hubspot": hubspot_data.c_id_transaction_hubspot if hubspot_data else None,
                     "id_lap": hubspot_data.id_lap if hubspot_data else None
                 } if hubspot_data else None,
-                "modules": sorted([
-                    {
-                        "id": module.id,
-                        "id_lmp": module.id_lmp,
-                        "id_lam": module.id_lam,
-                        "intitule": module.intitule,
-                        "progression": module.lms_progression,
-                        "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
-                        "mode_organisation": module.mode_organisation,
-                        "time_spent": module.lms_time_spent,
-                        "started_at": module.lms_started_at.isoformat() if module.lms_started_at else None,
-                        "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None,
-                        "date_debut": course_dates.get(module.id_lam, course).date_debut.isoformat() if course_dates.get(module.id_lam, course).date_debut else None,
-                        "date_fin": course_dates.get(module.id_lam, course).date_fin.isoformat() if course_dates.get(module.id_lam, course).date_fin else None
-                    } for module in modules
-                ], key=lambda m: m["date_debut"] or "9999")
+                "modules": modules_data
             })
 
         # Sort participants by progression (descending)
@@ -561,15 +598,41 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                 modules = []
                 course_dates_detail = {}
             
-            completed_modules = sum(1 for module in modules if module.lms_progression >= 100)
-            
-            # Calculate real progression: average of all module progressions
-            if modules:
-                total_progression = sum(module.lms_progression for module in modules)
-                calculated_progression = total_progression / len(modules)
+            # Build module data with liveroom-based progression for sync/mixte modules
+            modules_data = []
+            for module in modules:
+                mode = module.mode_organisation or ''
+                if mode in ('elearning_sync', 'mixte'):
+                    liveroom_prog = _get_liveroom_progression(db, participant.id, adf_id, module.id_lam)
+                    progression = liveroom_prog if liveroom_prog is not None else 0.0
+                else:
+                    progression = module.lms_progression
+
+                c_ref = course_dates_detail.get(module.id_lam, course)
+                modules_data.append({
+                    "id": module.id,
+                    "id_lmp": module.id_lmp,
+                    "id_lam": module.id_lam,
+                    "intitule": module.intitule,
+                    "progression": progression,
+                    "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
+                    "mode_organisation": mode,
+                    "time_spent": module.lms_time_spent,
+                    "started_at": module.lms_started_at.isoformat() if module.lms_started_at else None,
+                    "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None,
+                    "date_debut": c_ref.date_debut.isoformat() if c_ref.date_debut else None,
+                    "date_fin": c_ref.date_fin.isoformat() if c_ref.date_fin else None
+                })
+            modules_data.sort(key=lambda m: m["date_debut"] or "9999")
+
+            # Calculate progression from resolved module progressions
+            if modules_data:
+                calculated_progression = sum(m["progression"] for m in modules_data) / len(modules_data)
             else:
                 calculated_progression = 0.0
-            
+
+            completed_modules = sum(1 for m in modules_data if m["progression"] >= 100)
+
             # Get last activity from e-learning modules
             last_elearning = None
             if modules:
@@ -603,29 +666,14 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                 "last_activity": last_activity.isoformat() if last_activity else None,
                 "last_activity_source": last_activity_source,
                 "completed_modules": completed_modules,
-                "total_modules": len(modules),
+                "total_modules": len(modules_data),
                 "total_time_spent": total_time_spent,
                 "planned_duration_hours": planned_duration_hours,
                 "hubspot_deal": {
                     "deal_id": hubspot_deal_data.c_id_transaction_hubspot,
                     "deal_url": hubspot_deal_data.c_url_transaction_hubspot,
                 } if hubspot_deal_data and hubspot_deal_data.c_id_transaction_hubspot else None,
-                "modules": sorted([
-                    {
-                        "id": module.id,
-                        "id_lmp": module.id_lmp,
-                        "id_lam": module.id_lam,
-                        "intitule": module.intitule,
-                        "progression": module.lms_progression,
-                        "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
-                        "mode_organisation": module.mode_organisation,
-                        "time_spent": module.lms_time_spent,
-                        "started_at": module.lms_started_at.isoformat() if module.lms_started_at else None,
-                        "completed_at": module.lms_completed_at.isoformat() if module.lms_completed_at else None,
-                        "date_debut": course_dates_detail.get(module.id_lam, course).date_debut.isoformat() if course_dates_detail.get(module.id_lam, course).date_debut else None,
-                        "date_fin": course_dates_detail.get(module.id_lam, course).date_fin.isoformat() if course_dates_detail.get(module.id_lam, course).date_fin else None
-                    } for module in modules
-                ], key=lambda m: m["date_debut"] or "9999")
+                "modules": modules_data
             })
         
         result = {

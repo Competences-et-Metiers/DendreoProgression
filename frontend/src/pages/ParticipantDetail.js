@@ -413,7 +413,7 @@ const ParticipantDetail = () => {
                                   className="mb-2"
                                 />
                                 <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                                  <span>{t('common.moduleMode')}: {module.mode_organisation}</span>
+                                  <span>{t('common.moduleMode')}: {module.mode_organisation === 'elearning_sync' ? 'Classe(s) Virtuelle(s)' : module.mode_organisation === 'elearning_async' ? 'E-Learning' : module.mode_organisation === 'mixte' ? 'Présentiel + Classe(s) Virtuelle(s)' : module.mode_organisation}</span>
                                   {(module.date_debut || module.date_fin) && (
                                     <span className="flex items-center">
                                       <Calendar size={10} className="inline mr-1" />
