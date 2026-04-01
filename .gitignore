@@ -111,6 +111,13 @@ dump.rdb
 # Backups (created by deploy-prod.sh)
 backups/
 
+# Secrets and credentials
+*.key
+*.pem
+*-sa.json
+*service-account*.json
+*dendreoprogression*.json
+
 # SSL certificates
 ssl/
 
