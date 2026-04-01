@@ -296,6 +296,24 @@ class DendreoSync:
                                     if existing:
                                         active_courses[lmp_id_lam] = existing
                                     else:
+                                        # Try to find date_debut/date_fin from ADF modules list
+                                        adf_module_dates = {}
+                                        for adf_mod in adf.get('modules', []):
+                                            if adf_mod.get('id_lam') == lmp_id_lam:
+                                                adf_module_dates = adf_mod
+                                                break
+                                        fb_date_debut = None
+                                        fb_date_fin = None
+                                        if adf_module_dates.get('date_debut', '').strip():
+                                            try:
+                                                fb_date_debut = datetime.strptime(adf_module_dates['date_debut'].strip(), '%Y-%m-%d %H:%M:%S')
+                                            except ValueError:
+                                                pass
+                                        if adf_module_dates.get('date_fin', '').strip():
+                                            try:
+                                                fb_date_fin = datetime.strptime(adf_module_dates['date_fin'].strip(), '%Y-%m-%d %H:%M:%S')
+                                            except ValueError:
+                                                pass
                                         new_course = Course(
                                             id_action_formation=id_adf,
                                             id_lam=lmp_id_lam,
@@ -303,6 +321,8 @@ class DendreoSync:
                                             status=adf.get('id_etape_process', '5'),
                                             categorie_module_id=adf.get('categorie_module_id') or None,
                                             total_modules=0,
+                                            date_debut=fb_date_debut,
+                                            date_fin=fb_date_fin,
                                         )
                                         self.db.add(new_course)
                                         self.db.flush()
@@ -567,6 +587,24 @@ class DendreoSync:
                                     if existing:
                                         active_courses[lmp_id_lam] = existing
                                     else:
+                                        # Try to find date_debut/date_fin from ADF modules list
+                                        adf_module_dates = {}
+                                        for adf_mod in target_adf.get('modules', []):
+                                            if adf_mod.get('id_lam') == lmp_id_lam:
+                                                adf_module_dates = adf_mod
+                                                break
+                                        fb_date_debut = None
+                                        fb_date_fin = None
+                                        if adf_module_dates.get('date_debut', '').strip():
+                                            try:
+                                                fb_date_debut = datetime.strptime(adf_module_dates['date_debut'].strip(), '%Y-%m-%d %H:%M:%S')
+                                            except ValueError:
+                                                pass
+                                        if adf_module_dates.get('date_fin', '').strip():
+                                            try:
+                                                fb_date_fin = datetime.strptime(adf_module_dates['date_fin'].strip(), '%Y-%m-%d %H:%M:%S')
+                                            except ValueError:
+                                                pass
                                         new_course = Course(
                                             id_action_formation=id_adf,
                                             id_lam=lmp_id_lam,
@@ -574,6 +612,8 @@ class DendreoSync:
                                             status=target_adf.get('id_etape_process', '5'),
                                             categorie_module_id=target_adf.get('categorie_module_id') or None,
                                             total_modules=0,
+                                            date_debut=fb_date_debut,
+                                            date_fin=fb_date_fin,
                                         )
                                         self.db.add(new_course)
                                         self.db.flush()
