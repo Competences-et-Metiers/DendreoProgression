@@ -762,6 +762,22 @@ class DendreoSync:
 
                 # Create or update course for this module
                 course = self.db.query(Course).filter(Course.id_action_formation == id_adf, Course.id_lam == id_lam).first()
+                # Parse module date_debut and date_fin
+                module_date_debut = None
+                module_date_fin = None
+                date_debut_raw = module.get('date_debut', '')
+                date_fin_raw = module.get('date_fin', '')
+                if date_debut_raw and date_debut_raw.strip():
+                    try:
+                        module_date_debut = datetime.strptime(date_debut_raw.strip(), '%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        logger.debug(f"Invalid date_debut format for module {id_lam} in ADF {id_adf}: {date_debut_raw}")
+                if date_fin_raw and date_fin_raw.strip():
+                    try:
+                        module_date_fin = datetime.strptime(date_fin_raw.strip(), '%Y-%m-%d %H:%M:%S')
+                    except ValueError:
+                        logger.debug(f"Invalid date_fin format for module {id_lam} in ADF {id_adf}: {date_fin_raw}")
+
                 if not course:
                     # Extract planned duration from module data (only for new courses)
                     planned_duration_hours = 0.0
@@ -780,7 +796,9 @@ class DendreoSync:
                         categorie_module_id=adf_categorie_module_id if adf_categorie_module_id else None,
                         total_modules=0,  # Will be updated when processing LMPs
                         planned_duration_hours=planned_duration_hours,
-                        formateurs=formateurs if formateurs else None
+                        formateurs=formateurs if formateurs else None,
+                        date_debut=module_date_debut,
+                        date_fin=module_date_fin
                     )
                     self.db.add(course)
                     self.stats["courses_created"] += 1
@@ -791,6 +809,8 @@ class DendreoSync:
                     course.status = id_etape_process
                     course.categorie_module_id = adf_categorie_module_id if adf_categorie_module_id else course.categorie_module_id
                     course.formateurs = formateurs if formateurs else None
+                    course.date_debut = module_date_debut
+                    course.date_fin = module_date_fin
                     self.stats["courses_updated"] += 1
                     logger.debug(f"Updated course: {id_adf} - {id_lam} (kept existing planned duration: {course.planned_duration_hours}h, updated {len(formateurs)} formateurs)")
 

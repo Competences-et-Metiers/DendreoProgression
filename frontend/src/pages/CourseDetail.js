@@ -586,8 +586,14 @@ const CourseDetail = () => {
                                       size="small"
                                       className="mb-2"
                                     />
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs text-gray-500 dark:text-gray-400">
                                       <span>{t('common.moduleMode')}: {module.mode_organisation}</span>
+                                      {(module.date_debut || module.date_fin) && (
+                                        <span className="flex items-center">
+                                          <Calendar size={10} className="inline mr-1" />
+                                          {formatDate(module.date_debut)} → {formatDate(module.date_fin)}
+                                        </span>
+                                      )}
                                       <span>
                                         <Clock size={10} className="inline mr-1" />
                                         {formatTimeSpentInHours(module.time_spent || 0)}

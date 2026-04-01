@@ -126,6 +126,15 @@ def create_tables():
                 logger.info("Ensured participant_hubspot_data.is_manual_link column exists")
             except Exception as e:
                 logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS date_debut TIMESTAMPTZ"))
+                conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS date_fin TIMESTAMPTZ"))
+                conn.commit()
+                logger.info("Ensured courses.date_debut and courses.date_fin columns exist")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
         
         # Verify tables were created using text() for SQLAlchemy 2.0+ compatibility
         with engine.connect() as conn:
