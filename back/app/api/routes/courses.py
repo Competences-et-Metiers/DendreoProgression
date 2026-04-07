@@ -64,6 +64,28 @@ def _resolve_last_activity(last_elearning, last_liveroom):
     return None, None
 
 
+def _get_liveroom_time_spent(db: Session, participant_id: int, adf_id: str) -> int:
+    """Get total liveroom time spent (seconds) for a participant in an ADF.
+    Sums duration of all attended creneaux (presence == '1')."""
+    rows = (
+        db.query(Creneau.duration)
+        .join(CreneauParticipant, CreneauParticipant.creneau_id == Creneau.id)
+        .filter(
+            Creneau.id_action_formation == adf_id,
+            CreneauParticipant.participant_id == participant_id,
+            CreneauParticipant.presence == "1"
+        )
+        .all()
+    )
+    return sum(r.duration or 0 for r in rows)
+
+
+def _get_liveroom_total_duration(db: Session, adf_id: str) -> int:
+    """Get total planned liveroom duration (seconds) for an ADF from all creneaux."""
+    rows = db.query(Creneau.duration).filter(Creneau.id_action_formation == adf_id).all()
+    return sum(r.duration or 0 for r in rows)
+
+
 def _get_liveroom_progression(db: Session, participant_id: int, adf_id: str, id_lam: str) -> Optional[float]:
     """Compute liveroom progression for a module: (attended sessions / total sessions) * 100.
     Returns None if there are no creneaux for this module."""
@@ -445,8 +467,10 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
             completed_modules = sum(1 for m in modules_data if m["progression"] >= 100)
             total_modules = len(modules_data)
 
-            # Calculate total time spent across all modules
-            total_time_spent = sum(module.lms_time_spent or 0 for module in modules)
+            # Calculate total time spent: e-learning + liveroom attended
+            elearning_time_spent = sum(module.lms_time_spent or 0 for module in modules)
+            lr_spent = _get_liveroom_time_spent(db, participant.id, course.id_action_formation)
+            total_time_spent = elearning_time_spent + lr_spent
 
             # Get earliest start and latest completion dates
             earliest_started_at = None
@@ -516,7 +540,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "id_lam": course.id_lam,
                 "intitule": course.intitule,
                 "status": course.status,
-                "planned_duration_hours": course.planned_duration_hours,
+                "planned_duration_hours": (course.planned_duration_hours or 0) + (_get_liveroom_total_duration(db, course.id_action_formation) / 3600.0),
                 "total_modules": db.query(Module.id_lam).filter(
                     Module.id_lam.in_([lam_id[0] for lam_id in db.query(Course.id_lam).filter(
                         Course.id_action_formation == course.id_action_formation
@@ -644,11 +668,15 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
             last_liveroom = _get_last_liveroom_date(db, participant.id, adf_id)
             last_activity, last_activity_source = _resolve_last_activity(last_elearning, last_liveroom)
 
-            # Calculate total time spent across all modules for this participant in this course
-            total_time_spent = sum(module.lms_time_spent or 0 for module in modules)
+            # Calculate total time spent: e-learning + liveroom attended
+            elearning_time_spent = sum(module.lms_time_spent or 0 for module in modules)
+            lr_spent = _get_liveroom_time_spent(db, participant.id, adf_id)
+            total_time_spent = elearning_time_spent + lr_spent
 
-            # Get planned duration from the course
-            planned_duration_hours = course.planned_duration_hours or 0
+            # Get planned duration: e-learning + liveroom
+            elearning_planned = course.planned_duration_hours or 0
+            lr_planned_seconds = _get_liveroom_total_duration(db, adf_id)
+            planned_duration_hours = elearning_planned + (lr_planned_seconds / 3600.0)
 
             # Get HubSpot deal data for this participant and ADF
             hubspot_deal_data = db.query(ParticipantHubspotData).filter(
