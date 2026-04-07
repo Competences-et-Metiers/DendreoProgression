@@ -13,9 +13,7 @@ import {
   Target,
   TrendingUp,
   Calendar,
-  RefreshCw,
   ChevronRight,
-  Filter,
   Search
 } from 'lucide-react';
 
@@ -23,37 +21,32 @@ const Dashboard = () => {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
-  const [filterBy, setFilterBy] = useState('all');
   const navigate = useNavigate();
 
   const {
     data: stats,
     isLoading: statsLoading,
     error: statsError,
-    refetch: refetchStats,
-    isFetching: statsRefetching
+    refetch: refetchStats
   } = useDashboardStats();
 
   const {
     data: courses = [],
     isLoading: coursesLoading,
     error: coursesError,
-    refetch: refetchCourses,
-    isFetching: coursesRefetching
+    refetch: refetchCourses
   } = useCourses();
 
   const {
     data: lastSync,
     isLoading: lastSyncLoading,
-    refetch: refetchLastSync,
-    isFetching: lastSyncRefetching
+    refetch: refetchLastSync
   } = useLastSync();
 
   const { prefetchCourseParticipants } = usePrefetchQueries();
 
   const loading = statsLoading || coursesLoading;
   const error = statsError || coursesError;
-  const isRefetching = statsRefetching || coursesRefetching || lastSyncRefetching;
 
   const handleRefresh = () => {
     refetchStats();
@@ -78,14 +71,6 @@ const Dashboard = () => {
       filtered = filtered.filter(course =>
         course.intitule.toLowerCase().includes(search)
       );
-    }
-
-    if (filterBy === 'completed') {
-      filtered = filtered.filter(course => course.average_progression >= 100);
-    } else if (filterBy === 'in-progress') {
-      filtered = filtered.filter(course => course.average_progression > 0 && course.average_progression < 100);
-    } else if (filterBy === 'not-started') {
-      filtered = filtered.filter(course => course.average_progression === 0);
     }
 
     return filtered.sort((a, b) => {
@@ -191,15 +176,6 @@ const Dashboard = () => {
 
               <div className="flex items-center space-x-4">
                 <LanguageSelector />
-                <button
-                  onClick={handleRefresh}
-                  disabled={isRefetching}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-                  title={t('common.refreshData')}
-                >
-                  <RefreshCw size={16} className={`mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
-                  {isRefetching ? t('common.refreshing') : t('common.refresh')}
-                </button>
               </div>
             </div>
           </div>
@@ -212,7 +188,7 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <StatCard
               title={t('dashboard.stats.totalCourses')}
-              value={stats.total_courses}
+              value={courses.length}
               icon={BookOpen}
               color="blue"
             />
@@ -277,20 +253,6 @@ const Dashboard = () => {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Filter size={16} className="text-gray-500 dark:text-gray-400" />
-                  <select
-                    value={filterBy}
-                    onChange={(e) => setFilterBy(e.target.value)}
-                    className="border border-gray-300 dark:border-slate-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="all">{t('dashboard.courses.filters.allCourses')}</option>
-                    <option value="completed">{t('dashboard.courses.filters.completed')}</option>
-                    <option value="in-progress">{t('dashboard.courses.filters.inProgress')}</option>
-                    <option value="not-started">{t('dashboard.courses.filters.notStarted')}</option>
-                  </select>
-                </div>
-
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -311,7 +273,7 @@ const Dashboard = () => {
               <div className="px-6 py-12 text-center">
                 <BookOpen size={48} className="mx-auto text-gray-400 dark:text-gray-600 mb-4" />
                 <p className="text-gray-500 dark:text-gray-400">
-                  {searchTerm || filterBy !== 'all'
+                  {searchTerm
                     ? t('errors.noCoursesMatchingCriteria')
                     : t('common.noCoursesFound')
                   }

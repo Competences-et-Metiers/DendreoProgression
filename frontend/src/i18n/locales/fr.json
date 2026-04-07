@@ -175,10 +175,10 @@
     "backToParticipants": "Retour aux participants"
   },
   "dashboard": {
-    "title": "Tableau de bord des cours Dendreo",
-    "subtitle": "Suivre la progression des cours et l'engagement des participants",
+    "title": "Tableau de bord des ADF",
+    "subtitle": "Suivre la progression des ADF et l'engagement des participants",
     "stats": {
-      "totalCourses": "Cours totaux",
+      "totalCourses": "ADF totaux",
       "totalParticipants": "Participants totaux",
       "averageProgress": "Progression moyenne",
       "completionRate": "Taux de completion"

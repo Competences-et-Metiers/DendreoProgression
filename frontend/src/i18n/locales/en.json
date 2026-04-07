@@ -170,10 +170,10 @@
     "backToParticipants": "Back to Participants"
   },
   "dashboard": {
-    "title": "Dendreo Course Dashboard",
-    "subtitle": "Track course progress and participant engagement",
+    "title": "ADF Dashboard",
+    "subtitle": "Track ADF progress and participant engagement",
     "stats": {
-      "totalCourses": "Total Courses",
+      "totalCourses": "Total ADFs",
       "totalParticipants": "Total Participants",
       "averageProgress": "Average Progress",
       "completionRate": "Completion Rate"
