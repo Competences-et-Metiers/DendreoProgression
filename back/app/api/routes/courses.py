@@ -728,38 +728,6 @@ async def get_courses(db: Session = Depends(get_db)):
     
     return courses
 
-@router.get("/{course_id}", response_model=CourseResponse)
-async def get_course(course_id: int, db: Session = Depends(get_db)):
-    """Get a specific course with its modules"""
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-    
-    # Calculate average progression
-    avg_progression = db.query(func.avg(Module.progression)).filter(
-        Module.course_id == course.id
-    ).scalar() or 0.0
-    
-    # Get last access time
-    last_access = db.query(func.max(Module.last_access_at)).filter(
-        Module.course_id == course.id
-    ).scalar()
-    
-    # Add computed fields
-    course.progression = float(avg_progression)
-    course.last_access_at = last_access
-    
-    return course
-
-@router.get("/{course_id}/modules", response_model=List[ModuleResponse])
-async def get_course_modules(course_id: int, db: Session = Depends(get_db)):
-    """Get all modules for a specific course"""
-    course = db.query(Course).filter(Course.id == course_id).first()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-    
-    return course.modules
-
 @router.get("/deadline-data")
 async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Return all participant-module combinations where date_fin has passed.
@@ -826,6 +794,38 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
         logger.error(f"Error fetching deadline data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/{course_id}", response_model=CourseResponse)
+async def get_course(course_id: int, db: Session = Depends(get_db)):
+    """Get a specific course with its modules"""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    # Calculate average progression
+    avg_progression = db.query(func.avg(Module.progression)).filter(
+        Module.course_id == course.id
+    ).scalar() or 0.0
+    
+    # Get last access time
+    last_access = db.query(func.max(Module.last_access_at)).filter(
+        Module.course_id == course.id
+    ).scalar()
+    
+    # Add computed fields
+    course.progression = float(avg_progression)
+    course.last_access_at = last_access
+    
+    return course
+
+@router.get("/{course_id}/modules", response_model=List[ModuleResponse])
+async def get_course_modules(course_id: int, db: Session = Depends(get_db)):
+    """Get all modules for a specific course"""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    
+    return course.modules
 
 @router.get("/elearning/", response_model=List[CourseWithParticipants])
 async def get_elearning_courses(
