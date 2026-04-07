@@ -169,30 +169,6 @@ const Participants = () => {
     });
   };
 
-  const getProgressBadge = (participant) => {
-    const completedCourses = participant.completed_courses || 0;
-    const activeCourses = participant.active_courses || 0;
-    const totalCourses = participant.total_courses || 0;
-
-    if (completedCourses > 0 && completedCourses === totalCourses) {
-      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
-        {t('participants.status.allCompleted')}
-      </span>;
-    } else if (activeCourses > 0) {
-      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
-        {t('participants.status.active')}
-      </span>;
-    } else if (totalCourses > 0) {
-      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-300">
-        {t('participants.status.inactive')}
-      </span>;
-    } else {
-      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-300">
-        {t('participants.status.noCourses')}
-      </span>;
-    }
-  };
-
   // Only show full loading screen if we have no data at all and are loading for the first time
   // If we have stable data, we can show the page with a loading overlay instead
   if ((loading || countLoading) && stableParticipants.length === 0 && participants.length === 0) {
@@ -380,13 +356,10 @@ const Participants = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          {getProgressBadge(participant)}
-                          <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
-                        </div>
+                        <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
                         <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                           <BookOpen size={14} className="mr-1" />
                           {participant.total_courses || 0} {t('common.totalCourses')}
@@ -394,10 +367,6 @@ const Participants = () => {
                         <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                           <Target size={14} className="mr-1" />
                           {participant.completed_courses || 0} {t('common.completed')}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                          <Users size={14} className="mr-1" />
-                          {participant.active_courses || 0} {t('common.active')}
                         </div>
                       </div>
                       
