@@ -62,6 +62,9 @@ export const queryKeys = {
   // Saved views
   savedViews: ['savedViews'],
 
+  // Deadline management
+  deadlineData: ['deadline', 'data'],
+
   // Admin interventions
   adminInterventions: (params) => ['admin', 'interventions', params],
   adminInterventionStats: ['admin', 'interventions', 'stats'],

@@ -760,6 +760,73 @@ async def get_course_modules(course_id: int, db: Session = Depends(get_db)):
     
     return course.modules
 
+@router.get("/deadline-data")
+async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Return all participant-module combinations where date_fin has passed.
+    Frontend filters by progression threshold."""
+    try:
+        now = datetime.now(timezone.utc)
+
+        # Get all courses with a past date_fin
+        past_courses = db.query(Course).filter(
+            Course.date_fin != None,
+            Course.date_fin < now,
+            Course.status.in_(['5', '6', '7'])
+        ).all()
+
+        if not past_courses:
+            return {"items": [], "total": 0}
+
+        items = []
+        for course in past_courses:
+            # Get all modules for this course's id_lam
+            modules = db.query(Module).filter(
+                Module.id_lam == course.id_lam
+            ).all()
+
+            for module in modules:
+                participant = db.query(Participant).filter(
+                    Participant.id == module.participant_id
+                ).first()
+                if not participant:
+                    continue
+
+                # Compute progression based on mode
+                mode = module.mode_organisation or ''
+                if mode in ('elearning_sync', 'mixte'):
+                    liveroom_prog = _get_liveroom_progression(
+                        db, participant.id, course.id_action_formation, module.id_lam
+                    )
+                    progression = liveroom_prog if liveroom_prog is not None else 0.0
+                else:
+                    progression = module.lms_progression
+
+                items.append({
+                    "participant_id": participant.id,
+                    "id_participant": participant.id_participant,
+                    "nom": participant.nom,
+                    "prenom": participant.prenom,
+                    "email": participant.email,
+                    "id_action_formation": course.id_action_formation,
+                    "course_title": course.intitule,
+                    "module_intitule": module.intitule,
+                    "id_lam": module.id_lam,
+                    "mode_organisation": mode,
+                    "progression": round(progression, 2),
+                    "date_fin": course.date_fin.isoformat() if course.date_fin else None,
+                    "date_debut": course.date_debut.isoformat() if course.date_debut else None,
+                })
+
+        # Sort by progression ascending (worst first)
+        items.sort(key=lambda x: x["progression"])
+
+        return {"items": items, "total": len(items)}
+
+    except Exception as e:
+        logger.error(f"Error fetching deadline data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/elearning/", response_model=List[CourseWithParticipants])
 async def get_elearning_courses(
         skip: int = Query(0, ge=0),

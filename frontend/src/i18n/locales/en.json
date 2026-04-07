@@ -331,7 +331,23 @@
     "logout": "Logout",
     "expand": "Expand menu",
     "collapse": "Collapse menu",
-    "comingSoon": "Soon"
+    "comingSoon": "Soon",
+    "deadlineManagement": "Deadline Management"
+  },
+  "deadlineManagement": {
+    "title": "Deadline Management",
+    "subtitle": "Modules past their end date with insufficient progression",
+    "settings": "Settings",
+    "settingsTitle": "Progression Threshold",
+    "thresholdLabel": "Show participants below this threshold",
+    "thresholdHelp": "Participants with progression strictly below {{threshold}}% after the module end date will be shown.",
+    "searchPlaceholder": "Search by name, email or course...",
+    "statsCount": "{{count}} module(s) below {{threshold}}%",
+    "participant": "Participant",
+    "type": "Type",
+    "progression": "Progression",
+    "emptyTitle": "No delays detected",
+    "emptyMessage": "All participants have progression at or above {{threshold}}% for modules past their end date."
   },
   "account": {
     "title": "My Account",
