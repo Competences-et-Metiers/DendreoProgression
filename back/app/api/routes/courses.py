@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Dict, Any
 from app.models.database import get_db
-from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData, Creneau, CreneauParticipant
+from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData, Creneau, CreneauParticipant, ModuleCategory
 from datetime import datetime, timezone
 from app.models.schemas import CourseWithParticipants, ParticipantCourse as ParticipantCourseSchema
 from app.schemas.course import CourseResponse, ModuleResponse
@@ -745,8 +745,19 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
         if not past_courses:
             return {"items": [], "total": 0}
 
+        # Build category lookup
+        category_map = {}
+        for cat in db.query(ModuleCategory).all():
+            category_map[cat.id_categorie_module] = {
+                "name": cat.intitule,
+                "color": cat.color
+            }
+
         items = []
         for course in past_courses:
+            # Resolve category
+            cat_info = category_map.get(course.categorie_module_id, {})
+
             # Get all modules for this course's id_lam
             modules = db.query(Module).filter(
                 Module.id_lam == course.id_lam
@@ -783,6 +794,8 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                     "progression": round(progression, 2),
                     "date_fin": course.date_fin.isoformat() if course.date_fin else None,
                     "date_debut": course.date_debut.isoformat() if course.date_debut else None,
+                    "category_name": cat_info.get("name"),
+                    "category_color": cat_info.get("color"),
                 })
 
         # Sort by progression ascending (worst first)
