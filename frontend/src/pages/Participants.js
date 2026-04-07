@@ -12,9 +12,7 @@ import {
   Target,
   Mail,
   ChevronRight,
-  Filter,
   Search,
-  RefreshCw,
   ExternalLink,
   ArrowUp,
   ArrowDown
@@ -29,37 +27,10 @@ const Participants = () => {
     const cached = localStorage.getItem('participantSortDirection');
     return cached || 'desc';
   });
-  const [statusFilters, setStatusFilters] = useState(() => {
-    const cached = localStorage.getItem('participantStatusFilters');
-    return cached ? JSON.parse(cached) : { active: true, completed: true };
-  });
-  const [inactivityDays, setInactivityDays] = useState(() => {
-    const cached = localStorage.getItem('participantInactivityDays');
-    return cached ? parseInt(cached, 10) : 30;
-  });
-  const [inactivityFilterEnabled, setInactivityFilterEnabled] = useState(() => {
-    const cached = localStorage.getItem('participantInactivityFilterEnabled');
-    return cached ? JSON.parse(cached) : false;
-  });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const searchInputRef = useRef(null);
   const navigate = useNavigate();
-
-  // Cache status filters in localStorage
-  useEffect(() => {
-    localStorage.setItem('participantStatusFilters', JSON.stringify(statusFilters));
-  }, [statusFilters]);
-
-  // Cache inactivity days in localStorage
-  useEffect(() => {
-    localStorage.setItem('participantInactivityDays', inactivityDays.toString());
-  }, [inactivityDays]);
-
-  // Cache inactivity filter enabled state in localStorage
-  useEffect(() => {
-    localStorage.setItem('participantInactivityFilterEnabled', JSON.stringify(inactivityFilterEnabled));
-  }, [inactivityFilterEnabled]);
 
   // Cache sort direction in localStorage
   useEffect(() => {
@@ -67,13 +38,14 @@ const Participants = () => {
   }, [sortDirection]);
   
   // Use React Query hooks for data fetching with caching
-  const { 
-    data: participants = [], 
-    isLoading: loading, 
+  const {
+    data: participants = [],
+    isLoading: loading,
     error,
     refetch,
     isFetching
   } = useParticipants(currentPage, pageSize, debouncedSearchTerm);
+  // refetch kept for error retry button
   
   // Keep previous data visible during refetch to avoid jarring reloads
   const [stableParticipants, setStableParticipants] = useState([]);
@@ -114,22 +86,10 @@ const Participants = () => {
     }
   });
 
-  // Reset to first page when filters change
+  // Reset to first page when search/sort changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchTerm, statusFilters, inactivityFilterEnabled, inactivityDays, sortBy, sortDirection]);
-
-  // Helper functions for status filter checkboxes
-  const allStatusesSelected = statusFilters.active && statusFilters.completed;
-
-  const toggleAllStatuses = () => {
-    const newValue = !allStatusesSelected;
-    setStatusFilters({ active: newValue, completed: newValue });
-  };
-
-  const toggleStatusFilter = (status) => {
-    setStatusFilters(prev => ({ ...prev, [status]: !prev[status] }));
-  };
+  }, [debouncedSearchTerm, sortBy, sortDirection]);
 
   const toggleSortDirection = () => {
     setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -179,45 +139,10 @@ const Participants = () => {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  // Helper to check if participant has completed all their courses
-  const hasCompletedAllCourses = (participant) => {
-    const completedCourses = participant.completed_courses || 0;
-    const totalCourses = participant.total_courses || 0;
-    return totalCourses > 0 && completedCourses === totalCourses;
-  };
-
   const getFilteredAndSortedParticipants = () => {
-    let filtered = displayParticipants;
-
-    // Filter by status checkboxes (multi-select)
-    filtered = filtered.filter(p => {
-      const isActive = p.active_courses > 0;
-      const isCompleted = p.completed_courses > 0;
-
-      // If inactivity filter is enabled, show participants inactive for X days
-      // BUT exclude those who have completed all their courses (they won't log in anymore)
-      if (inactivityFilterEnabled) {
-        const isInactiveForDays = getDaysSinceLastActivity(p) >= inactivityDays;
-        const completedAll = hasCompletedAllCourses(p);
-
-        // Show if inactive for X days AND not completed all courses
-        if (isInactiveForDays && !completedAll) {
-          return true;
-        }
-        return false;
-      }
-
-      // Without inactivity filter, just use active/completed filters
-      if (isActive && statusFilters.active) return true;
-      if (isCompleted && statusFilters.completed) return true;
-
-      return false;
-    });
-
-    // Sort participants
     const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
 
-    return filtered.sort((a, b) => {
+    return [...displayParticipants].sort((a, b) => {
       let comparison = 0;
       switch (sortBy) {
         case 'name':
@@ -242,30 +167,6 @@ const Participants = () => {
       }
       return comparison * sortMultiplier;
     });
-  };
-
-  const getProgressBadge = (participant) => {
-    const completedCourses = participant.completed_courses || 0;
-    const activeCourses = participant.active_courses || 0;
-    const totalCourses = participant.total_courses || 0;
-
-    if (completedCourses > 0 && completedCourses === totalCourses) {
-      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400">
-        {t('participants.status.allCompleted')}
-      </span>;
-    } else if (activeCourses > 0) {
-      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400">
-        {t('participants.status.active')}
-      </span>;
-    } else if (totalCourses > 0) {
-      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-300">
-        {t('participants.status.inactive')}
-      </span>;
-    } else {
-      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-300">
-        {t('participants.status.noCourses')}
-      </span>;
-    }
   };
 
   // Only show full loading screen if we have no data at all and are loading for the first time
@@ -314,18 +215,6 @@ const Participants = () => {
               <p className="text-gray-600 dark:text-gray-400 mt-1">{t('participants.subtitle')}</p>
             </div>
             
-            {/* Navigation Menu */}
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={refetch}
-                disabled={isFetching}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm dark:shadow-slate-900/50 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-                title={t('common.refreshData')}
-              >
-                <RefreshCw size={16} className={`mr-2 ${isFetching ? 'animate-spin' : ''}`} />
-                {isFetching ? t('common.refreshing') : t('common.refresh')}
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -343,113 +232,62 @@ const Participants = () => {
                   </p>
               </div>
               
-              {/* Search and Filters */}
-              <div className="flex flex-col space-y-4 mt-4 lg:mt-0">
-                {/* First row: Search and Sort */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                  {/* Search */}
-                  <div className="relative">
-                    <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-                    <input
-                      ref={searchInputRef}
-                      type="text"
-                      placeholder={t('participants.searchPlaceholder')}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={handleSearchSubmit}
-                      onFocus={() => sessionStorage.setItem('searchInputFocused', 'true')}
-                      onBlur={() => sessionStorage.removeItem('searchInputFocused')}
-                      className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm w-64 dark:bg-slate-700 dark:text-white"
-                    />
-                  </div>
-
-                  {/* Sort */}
-                  <div className="flex items-center space-x-2">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm dark:bg-slate-700 dark:text-white"
-                    >
-                      <option value="name">{t('participants.sort.byName')}</option>
-                      <option value="progression">{t('participants.sort.byProgress')}</option>
-                      <option value="courses">{t('participants.sort.byCourses')}</option>
-                      <option value="email">{t('participants.sort.byEmail')}</option>
-                      <option value="inactivity">{t('participants.sort.byInactivity')}</option>
-                    </select>
-                    <button
-                      onClick={toggleSortDirection}
-                      className="p-2 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                      title={sortDirection === 'asc' ? t('participants.sort.ascending') : t('participants.sort.descending')}
-                    >
-                      {sortDirection === 'asc' ? (
-                        <ArrowUp size={16} className="text-gray-600 dark:text-gray-400" />
-                      ) : (
-                        <ArrowDown size={16} className="text-gray-600 dark:text-gray-400" />
-                      )}
-                    </button>
-                  </div>
+              {/* Search, Sort, and Per Page */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 mt-4 lg:mt-0">
+                {/* Search */}
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder={t('participants.searchPlaceholder')}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={handleSearchSubmit}
+                    onFocus={() => sessionStorage.setItem('searchInputFocused', 'true')}
+                    onBlur={() => sessionStorage.removeItem('searchInputFocused')}
+                    className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-md text-sm w-64 dark:bg-slate-700 dark:text-white"
+                  />
                 </div>
 
-                {/* Second row: Status Filter Checkboxes */}
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Filter size={16} className="text-gray-500 dark:text-gray-400" />
-                  </div>
+                {/* Sort */}
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm dark:bg-slate-700 dark:text-white"
+                  >
+                    <option value="name">{t('participants.sort.byName')}</option>
+                    <option value="progression">{t('participants.sort.byProgress')}</option>
+                    <option value="courses">{t('participants.sort.byCourses')}</option>
+                    <option value="email">{t('participants.sort.byEmail')}</option>
+                    <option value="inactivity">{t('participants.sort.byInactivity')}</option>
+                  </select>
+                  <button
+                    onClick={toggleSortDirection}
+                    className="p-2 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                    title={sortDirection === 'asc' ? t('participants.sort.ascending') : t('participants.sort.descending')}
+                  >
+                    {sortDirection === 'asc' ? (
+                      <ArrowUp size={16} className="text-gray-600 dark:text-gray-400" />
+                    ) : (
+                      <ArrowDown size={16} className="text-gray-600 dark:text-gray-400" />
+                    )}
+                  </button>
+                </div>
 
-                  {/* All Status checkbox */}
-                  <label className="flex items-center space-x-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={allStatusesSelected && !inactivityFilterEnabled}
-                      onChange={() => {
-                        toggleAllStatuses();
-                        if (inactivityFilterEnabled) setInactivityFilterEnabled(false);
-                      }}
-                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{t('participants.filters.allStatus')}</span>
-                  </label>
-
-                  {/* Active checkbox */}
-                  <label className="flex items-center space-x-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={statusFilters.active}
-                      onChange={() => toggleStatusFilter('active')}
-                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{t('participants.filters.active')}</span>
-                  </label>
-
-                  {/* Completed checkbox */}
-                  <label className="flex items-center space-x-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={statusFilters.completed}
-                      onChange={() => toggleStatusFilter('completed')}
-                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{t('participants.filters.completed')}</span>
-                  </label>
-
-                  {/* Inactivity days filter */}
-                  <label className="flex items-center space-x-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={inactivityFilterEnabled}
-                      onChange={() => setInactivityFilterEnabled(!inactivityFilterEnabled)}
-                      className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{t('participants.filters.inactiveForDays')}</span>
-                    <input
-                      type="number"
-                      min="1"
-                      value={inactivityDays}
-                      onChange={(e) => setInactivityDays(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                      className="w-16 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded-md text-sm text-center dark:bg-slate-700 dark:text-white"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{t('participants.filters.days')}</span>
-                  </label>
+                {/* Per Page */}
+                <div className="flex items-center space-x-2">
+                  <select
+                    value={pageSize}
+                    onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+                    className="border border-gray-300 dark:border-slate-600 rounded-md px-3 py-2 text-sm dark:bg-slate-700 dark:text-white"
+                  >
+                    {[25, 50, 100].map(size => (
+                      <option key={size} value={size}>{size}</option>
+                    ))}
+                  </select>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{t('pagination.perPage')}</span>
                 </div>
               </div>
             </div>
@@ -472,7 +310,7 @@ const Participants = () => {
                 <div className="px-6 py-12 text-center">
                   <Users size={48} className="mx-auto text-gray-400 dark:text-gray-500 mb-4" />
                   <p className="text-gray-500 dark:text-gray-400">
-                    {searchTerm || !allStatusesSelected || inactivityFilterEnabled
+                    {searchTerm
                       ? t('errors.noParticipantsMatchingCriteria')
                       : t('common.noParticipantsFound')
                     }
@@ -518,13 +356,10 @@ const Participants = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          {getProgressBadge(participant)}
-                          <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
-                        </div>
+                        <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
                         <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                           <BookOpen size={14} className="mr-1" />
                           {participant.total_courses || 0} {t('common.totalCourses')}
@@ -532,10 +367,6 @@ const Participants = () => {
                         <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                           <Target size={14} className="mr-1" />
                           {participant.completed_courses || 0} {t('common.completed')}
-                        </div>
-                        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                          <Users size={14} className="mr-1" />
-                          {participant.active_courses || 0} {t('common.active')}
                         </div>
                       </div>
                       
