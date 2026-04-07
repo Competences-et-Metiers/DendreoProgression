@@ -28,12 +28,14 @@ import {
   Ban,
 } from 'lucide-react';
 import api from '../services/api';
+import { useLastSync } from '../hooks/useQuery';
 import { generateInactivityReport } from '../utils/pdfExport';
 import InterventionPanel from '../components/InterventionPanel';
 import SavedViewsBar from '../components/SavedViewsBar';
 
 const InactiveManagement = () => {
   const { t, i18n } = useTranslation();
+  const { data: lastSync } = useLastSync();
 
   // State with sessionStorage persistence
   const [groupByCourse, setGroupByCourse] = useState(() => {
@@ -688,6 +690,21 @@ const InactiveManagement = () => {
                 <p className="text-gray-600 dark:text-gray-400 mt-1">
                   {t('inactiveManagement.subtitle')}
                 </p>
+                {lastSync && lastSync.last_sync_at && (
+                  <div className="flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <Calendar size={12} className="mr-1" />
+                    {t('inactiveManagement.lastSync')}: {new Date(lastSync.last_sync_at).toLocaleString()}
+                    {lastSync.sync_status && (
+                      <span className={`ml-1 font-medium ${
+                        lastSync.sync_status === 'success' ? 'text-green-600 dark:text-green-400' :
+                        lastSync.sync_status === 'error' ? 'text-red-600 dark:text-red-400' :
+                        'text-gray-500 dark:text-gray-400'
+                      }`}>
+                        ({t(`dashboard.sync.status.${lastSync.sync_status === 'success' ? 'success' : lastSync.sync_status === 'error' ? 'error' : 'unknown'}`)})
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

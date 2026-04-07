@@ -364,6 +364,7 @@
   "inactiveManagement": {
     "title": "Gestion des participants",
     "subtitle": "Suivre et gérer l'activité des participants",
+    "lastSync": "Dernière synchro",
     "viewFlat": "Vue liste",
     "viewGrouped": "Grouper par cours",
     "showing": "Affichage",
@@ -527,6 +528,11 @@
       "subtitle": "Personnaliser l'apparence de l'application",
       "theme": "Mode sombre",
       "themeDesc": "Basculer entre le mode clair et le mode sombre"
+    },
+    "language": {
+      "title": "Langue",
+      "subtitle": "Choisir la langue de l'application",
+      "label": "Langue de l'interface"
     },
     "inactiveManagement": {
       "title": "Gestion des inactifs",
