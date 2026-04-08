@@ -1,0 +1,64 @@
+---
+# ==========================================================================
+# Deployment playbook
+# ==========================================================================
+# Pulls the latest Docker images and restarts the stack.
+# Used for both manual deploys and GitHub Actions CI/CD.
+#
+# Usage:
+#   cd infra/ansible
+#   ansible-playbook playbooks/deploy.yml
+#
+# Or from GitHub Actions (uses the deploy user, not root):
+#   ansible-playbook -u deploy playbooks/deploy.yml
+
+- name: Deploy Dendreo application
+  hosts: dendreo_server
+  become: yes
+  become_user: "{{ deploy_user }}"
+
+  tasks:
+    # --- Pull latest images ---
+    # If using GHCR images (built by GitHub Actions), pull them.
+    # If building on-server, this step is skipped.
+    - name: Pull latest Docker images
+      command: docker compose -f docker-compose.prod.yml pull
+      args:
+        chdir: "{{ app_dir }}"
+      ignore_errors: yes  # OK to fail if building locally
+
+    # --- Build and start ---
+    # docker compose up --build covers both scenarios:
+    #   - Pre-built images: just starts them
+    #   - Source builds: rebuilds and starts
+    # --remove-orphans cleans up containers from removed services.
+    - name: Start services
+      command: >
+        docker compose -f docker-compose.prod.yml
+        --env-file .env.prod
+        up -d --build --remove-orphans
+      args:
+        chdir: "{{ app_dir }}"
+
+    # --- Health check ---
+    # Wait for the backend to be healthy before declaring success.
+    # Matches your docker-compose.prod.yml healthcheck (30s interval, 3 retries).
+    - name: Wait for backend health check
+      uri:
+        url: "http://localhost:8000/health"
+        status_code: 200
+      register: health
+      retries: 10
+      delay: 10
+      until: health.status == 200
+
+    # --- Show status ---
+    - name: Show running containers
+      command: docker compose -f docker-compose.prod.yml ps
+      args:
+        chdir: "{{ app_dir }}"
+      register: compose_status
+
+    - name: Display status
+      debug:
+        var: compose_status.stdout_lines

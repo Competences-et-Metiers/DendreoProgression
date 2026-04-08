@@ -27,6 +27,13 @@ const Sidebar = ({ collapsed, onToggle }) => {
 
   const baseMenuItems = [
     {
+      id: 'inactive-management',
+      label: t('sidebar.inactiveManagement'),
+      icon: UserX,
+      path: '/inactive-management',
+      active: true
+    },
+    {
       id: 'dashboard',
       label: t('sidebar.dashboard'),
       icon: BookOpen,
@@ -38,13 +45,6 @@ const Sidebar = ({ collapsed, onToggle }) => {
       label: t('sidebar.participants'),
       icon: Users,
       path: '/participants',
-      active: true
-    },
-    {
-      id: 'inactive-management',
-      label: t('sidebar.inactiveManagement'),
-      icon: UserX,
-      path: '/inactive-management',
       active: true
     },
     {

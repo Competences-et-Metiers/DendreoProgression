@@ -116,3 +116,13 @@ ssl/
 
 # Generated nginx config (created by deploy-prod.sh)
 nginx/prod.active.conf
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/*.tfvars
+infra/terraform/.terraform.lock.hcl
+
+# Ansible
+infra/ansible/inventory/hosts.yml

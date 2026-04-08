@@ -1,0 +1,14 @@
+# Copy this to terraform.tfvars and fill in your values.
+# NEVER commit terraform.tfvars - it may contain secrets.
+
+# Your SSH public key (cat ~/.ssh/id_ed25519.pub)
+ssh_public_key = "ssh-ed25519 AAAA... your-email@example.com"
+
+# Instance size: "DEV1-M" (3vCPU/4GB, ~10 EUR) or "DEV1-L" (4vCPU/8GB, ~17 EUR)
+instance_type = "DEV1-L"
+
+# Root disk size in GB
+root_volume_size = 80
+
+# How many days to keep backups
+backup_retention_days = 30
