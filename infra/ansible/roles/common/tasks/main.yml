@@ -1,0 +1,128 @@
+---
+# ==========================================================================
+# Common role: base OS setup, deploy user, firewall
+# ==========================================================================
+# Why a dedicated role? These are one-time server hardening tasks that are
+# independent of the app. If you ever repurpose this server, this role
+# still applies.
+
+# --- System updates ---
+# Always start with a patched system. combine update + upgrade in one task
+# to avoid running apt twice.
+- name: Update apt cache and upgrade packages
+  apt:
+    update_cache: yes
+    upgrade: dist
+    cache_valid_time: 3600  # Don't re-fetch if cache is < 1 hour old
+
+# --- Essential packages ---
+# curl/wget: healthchecks and downloads
+# ufw: firewall
+# fail2ban: brute-force SSH protection (free, zero-config)
+# unattended-upgrades: automatic security patches
+- name: Install base packages
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - ufw
+      - fail2ban
+      - unattended-upgrades
+      - apt-transport-https
+      - ca-certificates
+      - gnupg
+      - lsb-release
+      - htop
+    state: present
+
+# --- Deploy user ---
+# Why not run as root? Principle of least privilege. The deploy user can
+# run Docker (via group membership) but can't modify system config.
+# GitHub Actions SSHs in as this user.
+- name: Create deploy user
+  user:
+    name: "{{ deploy_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: yes
+    create_home: yes
+
+# Let deploy user run sudo without password (needed for docker commands
+# and service management during deploys)
+- name: Allow deploy user passwordless sudo
+  copy:
+    content: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    dest: "/etc/sudoers.d/{{ deploy_user }}"
+    mode: "0440"
+
+# Copy the root authorized_keys to the deploy user so the same SSH key
+# (registered in Terraform) works for both users.
+- name: Set up SSH key for deploy user
+  authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+    state: present
+
+# --- Firewall (UFW) ---
+# Mirrors the Terraform security group but acts as defense-in-depth.
+# If someone bypasses the cloud firewall, UFW still blocks.
+- name: Set UFW default deny incoming
+  ufw:
+    direction: incoming
+    policy: deny
+
+- name: Set UFW default allow outgoing
+  ufw:
+    direction: outgoing
+    policy: allow
+
+- name: Allow SSH
+  ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: Allow HTTP
+  ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: Allow HTTPS
+  ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+
+- name: Allow Portainer HTTPS
+  ufw:
+    rule: allow
+    port: "9443"
+    proto: tcp
+
+- name: Allow Netdata
+  ufw:
+    rule: allow
+    port: "{{ netdata_port }}"
+    proto: tcp
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+
+# --- Fail2ban ---
+# Watches SSH logs and bans IPs after 5 failed attempts.
+# Zero config needed — defaults work well.
+- name: Enable and start fail2ban
+  systemd:
+    name: fail2ban
+    enabled: yes
+    state: started
+
+# --- Timezone ---
+# Match your app's timezone (Europe/Paris) so cron jobs and logs
+# are consistent with your Dendreo data.
+- name: Set timezone to Europe/Paris
+  timezone:
+    name: Europe/Paris

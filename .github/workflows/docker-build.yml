@@ -69,3 +69,30 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # --------------------------------------------------------------------------
+  # Deploy to production VPS via SSH
+  # --------------------------------------------------------------------------
+  # Only runs on push to main (not PRs, not dev branch).
+  # Waits for all 3 images to build successfully before deploying.
+  # Uses a dedicated deploy SSH key (not a personal key).
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /opt/dendreo
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+            echo "Waiting for backend health..."
+            sleep 10
+            curl -sf http://localhost:8000/health || echo "WARNING: Health check failed"
+            docker compose -f docker-compose.prod.yml ps

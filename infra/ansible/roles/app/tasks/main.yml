@@ -1,0 +1,172 @@
+---
+# ==========================================================================
+# App role: deploy the Dendreo Compose stack
+# ==========================================================================
+# This role handles the initial deployment structure. Subsequent deploys
+# are handled by GitHub Actions (SSH in, pull images, restart).
+
+# --- App directory ---
+# /opt/dendreo is the canonical location. Owned by deploy user so
+# GitHub Actions can write to it without root.
+- name: Create app directory
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+# --- Subdirectories ---
+# Match the directory structure your deploy-prod.sh and docker-compose.prod.yml expect.
+- name: Create app subdirectories
+  file:
+    path: "{{ app_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+  loop:
+    - logs
+    - logs/nginx
+    - ssl
+    - nginx
+    - backups
+    - back/scripts
+
+# --- Copy Docker Compose and nginx config ---
+# These files define the stack. They're copied from the repo so the server
+# has everything needed to `docker compose up`. The .env.prod file is
+# handled separately (it contains secrets).
+- name: Copy docker-compose.prod.yml
+  copy:
+    src: "{{ playbook_dir }}/../../docker-compose.prod.yml"
+    dest: "{{ app_dir }}/docker-compose.prod.yml"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+
+- name: Copy nginx configs
+  copy:
+    src: "{{ playbook_dir }}/../../nginx/"
+    dest: "{{ app_dir }}/nginx/"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+
+- name: Copy sync scripts
+  copy:
+    src: "{{ playbook_dir }}/../../back/scripts/"
+    dest: "{{ app_dir }}/back/scripts/"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+# --- Secrets decryption (SOPS + age) ---
+# The project stores encrypted secrets in secrets/*.enc files.
+# SOPS decrypts them using an age private key that must be provided
+# during setup (prompted interactively or pre-placed).
+- name: Install age and sops
+  apt:
+    name:
+      - age
+    state: present
+
+- name: Install sops binary
+  get_url:
+    url: "https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64"
+    dest: /usr/local/bin/sops
+    mode: "0755"
+    force: no  # Skip if already installed
+
+- name: Create sops age key directory
+  file:
+    path: "/home/{{ deploy_user }}/.config/sops/age"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0700"
+
+# The age key must be placed manually or via a secure variable.
+# This task copies the encrypted secrets to the server so
+# setup-server.sh or manual decryption can produce .env.prod.
+- name: Copy encrypted secrets
+  copy:
+    src: "{{ playbook_dir }}/../../secrets/"
+    dest: "{{ app_dir }}/secrets/"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0600"
+
+# Copy the setup-server.sh script which handles age key input
+# and SOPS decryption of .env.prod, rclone.conf, and gdrive-sa.json.
+- name: Copy setup-server.sh
+  copy:
+    src: "{{ playbook_dir }}/../../setup-server.sh"
+    dest: "{{ app_dir }}/setup-server.sh"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
+# Check if .env.prod already exists (decrypted previously)
+- name: Check if .env.prod exists
+  stat:
+    path: "{{ app_dir }}/.env.prod"
+  register: env_prod
+
+# If no .env.prod yet, remind the operator to run setup-server.sh
+# We don't auto-decrypt because it requires the age private key
+# which should never be in Ansible vars or version control.
+- name: Remind to decrypt secrets (if .env.prod missing)
+  debug:
+    msg: >
+      .env.prod not found! SSH into the server and run:
+        cd {{ app_dir }} && sudo ./setup-server.sh
+      You will be prompted for the age private key.
+  when: not env_prod.stat.exists
+
+# --- SSL certificate directory ---
+# Your nginx/prod.conf expects certs at /etc/nginx/ssl/ (mapped from ./ssl/).
+# For initial setup, you'll either:
+#   1. Use certbot standalone to generate certs, or
+#   2. Copy existing certs to {{ app_dir }}/ssl/
+# This task just ensures the directory structure is ready.
+- name: Check if SSL certificates exist
+  stat:
+    path: "{{ app_dir }}/ssl/fullchain.pem"
+  register: ssl_cert
+
+# If no SSL cert yet, create a self-signed one so nginx can start.
+# Replace with Let's Encrypt certs before going live.
+- name: Generate temporary self-signed SSL cert (if none exists)
+  command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048
+    -keyout {{ app_dir }}/ssl/privkey.pem
+    -out {{ app_dir }}/ssl/fullchain.pem
+    -subj "/CN={{ app_domain }}"
+  when: not ssl_cert.stat.exists
+  become_user: "{{ deploy_user }}"
+
+# --- Install certbot for Let's Encrypt ---
+# Certbot handles automatic SSL certificate renewal.
+- name: Install certbot
+  apt:
+    name:
+      - certbot
+    state: present
+
+# --- Log rotation ---
+# Your app writes logs to {{ app_dir }}/logs/. Without rotation,
+# sync and nginx logs can grow indefinitely.
+- name: Set up log rotation for app logs
+  copy:
+    content: |
+      {{ app_dir }}/logs/*.log {
+          daily
+          missingok
+          rotate 14
+          compress
+          delaycompress
+          notifempty
+      }
+    dest: /etc/logrotate.d/dendreo
+    mode: "0644"

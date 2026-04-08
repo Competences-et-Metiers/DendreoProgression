@@ -1,0 +1,30 @@
+---
+# ==========================================================================
+# Initial server setup playbook
+# ==========================================================================
+# Run this ONCE after Terraform provisions the VPS:
+#   cd infra/ansible
+#   ansible-playbook playbooks/setup.yml
+#
+# What it does:
+#   1. Hardens the OS (updates, firewall, fail2ban, deploy user)
+#   2. Installs Docker + Compose
+#   3. Sets up the app directory structure and config files
+#   4. Configures automated database backups
+#
+# After this completes:
+#   1. SSH into the server: ssh deploy@<IP>
+#   2. Edit /opt/dendreo/.env.prod with your production secrets
+#   3. Run the deploy playbook: ansible-playbook playbooks/deploy.yml
+#   4. Set up Let's Encrypt: sudo certbot certonly --standalone -d your-domain.com
+#      Then copy certs to /opt/dendreo/ssl/ and restart nginx
+
+- name: Initial server setup
+  hosts: dendreo_server
+  become: yes
+
+  roles:
+    - common   # OS hardening, firewall, deploy user
+    - docker   # Docker Engine + Compose
+    - app      # App directory, configs, SSL placeholder
+    - backup   # Automated pg_dump to Scaleway Object Storage
