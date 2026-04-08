@@ -39,7 +39,7 @@
 # handled separately (it contains secrets).
 - name: Copy docker-compose.prod.yml
   copy:
-    src: "{{ playbook_dir }}/../../docker-compose.prod.yml"
+    src: "{{ playbook_dir }}/../../../docker-compose.prod.yml"
     dest: "{{ app_dir }}/docker-compose.prod.yml"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
@@ -47,15 +47,31 @@
 
 - name: Copy nginx configs
   copy:
-    src: "{{ playbook_dir }}/../../nginx/"
+    src: "{{ playbook_dir }}/../../../nginx/"
     dest: "{{ app_dir }}/nginx/"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "0644"
 
+# Set prod.active.conf to the SSL version if certs exist
+- name: Check if SSL certs exist for nginx config selection
+  stat:
+    path: "{{ app_dir }}/ssl/fullchain.pem"
+  register: ssl_cert_for_nginx
+
+- name: Set nginx to SSL config (if certs exist)
+  copy:
+    src: "{{ app_dir }}/nginx/prod.conf"
+    dest: "{{ app_dir }}/nginx/prod.active.conf"
+    remote_src: yes
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
+  when: ssl_cert_for_nginx.stat.exists
+
 - name: Copy sync scripts
   copy:
-    src: "{{ playbook_dir }}/../../back/scripts/"
+    src: "{{ playbook_dir }}/../../../back/scripts/"
     dest: "{{ app_dir }}/back/scripts/"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
@@ -91,7 +107,7 @@
 # setup-server.sh or manual decryption can produce .env.prod.
 - name: Copy encrypted secrets
   copy:
-    src: "{{ playbook_dir }}/../../secrets/"
+    src: "{{ playbook_dir }}/../../../secrets/"
     dest: "{{ app_dir }}/secrets/"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
@@ -101,7 +117,7 @@
 # and SOPS decryption of .env.prod, rclone.conf, and gdrive-sa.json.
 - name: Copy setup-server.sh
   copy:
-    src: "{{ playbook_dir }}/../../setup-server.sh"
+    src: "{{ playbook_dir }}/../../../setup-server.sh"
     dest: "{{ app_dir }}/setup-server.sh"
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"

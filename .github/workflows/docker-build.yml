@@ -69,6 +69,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            ${{ matrix.image == 'frontend' && format('REACT_APP_AZURE_AD_CLIENT_ID={0}', secrets.AZURE_AD_CLIENT_ID) || '' }}
+            ${{ matrix.image == 'frontend' && format('REACT_APP_AZURE_AD_TENANT_ID={0}', secrets.AZURE_AD_TENANT_ID) || '' }}
+            ${{ matrix.image == 'frontend' && format('REACT_APP_AZURE_AD_REDIRECT_URI={0}', secrets.AZURE_AD_REDIRECT_URI) || '' }}
+            REACT_APP_API_URL=/api
 
   # --------------------------------------------------------------------------
   # Deploy to production VPS via SSH
@@ -90,9 +95,14 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /opt/dendreo
-            docker compose -f docker-compose.prod.yml pull
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            docker compose -f docker-compose.prod.yml --env-file .env.prod pull
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
             echo "Waiting for backend health..."
             sleep 10
             curl -sf http://localhost:8000/health || echo "WARNING: Health check failed"
-            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+          envs: GHCR_TOKEN,GHCR_USER
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_PAT }}
+          GHCR_USER: ${{ github.actor }}

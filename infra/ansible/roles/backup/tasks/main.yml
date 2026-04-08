@@ -49,6 +49,14 @@
 #   4. Cleans up local files older than 7 days
 # The daily/ prefix matches the Terraform lifecycle rule that auto-expires
 # objects after backup_retention_days.
+- name: Create scripts directory
+  file:
+    path: "{{ app_dir }}/scripts"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
+
 - name: Deploy backup script
   template:
     src: backup_db.sh.j2
