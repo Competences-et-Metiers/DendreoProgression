@@ -26,6 +26,7 @@ import {
   Search,
   AlarmClock,
   Ban,
+  MessageSquare,
 } from 'lucide-react';
 import api from '../services/api';
 import { useLastSync } from '../hooks/useQuery';
@@ -146,6 +147,16 @@ const InactiveManagement = () => {
     const cached = localStorage.getItem('inactiveManagement.showInterventionCounters');
     return cached ? JSON.parse(cached) : false;
   }, []);
+
+  // Show latest notes on participant cards — toggled from Settings page
+  const showLatestNotes = useMemo(() => {
+    const cached = localStorage.getItem('inactiveManagement.showLatestNotes');
+    return cached ? JSON.parse(cached) : false;
+  }, []);
+
+  // Note filter: 'all' | 'with_note' | 'without_note' | 'note_older_than'
+  const [noteFilter, setNoteFilter] = useState('all');
+  const [noteOlderThanDays, setNoteOlderThanDays] = useState(7);
 
   // Intervention expand state
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
@@ -388,6 +399,21 @@ const InactiveManagement = () => {
       if (!statusFilter.dismissed) {
         filtered = filtered.filter(p => !p.is_dismissed);
       }
+      // Note filter (only when showLatestNotes is enabled)
+      if (showLatestNotes && noteFilter !== 'all') {
+        const now = new Date();
+        filtered = filtered.filter(p => {
+          if (noteFilter === 'with_note') return !!p.latest_note_date;
+          if (noteFilter === 'without_note') return !p.latest_note_date;
+          if (noteFilter === 'note_older_than') {
+            if (!p.latest_note_date) return true; // no note counts as "older"
+            const noteDate = new Date(p.latest_note_date);
+            const daysSince = Math.floor((now - noteDate) / (1000 * 60 * 60 * 24));
+            return daysSince > noteOlderThanDays;
+          }
+          return true;
+        });
+      }
       return filtered;
     };
 
@@ -423,6 +449,13 @@ const InactiveManagement = () => {
             // Sort by intervention status: dismissed first, then snoozed, then others
             const interventionOrder = (p) => p.is_dismissed ? 2 : p.has_active_snooze ? 1 : 0;
             comparison = interventionOrder(a) - interventionOrder(b);
+            break;
+          }
+          case 'latest_note': {
+            // No note = sort last (Infinity), otherwise by date descending
+            const dateA = a.latest_note_date ? new Date(a.latest_note_date).getTime() : 0;
+            const dateB = b.latest_note_date ? new Date(b.latest_note_date).getTime() : 0;
+            comparison = dateA - dateB;
             break;
           }
           default:
@@ -491,7 +524,7 @@ const InactiveManagement = () => {
       : [];
 
     return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showLatestNotes, noteFilter, noteOlderThanDays]);
 
   // Pagination: slice data for current page (pageSize 0 = show all)
   const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
@@ -872,6 +905,7 @@ const InactiveManagement = () => {
                 { key: 'progression', label: t('inactiveManagement.sorting.byProgression') },
                 { key: 'status', label: t('inactiveManagement.sorting.byStatus') },
                 { key: 'intervention', label: t('inactiveManagement.sorting.byIntervention') },
+                ...(showLatestNotes ? [{ key: 'latest_note', label: t('inactiveManagement.noteFilters.sortByNote') }] : []),
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -895,7 +929,7 @@ const InactiveManagement = () => {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
                 <Filter size={14} />
-                Statut
+                {t('inactiveManagement.statusFilter.title')}
               </span>
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
                 statusFilter.active ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
@@ -973,6 +1007,49 @@ const InactiveManagement = () => {
                 CV planifié = Actif
               </label>
             </div>
+
+            {/* Note filters (only when showLatestNotes is enabled) */}
+            {showLatestNotes && (
+              <>
+                <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
+                    <MessageSquare size={14} />
+                    {t('inactiveManagement.latestNote')}
+                  </span>
+                  {[
+                    { key: 'all', label: t('inactiveManagement.noteFilters.all') },
+                    { key: 'with_note', label: t('inactiveManagement.noteFilters.withNote') },
+                    { key: 'without_note', label: t('inactiveManagement.noteFilters.withoutNote') },
+                    { key: 'note_older_than', label: t('inactiveManagement.noteFilters.noteOlderThan', { days: noteOlderThanDays }) },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setNoteFilter(prev => prev === key ? 'all' : key)}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                        noteFilter === key && key !== 'all'
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                          : noteFilter === 'all' && key === 'all'
+                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                          : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  {noteFilter === 'note_older_than' && (
+                    <input
+                      type="number"
+                      value={noteOlderThanDays}
+                      onChange={(e) => setNoteOlderThanDays(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-16 px-2 py-1.5 border border-gray-200 dark:border-slate-600 rounded-lg text-xs dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                      min="1"
+                      max="365"
+                    />
+                  )}
+                </div>
+              </>
+            )}
 
           </div>
 
@@ -1671,6 +1748,18 @@ const InactiveManagement = () => {
                                           {participant.category_name}
                                         </span>
                                       )}
+                                      {showLatestNotes && participant.latest_note_date && (
+                                        <span className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full cursor-default">
+                                          <MessageSquare size={12} />
+                                          {t('inactiveManagement.latestNote')}: {new Date(participant.latest_note_date).toLocaleDateString('fr-FR')}
+                                        </span>
+                                      )}
+                                      {showLatestNotes && !participant.latest_note_date && (
+                                        <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
+                                          <MessageSquare size={12} />
+                                          {t('inactiveManagement.noNote')}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -1817,6 +1906,18 @@ const InactiveManagement = () => {
                                     />
                                   )}
                                   {participant.category_name}
+                                </span>
+                              )}
+                              {showLatestNotes && participant.latest_note_date && (
+                                <span className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full cursor-default">
+                                  <MessageSquare size={12} />
+                                  {t('inactiveManagement.latestNote')}: {new Date(participant.latest_note_date).toLocaleDateString('fr-FR')}
+                                </span>
+                              )}
+                              {showLatestNotes && !participant.latest_note_date && (
+                                <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
+                                  <MessageSquare size={12} />
+                                  {t('inactiveManagement.noNote')}
                                 </span>
                               )}
                             </div>

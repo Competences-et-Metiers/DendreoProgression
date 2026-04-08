@@ -421,6 +421,15 @@
       "deselectAll": "Tout désélectionner",
       "selectedCount": "catégorie(s) sélectionnée(s)"
     },
+    "latestNote": "Dernière note",
+    "noNote": "Aucune note",
+    "noteFilters": {
+      "all": "Tous",
+      "withNote": "Avec note",
+      "withoutNote": "Sans note",
+      "noteOlderThan": "Note > {{days}}j",
+      "sortByNote": "Trier par dernière note"
+    },
     "searchPlaceholder": "Rechercher par nom, formation ou catégorie...",
     "modifyThreshold": "Modifier le seuil",
     "removeFilters": "Réinitialiser les filtres",
@@ -499,7 +508,7 @@
     "searchPlaceholder": "Rechercher par nom de participant...",
     "newestFirst": "Plus récent",
     "oldestFirst": "Plus ancien",
-    "active": "Actif",
+    "active": "Effectué",
     "cancelled": "Annulé",
     "staff": "Intervenant",
     "resetFilters": "Réinitialiser les filtres",
@@ -513,7 +522,7 @@
       "date": "Date",
       "participant": "Participant",
       "staff": "Intervenant",
-      "status": "Statut",
+      "status": "État d'action",
       "details": "Détails"
     }
   },
@@ -538,7 +547,9 @@
       "title": "Gestion des inactifs",
       "subtitle": "Options d'affichage de la page de gestion des inactifs",
       "showInterventionCounters": "Compteurs d'intervention",
-      "showInterventionCountersDesc": "Afficher les compteurs Reportés et Écartés dans les statistiques"
+      "showInterventionCountersDesc": "Afficher les compteurs Reportés et Écartés dans les statistiques",
+      "showLatestNotes": "Dernières notes",
+      "showLatestNotesDesc": "Afficher la date de dernière note/appel/email sur les fiches participants"
     }
   },
   "login": {
