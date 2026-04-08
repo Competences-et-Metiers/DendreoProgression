@@ -154,9 +154,12 @@ const InactiveManagement = () => {
     return cached ? JSON.parse(cached) : false;
   }, []);
 
-  // Note filter: 'all' | 'with_note' | 'without_note' | 'note_older_than'
-  const [noteFilter, setNoteFilter] = useState('all');
+  // Note filters: independent toggles that combine
+  const [noteFilterWithNote, setNoteFilterWithNote] = useState(false);
+  const [noteFilterWithoutNote, setNoteFilterWithoutNote] = useState(false);
+  const [noteFilterOlderThan, setNoteFilterOlderThan] = useState(false);
   const [noteOlderThanDays, setNoteOlderThanDays] = useState(7);
+  const [noteOlderThanInput, setNoteOlderThanInput] = useState('7');
 
   // Intervention expand state
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
@@ -399,20 +402,26 @@ const InactiveManagement = () => {
       if (!statusFilter.dismissed) {
         filtered = filtered.filter(p => !p.is_dismissed);
       }
-      // Note filter (only when showLatestNotes is enabled)
-      if (showLatestNotes && noteFilter !== 'all') {
+      // Note filters (only when showLatestNotes is enabled)
+      if (showLatestNotes) {
         const now = new Date();
-        filtered = filtered.filter(p => {
-          if (noteFilter === 'with_note') return !!p.latest_note_date;
-          if (noteFilter === 'without_note') return !p.latest_note_date;
-          if (noteFilter === 'note_older_than') {
-            if (!p.latest_note_date) return true; // no note counts as "older"
-            const noteDate = new Date(p.latest_note_date);
-            const daysSince = Math.floor((now - noteDate) / (1000 * 60 * 60 * 24));
+        if (noteFilterWithNote && !noteFilterOlderThan) {
+          filtered = filtered.filter(p => !!p.latest_note_date);
+        }
+        if (noteFilterWithoutNote) {
+          filtered = filtered.filter(p => !p.latest_note_date);
+        }
+        if (noteFilterOlderThan) {
+          filtered = filtered.filter(p => {
+            if (!p.latest_note_date) return true;
+            const daysSince = Math.floor((now - new Date(p.latest_note_date)) / (1000 * 60 * 60 * 24));
             return daysSince > noteOlderThanDays;
-          }
-          return true;
-        });
+          });
+        }
+        // "with_note" + "older_than" combined = has a note AND it's older than X days
+        if (noteFilterWithNote && noteFilterOlderThan) {
+          filtered = filtered.filter(p => !!p.latest_note_date);
+        }
       }
       return filtered;
     };
@@ -524,7 +533,7 @@ const InactiveManagement = () => {
       : [];
 
     return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showLatestNotes, noteFilter, noteOlderThanDays]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showLatestNotes, noteFilterWithNote, noteFilterWithoutNote, noteFilterOlderThan, noteOlderThanDays]);
 
   // Pagination: slice data for current page (pageSize 0 = show all)
   const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
@@ -994,63 +1003,82 @@ const InactiveManagement = () => {
               </button>
             </div>
 
-            {/* Divider */}
-            <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
+          </div>
 
+          {/* Row: Toggles (CV planifié + Note filters) */}
+          <div className="flex items-center gap-2 flex-wrap border-t border-gray-100 dark:border-slate-700 pt-4">
             {/* CV planifié = Actif toggle */}
-            <div className="flex items-center gap-2">
-              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                cvPlannedIsActive ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
-              }`}>
-                <input type="checkbox" checked={cvPlannedIsActive} onChange={() => setCvPlannedIsActive(!cvPlannedIsActive)} className="sr-only" />
-                <CalendarClock size={12} />
-                CV planifié = Actif
-              </label>
-            </div>
+            <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+              cvPlannedIsActive ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}>
+              <input type="checkbox" checked={cvPlannedIsActive} onChange={() => setCvPlannedIsActive(!cvPlannedIsActive)} className="sr-only" />
+              <CalendarClock size={12} />
+              CV planifié = Actif
+            </label>
 
             {/* Note filters (only when showLatestNotes is enabled) */}
             {showLatestNotes && (
               <>
-                <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
-                    <MessageSquare size={14} />
-                    {t('inactiveManagement.latestNote')}
-                  </span>
-                  {[
-                    { key: 'all', label: t('inactiveManagement.noteFilters.all') },
-                    { key: 'with_note', label: t('inactiveManagement.noteFilters.withNote') },
-                    { key: 'without_note', label: t('inactiveManagement.noteFilters.withoutNote') },
-                    { key: 'note_older_than', label: t('inactiveManagement.noteFilters.noteOlderThan', { days: noteOlderThanDays }) },
-                  ].map(({ key, label }) => (
-                    <button
-                      key={key}
-                      onClick={() => setNoteFilter(prev => prev === key ? 'all' : key)}
-                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
-                        noteFilter === key && key !== 'all'
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
-                          : noteFilter === 'all' && key === 'all'
-                          ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
-                          : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                  {noteFilter === 'note_older_than' && (
-                    <input
-                      type="number"
-                      value={noteOlderThanDays}
-                      onChange={(e) => setNoteOlderThanDays(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-16 px-2 py-1.5 border border-gray-200 dark:border-slate-600 rounded-lg text-xs dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                      min="1"
-                      max="365"
-                    />
-                  )}
-                </div>
+                <div className="w-px h-5 bg-gray-200 dark:bg-slate-600 mx-1" />
+                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
+                  <MessageSquare size={14} />
+                  {t('inactiveManagement.latestNote')}
+                </span>
+                <button
+                  onClick={() => { setNoteFilterWithNote(v => !v); setNoteFilterWithoutNote(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    noteFilterWithNote
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {t('inactiveManagement.noteFilters.withNote')}
+                </button>
+                <button
+                  onClick={() => { setNoteFilterWithoutNote(v => !v); setNoteFilterWithNote(false); setNoteFilterOlderThan(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    noteFilterWithoutNote
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {t('inactiveManagement.noteFilters.withoutNote')}
+                </button>
+                <button
+                  onClick={() => { setNoteFilterOlderThan(v => !v); setNoteFilterWithoutNote(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    noteFilterOlderThan
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {t('inactiveManagement.noteFilters.noteOlderThan', { days: noteOlderThanDays })}
+                </button>
+                {noteFilterOlderThan && (
+                  <input
+                    type="number"
+                    value={noteOlderThanInput}
+                    onChange={(e) => setNoteOlderThanInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = Math.max(1, Math.min(365, parseInt(noteOlderThanInput) || 1));
+                        setNoteOlderThanDays(val);
+                        setNoteOlderThanInput(String(val));
+                        e.target.blur();
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = Math.max(1, Math.min(365, parseInt(noteOlderThanInput) || 1));
+                      setNoteOlderThanDays(val);
+                      setNoteOlderThanInput(String(val));
+                    }}
+                    className="w-16 px-2 py-1.5 border border-gray-200 dark:border-slate-600 rounded-lg text-xs dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    min="1"
+                    max="365"
+                  />
+                )}
               </>
             )}
-
           </div>
 
           {/* Row 2: ADF + Formateur + Category Filters side by side */}
