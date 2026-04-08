@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Settings as SettingsIcon, AlarmClock, Ban, Moon, Sun, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, AlarmClock, Ban, Moon, Sun, Globe, MessageSquare } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import LanguageSelector from '../components/LanguageSelector';
 
@@ -17,6 +17,19 @@ const Settings = () => {
     setShowInterventionCounters(prev => {
       const next = !prev;
       localStorage.setItem('inactiveManagement.showInterventionCounters', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const [showLatestNotes, setShowLatestNotes] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.showLatestNotes');
+    return cached ? JSON.parse(cached) : false;
+  });
+
+  const handleLatestNotesToggle = () => {
+    setShowLatestNotes(prev => {
+      const next = !prev;
+      localStorage.setItem('inactiveManagement.showLatestNotes', JSON.stringify(next));
       return next;
     });
   };
@@ -124,6 +137,30 @@ const Settings = () => {
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                     showInterventionCounters ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="text-green-500">
+                  <MessageSquare size={18} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{t('settings.inactiveManagement.showLatestNotes')}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{t('settings.inactiveManagement.showLatestNotesDesc')}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLatestNotesToggle}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  showLatestNotes ? 'bg-primary-600' : 'bg-gray-200 dark:bg-slate-600'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    showLatestNotes ? 'translate-x-6' : 'translate-x-1'
                   }`}
                 />
               </button>

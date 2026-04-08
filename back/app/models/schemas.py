@@ -141,6 +141,9 @@ class InactiveParticipantDetail(BaseModel):
     snooze_until: Optional[datetime] = None
     is_dismissed: Optional[bool] = False
 
+    # Latest note date (populated by inactivity service)
+    latest_note_date: Optional[datetime] = None
+
     class Config:
         from_attributes = True
 

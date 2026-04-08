@@ -26,6 +26,7 @@ import {
   Search,
   AlarmClock,
   Ban,
+  MessageSquare,
 } from 'lucide-react';
 import api from '../services/api';
 import { useLastSync } from '../hooks/useQuery';
@@ -146,6 +147,19 @@ const InactiveManagement = () => {
     const cached = localStorage.getItem('inactiveManagement.showInterventionCounters');
     return cached ? JSON.parse(cached) : false;
   }, []);
+
+  // Show latest notes on participant cards — toggled from Settings page
+  const showLatestNotes = useMemo(() => {
+    const cached = localStorage.getItem('inactiveManagement.showLatestNotes');
+    return cached ? JSON.parse(cached) : false;
+  }, []);
+
+  // Note filters: independent toggles that combine
+  const [noteFilterWithNote, setNoteFilterWithNote] = useState(false);
+  const [noteFilterWithoutNote, setNoteFilterWithoutNote] = useState(false);
+  const [noteFilterOlderThan, setNoteFilterOlderThan] = useState(false);
+  const [noteOlderThanDays, setNoteOlderThanDays] = useState(7);
+  const [noteOlderThanInput, setNoteOlderThanInput] = useState('7');
 
   // Intervention expand state
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
@@ -388,6 +402,27 @@ const InactiveManagement = () => {
       if (!statusFilter.dismissed) {
         filtered = filtered.filter(p => !p.is_dismissed);
       }
+      // Note filters (only when showLatestNotes is enabled)
+      if (showLatestNotes) {
+        const now = new Date();
+        if (noteFilterWithNote && !noteFilterOlderThan) {
+          filtered = filtered.filter(p => !!p.latest_note_date);
+        }
+        if (noteFilterWithoutNote) {
+          filtered = filtered.filter(p => !p.latest_note_date);
+        }
+        if (noteFilterOlderThan) {
+          filtered = filtered.filter(p => {
+            if (!p.latest_note_date) return true;
+            const daysSince = Math.floor((now - new Date(p.latest_note_date)) / (1000 * 60 * 60 * 24));
+            return daysSince > noteOlderThanDays;
+          });
+        }
+        // "with_note" + "older_than" combined = has a note AND it's older than X days
+        if (noteFilterWithNote && noteFilterOlderThan) {
+          filtered = filtered.filter(p => !!p.latest_note_date);
+        }
+      }
       return filtered;
     };
 
@@ -423,6 +458,13 @@ const InactiveManagement = () => {
             // Sort by intervention status: dismissed first, then snoozed, then others
             const interventionOrder = (p) => p.is_dismissed ? 2 : p.has_active_snooze ? 1 : 0;
             comparison = interventionOrder(a) - interventionOrder(b);
+            break;
+          }
+          case 'latest_note': {
+            // No note = sort last (Infinity), otherwise by date descending
+            const dateA = a.latest_note_date ? new Date(a.latest_note_date).getTime() : 0;
+            const dateB = b.latest_note_date ? new Date(b.latest_note_date).getTime() : 0;
+            comparison = dateA - dateB;
             break;
           }
           default:
@@ -491,7 +533,7 @@ const InactiveManagement = () => {
       : [];
 
     return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showLatestNotes, noteFilterWithNote, noteFilterWithoutNote, noteFilterOlderThan, noteOlderThanDays]);
 
   // Pagination: slice data for current page (pageSize 0 = show all)
   const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
@@ -872,6 +914,7 @@ const InactiveManagement = () => {
                 { key: 'progression', label: t('inactiveManagement.sorting.byProgression') },
                 { key: 'status', label: t('inactiveManagement.sorting.byStatus') },
                 { key: 'intervention', label: t('inactiveManagement.sorting.byIntervention') },
+                ...(showLatestNotes ? [{ key: 'latest_note', label: t('inactiveManagement.noteFilters.sortByNote') }] : []),
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -895,7 +938,7 @@ const InactiveManagement = () => {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
                 <Filter size={14} />
-                Statut
+                {t('inactiveManagement.statusFilter.title')}
               </span>
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
                 statusFilter.active ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
@@ -960,20 +1003,82 @@ const InactiveManagement = () => {
               </button>
             </div>
 
-            {/* Divider */}
-            <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
+          </div>
 
+          {/* Row: Toggles (CV planifié + Note filters) */}
+          <div className="flex items-center gap-2 flex-wrap border-t border-gray-100 dark:border-slate-700 pt-4">
             {/* CV planifié = Actif toggle */}
-            <div className="flex items-center gap-2">
-              <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                cvPlannedIsActive ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
-              }`}>
-                <input type="checkbox" checked={cvPlannedIsActive} onChange={() => setCvPlannedIsActive(!cvPlannedIsActive)} className="sr-only" />
-                <CalendarClock size={12} />
-                CV planifié = Actif
-              </label>
-            </div>
+            <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+              cvPlannedIsActive ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}>
+              <input type="checkbox" checked={cvPlannedIsActive} onChange={() => setCvPlannedIsActive(!cvPlannedIsActive)} className="sr-only" />
+              <CalendarClock size={12} />
+              CV planifié = Actif
+            </label>
 
+            {/* Note filters (only when showLatestNotes is enabled) */}
+            {showLatestNotes && (
+              <>
+                <div className="w-px h-5 bg-gray-200 dark:bg-slate-600 mx-1" />
+                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
+                  <MessageSquare size={14} />
+                  {t('inactiveManagement.latestNote')}
+                </span>
+                <button
+                  onClick={() => { setNoteFilterWithNote(v => !v); setNoteFilterWithoutNote(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    noteFilterWithNote
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {t('inactiveManagement.noteFilters.withNote')}
+                </button>
+                <button
+                  onClick={() => { setNoteFilterWithoutNote(v => !v); setNoteFilterWithNote(false); setNoteFilterOlderThan(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    noteFilterWithoutNote
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {t('inactiveManagement.noteFilters.withoutNote')}
+                </button>
+                <button
+                  onClick={() => { setNoteFilterOlderThan(v => !v); setNoteFilterWithoutNote(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    noteFilterOlderThan
+                      ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {t('inactiveManagement.noteFilters.noteOlderThan', { days: noteOlderThanDays })}
+                </button>
+                {noteFilterOlderThan && (
+                  <input
+                    type="number"
+                    value={noteOlderThanInput}
+                    onChange={(e) => setNoteOlderThanInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = Math.max(1, Math.min(365, parseInt(noteOlderThanInput) || 1));
+                        setNoteOlderThanDays(val);
+                        setNoteOlderThanInput(String(val));
+                        e.target.blur();
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = Math.max(1, Math.min(365, parseInt(noteOlderThanInput) || 1));
+                      setNoteOlderThanDays(val);
+                      setNoteOlderThanInput(String(val));
+                    }}
+                    className="w-16 px-2 py-1.5 border border-gray-200 dark:border-slate-600 rounded-lg text-xs dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                    min="1"
+                    max="365"
+                  />
+                )}
+              </>
+            )}
           </div>
 
           {/* Row 2: ADF + Formateur + Category Filters side by side */}
@@ -1671,6 +1776,18 @@ const InactiveManagement = () => {
                                           {participant.category_name}
                                         </span>
                                       )}
+                                      {showLatestNotes && participant.latest_note_date && (
+                                        <span className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full cursor-default">
+                                          <MessageSquare size={12} />
+                                          {t('inactiveManagement.latestNote')}: {new Date(participant.latest_note_date).toLocaleDateString('fr-FR')}
+                                        </span>
+                                      )}
+                                      {showLatestNotes && !participant.latest_note_date && (
+                                        <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
+                                          <MessageSquare size={12} />
+                                          {t('inactiveManagement.noNote')}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -1817,6 +1934,18 @@ const InactiveManagement = () => {
                                     />
                                   )}
                                   {participant.category_name}
+                                </span>
+                              )}
+                              {showLatestNotes && participant.latest_note_date && (
+                                <span className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full cursor-default">
+                                  <MessageSquare size={12} />
+                                  {t('inactiveManagement.latestNote')}: {new Date(participant.latest_note_date).toLocaleDateString('fr-FR')}
+                                </span>
+                              )}
+                              {showLatestNotes && !participant.latest_note_date && (
+                                <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
+                                  <MessageSquare size={12} />
+                                  {t('inactiveManagement.noNote')}
                                 </span>
                               )}
                             </div>
