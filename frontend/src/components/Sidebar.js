@@ -16,6 +16,7 @@ import {
   ClipboardList,
   Moon,
   Sun,
+  LayoutList,
 } from 'lucide-react';
 
 const Sidebar = ({ collapsed, onToggle }) => {
@@ -48,6 +49,13 @@ const Sidebar = ({ collapsed, onToggle }) => {
       active: true
     },
     {
+      id: 'module-management',
+      label: t('sidebar.moduleManagement'),
+      icon: LayoutList,
+      path: '/module-management',
+      active: true
+    },
+    {
       id: 'account',
       label: t('sidebar.account'),
       icon: UserCircle,
@@ -66,7 +74,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
   // Add admin menu item if user is admin
   const menuItems = user?.role === 'admin'
     ? [
-        ...baseMenuItems.slice(0, 3),
+        ...baseMenuItems.slice(0, 4),
         {
           id: 'admin-sync',
           label: 'Admin: Sync',
@@ -83,7 +91,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
           active: true,
           isAdmin: true
         },
-        ...baseMenuItems.slice(3)
+        ...baseMenuItems.slice(4)
       ]
     : baseMenuItems;
 

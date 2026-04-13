@@ -201,6 +201,12 @@ export const apiService = {
   async deleteSavedView(viewId) {
     await api.delete(`/views/${viewId}`);
   },
+
+  // Module management
+  async getModuleData() {
+    const response = await api.get('/courses/deadline-data');
+    return response.data;
+  },
 };
 
 export default api; 

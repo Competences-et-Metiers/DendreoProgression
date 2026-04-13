@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Dict, Any
 from app.models.database import get_db
-from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData, Creneau, CreneauParticipant
+from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData, Creneau, CreneauParticipant, ModuleCategory, Intervention
 from datetime import datetime, timezone
 from app.models.schemas import CourseWithParticipants, ParticipantCourse as ParticipantCourseSchema
 from app.schemas.course import CourseResponse, ModuleResponse
@@ -755,6 +755,180 @@ async def get_courses(db: Session = Depends(get_db)):
         course.last_access_at = last_access
     
     return courses
+
+@router.get("/deadline-data")
+async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Return all participant-module combinations where date_fin has passed.
+    Frontend filters by progression threshold."""
+    try:
+        now = datetime.now(timezone.utc)
+
+        # Single JOIN query: Course + Module + Participant (replaces N+1 loop)
+        rows = (
+            db.query(Course, Module, Participant)
+            .join(Module, Module.id_lam == Course.id_lam)
+            .join(Participant, Participant.id == Module.participant_id)
+            .filter(
+                Course.status.in_(['5', '6', '7']),
+                Course.date_fin != None,
+                Course.date_fin < now
+            )
+            .all()
+        )
+
+        if not rows:
+            return {"items": [], "total": 0}
+
+        # Build category lookup (single query)
+        category_map = {
+            cat.id_categorie_module: {"name": cat.intitule, "color": cat.color}
+            for cat in db.query(ModuleCategory).all()
+        }
+
+        # Collect liveroom modules that need progression calculation
+        liveroom_keys = set()
+        for course, module, participant in rows:
+            mode = module.mode_organisation or ''
+            if mode in ('elearning_sync', 'mixte'):
+                liveroom_keys.add((participant.id, course.id_action_formation, course.id_lam))
+
+        # Batch liveroom progression: count total and attended creneaux per (adf, lam, participant)
+        liveroom_prog_map = {}
+        if liveroom_keys:
+            all_adf_ids = {k[1] for k in liveroom_keys}
+            all_lam_ids = {k[2] for k in liveroom_keys}
+            creneaux = (
+                db.query(Creneau)
+                .filter(
+                    Creneau.id_action_formation.in_(all_adf_ids),
+                    Creneau.id_lam.in_(all_lam_ids)
+                )
+                .all()
+            )
+            # Group creneaux by (adf, lam)
+            creneaux_by_key = {}
+            for c in creneaux:
+                key = (c.id_action_formation, c.id_lam)
+                creneaux_by_key.setdefault(key, []).append(c.id)
+
+            # Get all attendance records for these creneaux in one query
+            all_creneau_ids = [c.id for c in creneaux]
+            participant_ids = {k[0] for k in liveroom_keys}
+            if all_creneau_ids and participant_ids:
+                attendances = (
+                    db.query(
+                        CreneauParticipant.participant_id,
+                        CreneauParticipant.creneau_id
+                    )
+                    .filter(
+                        CreneauParticipant.creneau_id.in_(all_creneau_ids),
+                        CreneauParticipant.participant_id.in_(participant_ids),
+                        CreneauParticipant.presence == "1"
+                    )
+                    .all()
+                )
+                # Build attendance set for O(1) lookup
+                attended_set = {(a.participant_id, a.creneau_id) for a in attendances}
+            else:
+                attended_set = set()
+
+            # Compute progression per (participant, adf, lam)
+            for pid, adf_id, lam_id in liveroom_keys:
+                creneau_ids = creneaux_by_key.get((adf_id, lam_id), [])
+                total = len(creneau_ids)
+                if total == 0:
+                    continue
+                attended = sum(1 for cid in creneau_ids if (pid, cid) in attended_set)
+                liveroom_prog_map[(pid, adf_id, lam_id)] = round((attended / total) * 100, 2)
+
+        # Build latest note map: (participant_id, adf_id) -> {date, text}
+        # First get the max date per (participant, adf)
+        from sqlalchemy import and_
+        latest_dates_sub = (
+            db.query(
+                Intervention.participant_id,
+                Intervention.id_action_formation,
+                func.max(Intervention.created_at).label('max_date')
+            )
+            .filter(
+                Intervention.intervention_type.in_(['note', 'call', 'email']),
+                Intervention.is_active == True
+            )
+            .group_by(Intervention.participant_id, Intervention.id_action_formation)
+            .subquery()
+        )
+        # Then join back to get details of the latest intervention
+        latest_notes_map = {}
+        note_rows = (
+            db.query(Intervention)
+            .join(
+                latest_dates_sub,
+                and_(
+                    Intervention.participant_id == latest_dates_sub.c.participant_id,
+                    Intervention.id_action_formation == latest_dates_sub.c.id_action_formation,
+                    Intervention.created_at == latest_dates_sub.c.max_date
+                )
+            )
+            .filter(
+                Intervention.intervention_type.in_(['note', 'call', 'email']),
+                Intervention.is_active == True
+            )
+            .all()
+        )
+        for note in note_rows:
+            if note.id_action_formation:
+                details = note.details or {}
+                text = details.get('text', '') if isinstance(details, dict) else ''
+                latest_notes_map[(note.participant_id, note.id_action_formation)] = {
+                    "date": note.created_at,
+                    "text": text,
+                    "type": note.intervention_type,
+                }
+
+        items = []
+        for course, module, participant in rows:
+            cat_info = category_map.get(course.categorie_module_id, {})
+            mode = module.mode_organisation or ''
+
+            if mode in ('elearning_sync', 'mixte'):
+                progression = liveroom_prog_map.get(
+                    (participant.id, course.id_action_formation, course.id_lam), 0.0
+                )
+            else:
+                progression = module.lms_progression
+
+            note_info = latest_notes_map.get((participant.id, course.id_action_formation))
+
+            items.append({
+                "participant_id": participant.id,
+                "id_participant": participant.id_participant,
+                "nom": participant.nom,
+                "prenom": participant.prenom,
+                "email": participant.email,
+                "id_action_formation": course.id_action_formation,
+                "course_title": course.intitule,
+                "module_intitule": module.intitule,
+                "id_lam": module.id_lam,
+                "mode_organisation": mode,
+                "progression": round(progression, 2),
+                "date_fin": course.date_fin.isoformat() if course.date_fin else None,
+                "date_debut": course.date_debut.isoformat() if course.date_debut else None,
+                "category_name": cat_info.get("name"),
+                "category_color": cat_info.get("color"),
+                "latest_note_date": note_info["date"].isoformat() if note_info else None,
+                "latest_note_text": note_info["text"] if note_info else None,
+                "latest_note_type": note_info["type"] if note_info else None,
+            })
+
+        # Sort by progression ascending (worst first)
+        items.sort(key=lambda x: x["progression"])
+
+        return {"items": items, "total": len(items)}
+
+    except Exception as e:
+        logger.error(f"Error fetching deadline data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/{course_id}", response_model=CourseResponse)
 async def get_course(course_id: int, db: Session = Depends(get_db)):

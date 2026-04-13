@@ -62,6 +62,9 @@ export const queryKeys = {
   // Saved views
   savedViews: ['savedViews'],
 
+  // Module management
+  moduleData: ['module', 'data'],
+
   // Admin interventions
   adminInterventions: (params) => ['admin', 'interventions', params],
   adminInterventionStats: ['admin', 'interventions', 'stats'],
