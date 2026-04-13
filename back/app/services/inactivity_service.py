@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Tuple
-from app.models.models import Participant, ParticipantCourse, Course, Module, Creneau, CreneauParticipant, ModuleCategory
+from app.models.models import Participant, ParticipantCourse, Course, Module, Creneau, CreneauParticipant, ModuleCategory, Intervention
 from app.models.schemas import (
     InactiveParticipantDetail,
     InactiveParticipantsByCourse,
@@ -151,6 +151,25 @@ class InactivityService:
         snoozed_set = intervention_svc.get_snoozed_participant_ids()
         snoozed_details = intervention_svc.get_snoozed_details_map()
         dismissed_set = intervention_svc.get_dismissed_participant_ids()
+
+        # Pre-build latest note dates map: (participant_id, adf_id) -> datetime
+        latest_notes_map: Dict[Tuple[int, Optional[str]], datetime] = {}
+        note_rows = (
+            self.db.query(
+                Intervention.participant_id,
+                Intervention.id_action_formation,
+                sa_func.max(Intervention.created_at).label('latest_note')
+            )
+            .filter(
+                Intervention.intervention_type.in_(['note', 'call', 'email']),
+                Intervention.is_active == True
+            )
+            .group_by(Intervention.participant_id, Intervention.id_action_formation)
+            .all()
+        )
+        for pid, adf, latest in note_rows:
+            if adf:
+                latest_notes_map[(pid, adf)] = latest
 
         all_details: List[InactiveParticipantDetail] = []
         by_course_map: Dict[str, List[InactiveParticipantDetail]] = {}
@@ -295,6 +314,7 @@ class InactivityService:
                 has_active_snooze=(participant_id, adf_id) in snoozed_set,
                 snooze_until=snoozed_details.get((participant_id, adf_id)),
                 is_dismissed=(participant_id, adf_id) in dismissed_set,
+                latest_note_date=latest_notes_map.get((participant_id, adf_id)),
             )
 
             all_details.append(detail)

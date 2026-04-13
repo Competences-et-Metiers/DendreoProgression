@@ -142,7 +142,7 @@ const AdminInterventions = () => {
           iv.intervention_type,
           `"${(iv.participant_name || '').replace(/"/g, '""')}"`,
           `"${(iv.user_display_name || '').replace(/"/g, '""')}"`,
-          iv.is_active ? 'Active' : 'Cancelled',
+          iv.is_active ? 'Effectué' : 'Annulé',
           `"${getDetailText(iv).replace(/"/g, '""')}"`,
         ].join(','))
       ];

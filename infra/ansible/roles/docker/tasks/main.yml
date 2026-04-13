@@ -1,0 +1,72 @@
+---
+# ==========================================================================
+# Docker role: install Docker Engine + Compose plugin
+# ==========================================================================
+# Uses Docker's official apt repository (not the distro package) to get
+# the latest stable version with Compose v2 built in.
+
+# --- Docker GPG key ---
+# Required for apt to verify Docker packages are authentic.
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+# --- Docker repository ---
+# Pin to the "stable" channel. Using ansible_distribution_release
+# (e.g. "jammy") so this works across Ubuntu versions.
+- name: Add Docker apt repository
+  apt_repository:
+    repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+
+# --- Install Docker ---
+# docker-ce: the daemon
+# docker-ce-cli: the CLI client
+# containerd.io: container runtime
+# docker-compose-plugin: Compose v2 (the `docker compose` command)
+- name: Install Docker packages
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+
+# --- Start Docker ---
+- name: Enable and start Docker
+  systemd:
+    name: docker
+    enabled: yes
+    state: started
+
+# --- Deploy user access ---
+# Adding the deploy user to the docker group lets them run
+# `docker compose` without sudo. This is the standard approach
+# for CI/CD deploy users.
+- name: Add deploy user to docker group
+  user:
+    name: "{{ deploy_user }}"
+    groups: docker
+    append: yes
+
+# --- Docker daemon config ---
+# Log rotation prevents Docker container logs from eating all disk space.
+# json-file with 10MB x 3 files = max 30MB per container.
+# Without this, a noisy container can fill your 80GB disk in days.
+- name: Configure Docker daemon (log rotation)
+  copy:
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+  notify: Restart Docker

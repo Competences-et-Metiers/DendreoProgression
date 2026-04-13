@@ -34,6 +34,7 @@ services:
 
   # Production Backend
   backend:
+    image: ghcr.io/competences-et-metiers/dendreoprogression-backend:main
     build:
       context: ./back
       dockerfile: Dockerfile.backend.prod
@@ -88,6 +89,7 @@ services:
 
   # Production Sync Service
   sync:
+    image: ghcr.io/competences-et-metiers/dendreoprogression-sync:main
     build:
       context: ./back
       dockerfile: Dockerfile.sync.prod
@@ -151,6 +153,7 @@ services:
 
   # Production Frontend (Build Only)
   frontend:
+    image: ghcr.io/competences-et-metiers/dendreoprogression-frontend:main
     build:
       context: ./frontend
       dockerfile: Dockerfile.frontend.prod

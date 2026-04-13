@@ -5,17 +5,11 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import StatCard from '../components/StatCard';
 import ProgressBar from '../components/ProgressBar';
 import CacheStatus from '../components/CacheStatus';
-import LanguageSelector from '../components/LanguageSelector';
-import { useDashboardStats, useCourses, usePrefetchQueries, useLastSync } from '../hooks/useQuery';
+import { useDashboardStats, useCourses, usePrefetchQueries } from '../hooks/useQuery';
 import {
   BookOpen,
   Users,
-  Target,
-  TrendingUp,
-  Calendar,
-  RefreshCw,
   ChevronRight,
-  Filter,
   Search
 } from 'lucide-react';
 
@@ -23,42 +17,30 @@ const Dashboard = () => {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('progression');
-  const [filterBy, setFilterBy] = useState('all');
   const navigate = useNavigate();
 
   const {
     data: stats,
     isLoading: statsLoading,
     error: statsError,
-    refetch: refetchStats,
-    isFetching: statsRefetching
+    refetch: refetchStats
   } = useDashboardStats();
 
   const {
     data: courses = [],
     isLoading: coursesLoading,
     error: coursesError,
-    refetch: refetchCourses,
-    isFetching: coursesRefetching
+    refetch: refetchCourses
   } = useCourses();
-
-  const {
-    data: lastSync,
-    isLoading: lastSyncLoading,
-    refetch: refetchLastSync,
-    isFetching: lastSyncRefetching
-  } = useLastSync();
 
   const { prefetchCourseParticipants } = usePrefetchQueries();
 
   const loading = statsLoading || coursesLoading;
   const error = statsError || coursesError;
-  const isRefetching = statsRefetching || coursesRefetching || lastSyncRefetching;
 
   const handleRefresh = () => {
     refetchStats();
     refetchCourses();
-    refetchLastSync();
   };
 
   const handleCourseClick = (courseId, event) => {
@@ -80,14 +62,6 @@ const Dashboard = () => {
       );
     }
 
-    if (filterBy === 'completed') {
-      filtered = filtered.filter(course => course.average_progression >= 100);
-    } else if (filterBy === 'in-progress') {
-      filtered = filtered.filter(course => course.average_progression > 0 && course.average_progression < 100);
-    } else if (filterBy === 'not-started') {
-      filtered = filtered.filter(course => course.average_progression === 0);
-    }
-
     return filtered.sort((a, b) => {
       switch (sortBy) {
         case 'progression':
@@ -102,33 +76,6 @@ const Dashboard = () => {
           return 0;
       }
     });
-  };
-
-  const formatLastSyncDate = (lastSyncData) => {
-    if (!lastSyncData || lastSyncData.status === 'no_sync') {
-      return 'Never';
-    }
-    if (!lastSyncData.last_sync_at) {
-      return 'Unknown';
-    }
-    const date = new Date(lastSyncData.last_sync_at);
-    return date.toLocaleString();
-  };
-
-  const getLastSyncStatus = (lastSyncData) => {
-    if (!lastSyncData || lastSyncData.status === 'no_sync') {
-      return { status: 'never', color: 'text-gray-500' };
-    }
-    switch (lastSyncData.sync_status) {
-      case 'success':
-        return { status: 'success', color: 'text-green-600 dark:text-green-400' };
-      case 'error':
-        return { status: 'error', color: 'text-red-600 dark:text-red-400' };
-      case 'in_progress':
-        return { status: 'in progress', color: 'text-blue-600 dark:text-blue-400' };
-      default:
-        return { status: 'unknown', color: 'text-gray-500 dark:text-gray-400' };
-    }
   };
 
   if (loading) {
@@ -169,39 +116,6 @@ const Dashboard = () => {
               <p className="text-gray-600 dark:text-gray-400 mt-1">{t('dashboard.subtitle')}</p>
             </div>
 
-            <div className="flex flex-col items-end space-y-3">
-              <div className="text-right">
-                <div className="flex items-center space-x-2">
-                  <Calendar size={14} className="text-gray-500 dark:text-gray-400" />
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {t('dashboard.sync.lastSync')}: <span className="font-medium">{formatLastSyncDate(lastSync)}</span>
-                  </span>
-                  {lastSync && lastSync.sync_status && (
-                    <span className={`text-xs font-medium ${getLastSyncStatus(lastSync).color}`}>
-                      ({t(`dashboard.sync.status.${getLastSyncStatus(lastSync).status}`)})
-                    </span>
-                  )}
-                </div>
-                {lastSync?.sync_status === 'error' && lastSync?.error_message && (
-                  <div className="text-xs text-red-500 dark:text-red-400 mt-1 max-w-md">
-                    {t('common.error')}: {lastSync.error_message}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center space-x-4">
-                <LanguageSelector />
-                <button
-                  onClick={handleRefresh}
-                  disabled={isRefetching}
-                  className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
-                  title={t('common.refreshData')}
-                >
-                  <RefreshCw size={16} className={`mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
-                  {isRefetching ? t('common.refreshing') : t('common.refresh')}
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -209,10 +123,10 @@ const Dashboard = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Grid */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <StatCard
               title={t('dashboard.stats.totalCourses')}
-              value={stats.total_courses}
+              value={courses.length}
               icon={BookOpen}
               color="blue"
             />
@@ -221,18 +135,6 @@ const Dashboard = () => {
               value={stats.total_participants}
               icon={Users}
               color="green"
-            />
-            <StatCard
-              title={t('dashboard.stats.averageProgress')}
-              value={`${stats.average_progression}%`}
-              icon={Target}
-              color="purple"
-            />
-            <StatCard
-              title={t('dashboard.stats.completionRate')}
-              value={`${stats.completion_rate}%`}
-              icon={TrendingUp}
-              color="indigo"
             />
           </div>
         )}
@@ -277,20 +179,6 @@ const Dashboard = () => {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <Filter size={16} className="text-gray-500 dark:text-gray-400" />
-                  <select
-                    value={filterBy}
-                    onChange={(e) => setFilterBy(e.target.value)}
-                    className="border border-gray-300 dark:border-slate-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="all">{t('dashboard.courses.filters.allCourses')}</option>
-                    <option value="completed">{t('dashboard.courses.filters.completed')}</option>
-                    <option value="in-progress">{t('dashboard.courses.filters.inProgress')}</option>
-                    <option value="not-started">{t('dashboard.courses.filters.notStarted')}</option>
-                  </select>
-                </div>
-
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
@@ -311,7 +199,7 @@ const Dashboard = () => {
               <div className="px-6 py-12 text-center">
                 <BookOpen size={48} className="mx-auto text-gray-400 dark:text-gray-600 mb-4" />
                 <p className="text-gray-500 dark:text-gray-400">
-                  {searchTerm || filterBy !== 'all'
+                  {searchTerm
                     ? t('errors.noCoursesMatchingCriteria')
                     : t('common.noCoursesFound')
                   }

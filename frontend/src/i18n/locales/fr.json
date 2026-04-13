@@ -175,10 +175,10 @@
     "backToParticipants": "Retour aux participants"
   },
   "dashboard": {
-    "title": "Tableau de bord des cours Dendreo",
-    "subtitle": "Suivre la progression des cours et l'engagement des participants",
+    "title": "Tableau de bord des ADF",
+    "subtitle": "Suivre la progression des ADF et l'engagement des participants",
     "stats": {
-      "totalCourses": "Cours totaux",
+      "totalCourses": "ADF totaux",
       "totalParticipants": "Participants totaux",
       "averageProgress": "Progression moyenne",
       "completionRate": "Taux de completion"
@@ -380,6 +380,7 @@
   "inactiveManagement": {
     "title": "Gestion des participants",
     "subtitle": "Suivre et gérer l'activité des participants",
+    "lastSync": "Dernière synchro",
     "viewFlat": "Vue liste",
     "viewGrouped": "Grouper par cours",
     "showing": "Affichage",
@@ -435,6 +436,15 @@
       "selectAll": "Tout sélectionner",
       "deselectAll": "Tout désélectionner",
       "selectedCount": "catégorie(s) sélectionnée(s)"
+    },
+    "latestNote": "Dernière note",
+    "noNote": "Aucune note",
+    "noteFilters": {
+      "all": "Tous",
+      "withNote": "Avec note",
+      "withoutNote": "Sans note",
+      "noteOlderThan": "Note > {{days}}j",
+      "sortByNote": "Trier par dernière note"
     },
     "searchPlaceholder": "Rechercher par nom, formation ou catégorie...",
     "modifyThreshold": "Modifier le seuil",
@@ -514,7 +524,7 @@
     "searchPlaceholder": "Rechercher par nom de participant...",
     "newestFirst": "Plus récent",
     "oldestFirst": "Plus ancien",
-    "active": "Actif",
+    "active": "Effectué",
     "cancelled": "Annulé",
     "staff": "Intervenant",
     "resetFilters": "Réinitialiser les filtres",
@@ -528,7 +538,7 @@
       "date": "Date",
       "participant": "Participant",
       "staff": "Intervenant",
-      "status": "Statut",
+      "status": "État d'action",
       "details": "Détails"
     }
   },
@@ -544,11 +554,18 @@
       "theme": "Mode sombre",
       "themeDesc": "Basculer entre le mode clair et le mode sombre"
     },
+    "language": {
+      "title": "Langue",
+      "subtitle": "Choisir la langue de l'application",
+      "label": "Langue de l'interface"
+    },
     "inactiveManagement": {
       "title": "Gestion des inactifs",
       "subtitle": "Options d'affichage de la page de gestion des inactifs",
       "showInterventionCounters": "Compteurs d'intervention",
-      "showInterventionCountersDesc": "Afficher les compteurs Reportés et Écartés dans les statistiques"
+      "showInterventionCountersDesc": "Afficher les compteurs Reportés et Écartés dans les statistiques",
+      "showLatestNotes": "Dernières notes",
+      "showLatestNotesDesc": "Afficher la date de dernière note/appel/email sur les fiches participants"
     }
   },
   "login": {

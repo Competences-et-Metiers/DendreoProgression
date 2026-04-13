@@ -1,0 +1,42 @@
+#!/bin/bash
+# ==========================================================================
+# Database backup script (managed by Ansible - do not edit on server)
+# ==========================================================================
+# Dumps the production Postgres DB, compresses it, and uploads to
+# Scaleway Object Storage. Old local backups are pruned after 7 days.
+
+set -euo pipefail
+
+TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+BACKUP_DIR="{{ app_dir }}/backups"
+BACKUP_FILE="dendreo_backup_${TIMESTAMP}.sql.gz"
+CONTAINER_NAME="dendreo_postgres_prod"
+DB_NAME="dendreo_prod_db"
+BUCKET="{{ backup_bucket }}"
+RCLONE_REMOTE="scaleway:${BUCKET}/daily"
+
+echo "[$(date)] Starting database backup..."
+
+# Ensure backup directory exists
+mkdir -p "${BACKUP_DIR}"
+
+# Dump and compress in one pipeline (never writes uncompressed SQL to disk)
+docker exec "${CONTAINER_NAME}" pg_dump -U postgres "${DB_NAME}" | gzip > "${BACKUP_DIR}/${BACKUP_FILE}"
+
+FILESIZE=$(du -h "${BACKUP_DIR}/${BACKUP_FILE}" | cut -f1)
+echo "[$(date)] Dump complete: ${BACKUP_FILE} (${FILESIZE})"
+
+# Upload to Scaleway Object Storage
+if command -v rclone &> /dev/null; then
+    rclone copy "${BACKUP_DIR}/${BACKUP_FILE}" "${RCLONE_REMOTE}/" --config "/home/{{ deploy_user }}/.config/rclone/rclone.conf"
+    echo "[$(date)] Uploaded to ${RCLONE_REMOTE}/${BACKUP_FILE}"
+else
+    echo "[$(date)] WARNING: rclone not found, backup saved locally only"
+fi
+
+# Prune local backups older than 7 days (remote retention handled by
+# Terraform lifecycle rule at {{ backup_retention_days }} days)
+find "${BACKUP_DIR}" -name "dendreo_backup_*.sql.gz" -mtime +7 -delete
+echo "[$(date)] Pruned local backups older than 7 days"
+
+echo "[$(date)] Backup complete."
