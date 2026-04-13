@@ -763,68 +763,113 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
     try:
         now = datetime.now(timezone.utc)
 
-        # Get all courses with a past date_fin
-        past_courses = db.query(Course).filter(
-            Course.date_fin != None,
-            Course.date_fin < now,
-            Course.status.in_(['5', '6', '7'])
-        ).all()
+        # Single JOIN query: Course + Module + Participant (replaces N+1 loop)
+        rows = (
+            db.query(Course, Module, Participant)
+            .join(Module, Module.id_lam == Course.id_lam)
+            .join(Participant, Participant.id == Module.participant_id)
+            .filter(
+                Course.status.in_(['5', '6', '7']),
+                Course.date_fin != None,
+                Course.date_fin < now
+            )
+            .all()
+        )
 
-        if not past_courses:
+        if not rows:
             return {"items": [], "total": 0}
 
-        # Build category lookup
-        category_map = {}
-        for cat in db.query(ModuleCategory).all():
-            category_map[cat.id_categorie_module] = {
-                "name": cat.intitule,
-                "color": cat.color
-            }
+        # Build category lookup (single query)
+        category_map = {
+            cat.id_categorie_module: {"name": cat.intitule, "color": cat.color}
+            for cat in db.query(ModuleCategory).all()
+        }
+
+        # Collect liveroom modules that need progression calculation
+        liveroom_keys = set()
+        for course, module, participant in rows:
+            mode = module.mode_organisation or ''
+            if mode in ('elearning_sync', 'mixte'):
+                liveroom_keys.add((participant.id, course.id_action_formation, course.id_lam))
+
+        # Batch liveroom progression: count total and attended creneaux per (adf, lam, participant)
+        liveroom_prog_map = {}
+        if liveroom_keys:
+            all_adf_ids = {k[1] for k in liveroom_keys}
+            all_lam_ids = {k[2] for k in liveroom_keys}
+            creneaux = (
+                db.query(Creneau)
+                .filter(
+                    Creneau.id_action_formation.in_(all_adf_ids),
+                    Creneau.id_lam.in_(all_lam_ids)
+                )
+                .all()
+            )
+            # Group creneaux by (adf, lam)
+            creneaux_by_key = {}
+            for c in creneaux:
+                key = (c.id_action_formation, c.id_lam)
+                creneaux_by_key.setdefault(key, []).append(c.id)
+
+            # Get all attendance records for these creneaux in one query
+            all_creneau_ids = [c.id for c in creneaux]
+            participant_ids = {k[0] for k in liveroom_keys}
+            if all_creneau_ids and participant_ids:
+                attendances = (
+                    db.query(
+                        CreneauParticipant.participant_id,
+                        CreneauParticipant.creneau_id
+                    )
+                    .filter(
+                        CreneauParticipant.creneau_id.in_(all_creneau_ids),
+                        CreneauParticipant.participant_id.in_(participant_ids),
+                        CreneauParticipant.presence == "1"
+                    )
+                    .all()
+                )
+                # Build attendance set for O(1) lookup
+                attended_set = {(a.participant_id, a.creneau_id) for a in attendances}
+            else:
+                attended_set = set()
+
+            # Compute progression per (participant, adf, lam)
+            for pid, adf_id, lam_id in liveroom_keys:
+                creneau_ids = creneaux_by_key.get((adf_id, lam_id), [])
+                total = len(creneau_ids)
+                if total == 0:
+                    continue
+                attended = sum(1 for cid in creneau_ids if (pid, cid) in attended_set)
+                liveroom_prog_map[(pid, adf_id, lam_id)] = round((attended / total) * 100, 2)
 
         items = []
-        for course in past_courses:
-            # Resolve category
+        for course, module, participant in rows:
             cat_info = category_map.get(course.categorie_module_id, {})
+            mode = module.mode_organisation or ''
 
-            # Get all modules for this course's id_lam
-            modules = db.query(Module).filter(
-                Module.id_lam == course.id_lam
-            ).all()
+            if mode in ('elearning_sync', 'mixte'):
+                progression = liveroom_prog_map.get(
+                    (participant.id, course.id_action_formation, course.id_lam), 0.0
+                )
+            else:
+                progression = module.lms_progression
 
-            for module in modules:
-                participant = db.query(Participant).filter(
-                    Participant.id == module.participant_id
-                ).first()
-                if not participant:
-                    continue
-
-                # Compute progression based on mode
-                mode = module.mode_organisation or ''
-                if mode in ('elearning_sync', 'mixte'):
-                    liveroom_prog = _get_liveroom_progression(
-                        db, participant.id, course.id_action_formation, module.id_lam
-                    )
-                    progression = liveroom_prog if liveroom_prog is not None else 0.0
-                else:
-                    progression = module.lms_progression
-
-                items.append({
-                    "participant_id": participant.id,
-                    "id_participant": participant.id_participant,
-                    "nom": participant.nom,
-                    "prenom": participant.prenom,
-                    "email": participant.email,
-                    "id_action_formation": course.id_action_formation,
-                    "course_title": course.intitule,
-                    "module_intitule": module.intitule,
-                    "id_lam": module.id_lam,
-                    "mode_organisation": mode,
-                    "progression": round(progression, 2),
-                    "date_fin": course.date_fin.isoformat() if course.date_fin else None,
-                    "date_debut": course.date_debut.isoformat() if course.date_debut else None,
-                    "category_name": cat_info.get("name"),
-                    "category_color": cat_info.get("color"),
-                })
+            items.append({
+                "participant_id": participant.id,
+                "id_participant": participant.id_participant,
+                "nom": participant.nom,
+                "prenom": participant.prenom,
+                "email": participant.email,
+                "id_action_formation": course.id_action_formation,
+                "course_title": course.intitule,
+                "module_intitule": module.intitule,
+                "id_lam": module.id_lam,
+                "mode_organisation": mode,
+                "progression": round(progression, 2),
+                "date_fin": course.date_fin.isoformat() if course.date_fin else None,
+                "date_debut": course.date_debut.isoformat() if course.date_debut else None,
+                "category_name": cat_info.get("name"),
+                "category_color": cat_info.get("color"),
+            })
 
         # Sort by progression ascending (worst first)
         items.sort(key=lambda x: x["progression"])

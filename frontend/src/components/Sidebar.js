@@ -16,7 +16,7 @@ import {
   ClipboardList,
   Moon,
   Sun,
-  AlertTriangle,
+  LayoutList,
 } from 'lucide-react';
 
 const Sidebar = ({ collapsed, onToggle }) => {
@@ -49,10 +49,10 @@ const Sidebar = ({ collapsed, onToggle }) => {
       active: true
     },
     {
-      id: 'deadline-management',
-      label: t('sidebar.deadlineManagement'),
-      icon: AlertTriangle,
-      path: '/deadline-management',
+      id: 'module-management',
+      label: t('sidebar.moduleManagement'),
+      icon: LayoutList,
+      path: '/module-management',
       active: true
     },
     {

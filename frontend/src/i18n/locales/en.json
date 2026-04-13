@@ -332,22 +332,30 @@
     "expand": "Expand menu",
     "collapse": "Collapse menu",
     "comingSoon": "Soon",
-    "deadlineManagement": "Deadline Management"
+    "moduleManagement": "Module Management"
   },
-  "deadlineManagement": {
-    "title": "Deadline Management",
+  "moduleManagement": {
+    "title": "Module Management",
     "subtitle": "Modules past their end date with insufficient progression",
-    "settings": "Settings",
-    "settingsTitle": "Progression Threshold",
-    "thresholdLabel": "Show participants below this threshold",
-    "thresholdHelp": "Participants with progression strictly below {{threshold}}% after the module end date will be shown.",
     "searchPlaceholder": "Search by name, email or course...",
     "statsCount": "{{count}} module(s) below {{threshold}}%",
     "participant": "Participant",
     "type": "Type",
     "progression": "Progression",
     "emptyTitle": "No delays detected",
-    "emptyMessage": "All participants have progression at or above {{threshold}}% for modules past their end date."
+    "emptyMessage": "All participants have progression at or above {{threshold}}% for modules past their end date.",
+    "thresholdLabel": "Threshold",
+    "filterByAdf": "Filter by course (ADF)",
+    "filterByCategory": "Filter by category",
+    "filterByType": "Module type",
+    "allTypes": "All",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "selected": "selected",
+    "noResults": "No results found",
+    "viewCourse": "Course view",
+    "viewParticipant": "Participant view",
+    "resetFilters": "Reset filters"
   },
   "account": {
     "title": "My Account",

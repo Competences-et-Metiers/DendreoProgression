@@ -18,7 +18,7 @@ import InactiveManagement from './pages/InactiveManagement';
 import Settings from './pages/Settings';
 import AdminSyncDashboard from './pages/AdminSyncDashboard';
 import AdminInterventions from './pages/AdminInterventions';
-import DeadlineManagement from './pages/DeadlineManagement';
+import ModuleManagement from './pages/ModuleManagement';
 import { Loader2 } from 'lucide-react';
 
 // Protected route wrapper
@@ -89,7 +89,7 @@ const AppContent = () => {
                   <Route path="/participants/:participantId" element={<ParticipantDetail />} />
                   <Route path="/account" element={<Account />} />
                   <Route path="/inactive-management" element={<InactiveManagement />} />
-                  <Route path="/deadline-management" element={<DeadlineManagement />} />
+                  <Route path="/module-management" element={<ModuleManagement />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route
                     path="/admin/sync"

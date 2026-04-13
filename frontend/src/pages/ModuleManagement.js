@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
@@ -12,10 +13,12 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Target,
-  Settings,
   Search,
   BarChart3,
   X,
+  BookOpen,
+  Filter,
+  LayoutList,
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { queryKeys } from '../queryClient';
@@ -34,40 +37,60 @@ const MODE_COLORS = {
   mixte: 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400',
 };
 
+const MODE_FILTER_OPTIONS = [
+  { key: 'all', label: 'allTypes' },
+  { key: 'elearning_async', label: 'E-Learning' },
+  { key: 'elearning_sync', label: 'Classe(s) Virtuelle(s)' },
+  { key: 'mixte', label: 'Mixte' },
+];
+
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 0];
 
-const DeadlineManagement = () => {
+const ModuleManagement = () => {
+  const { t } = useTranslation();
+
   // Threshold
   const [threshold, setThreshold] = useState(() => {
-    const cached = sessionStorage.getItem('deadlineManagement.threshold');
+    const cached = sessionStorage.getItem('moduleManagement.threshold');
     return cached !== null ? Number(cached) : 95;
   });
-  const [showSettings, setShowSettings] = useState(false);
 
   // Search
   const [searchTerm, setSearchTerm] = useState(() => {
-    return localStorage.getItem('deadlineManagement.searchTerm') || '';
+    return localStorage.getItem('moduleManagement.searchTerm') || '';
   });
 
   // View toggle: 'course' (grouped) or 'participant' (flat)
   const [viewMode, setViewMode] = useState(() => {
-    const cached = sessionStorage.getItem('deadlineManagement.viewMode');
+    const cached = sessionStorage.getItem('moduleManagement.viewMode');
     return cached || 'course';
   });
 
-  // Filters
+  // ADF filter
   const [selectedADFs, setSelectedADFs] = useState(() => {
-    const cached = localStorage.getItem('deadlineManagement.selectedADFs');
+    const cached = localStorage.getItem('moduleManagement.selectedADFs');
     return cached ? JSON.parse(cached) : [];
   });
+  const [showAdfDropdown, setShowAdfDropdown] = useState(false);
+  const [adfSearchTerm, setAdfSearchTerm] = useState('');
+
+  // Category filter
   const [selectedCategories, setSelectedCategories] = useState(() => {
-    const cached = localStorage.getItem('deadlineManagement.selectedCategories');
+    const cached = localStorage.getItem('moduleManagement.selectedCategories');
     return cached ? JSON.parse(cached) : [];
+  });
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [categorySearchTerm, setCategorySearchTerm] = useState('');
+
+  // Module type filter
+  const [selectedModuleType, setSelectedModuleType] = useState(() => {
+    const cached = localStorage.getItem('moduleManagement.selectedModuleType');
+    return cached || 'all';
   });
 
   // Pagination
   const [pageSize, setPageSize] = useState(() => {
-    const cached = localStorage.getItem('deadlineManagement.pageSize');
+    const cached = localStorage.getItem('moduleManagement.pageSize');
     return cached ? JSON.parse(cached) : 50;
   });
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,71 +98,55 @@ const DeadlineManagement = () => {
   // Expanded states
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
-  // Filter dropdowns
-  const [showADFFilter, setShowADFFilter] = useState(false);
-  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
-  const [adfSearch, setAdfSearch] = useState('');
-  const [categorySearch, setCategorySearch] = useState('');
+  // Persist state
+  useEffect(() => { localStorage.setItem('moduleManagement.selectedADFs', JSON.stringify(selectedADFs)); }, [selectedADFs]);
+  useEffect(() => { localStorage.setItem('moduleManagement.selectedCategories', JSON.stringify(selectedCategories)); }, [selectedCategories]);
+  useEffect(() => { localStorage.setItem('moduleManagement.selectedModuleType', selectedModuleType); }, [selectedModuleType]);
+  useEffect(() => { localStorage.setItem('moduleManagement.searchTerm', searchTerm); }, [searchTerm]);
+  useEffect(() => { localStorage.setItem('moduleManagement.pageSize', JSON.stringify(pageSize)); }, [pageSize]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedADFs, selectedCategories, selectedModuleType, searchTerm, threshold, pageSize, viewMode]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.deadlineData,
-    queryFn: () => apiService.getDeadlineData(),
+    queryKey: queryKeys.moduleData,
+    queryFn: () => apiService.getModuleData(),
     staleTime: 5 * 60 * 1000,
   });
 
   const handleThresholdChange = (value) => {
     const v = Math.max(0, Math.min(100, Number(value)));
     setThreshold(v);
-    sessionStorage.setItem('deadlineManagement.threshold', v);
-    setCurrentPage(1);
+    sessionStorage.setItem('moduleManagement.threshold', v);
   };
 
   const handleSearchChange = (value) => {
     setSearchTerm(value);
-    localStorage.setItem('deadlineManagement.searchTerm', value);
-    setCurrentPage(1);
   };
 
   const handleViewModeChange = () => {
     const next = viewMode === 'course' ? 'participant' : 'course';
     setViewMode(next);
-    sessionStorage.setItem('deadlineManagement.viewMode', next);
-    setCurrentPage(1);
+    sessionStorage.setItem('moduleManagement.viewMode', next);
   };
 
   const handlePageSizeChange = (size) => {
     setPageSize(size);
-    localStorage.setItem('deadlineManagement.pageSize', JSON.stringify(size));
-    setCurrentPage(1);
   };
 
-  const handleADFToggle = useCallback((adfId) => {
-    setSelectedADFs(prev => {
-      const next = prev.includes(adfId) ? prev.filter(a => a !== adfId) : [...prev, adfId];
-      localStorage.setItem('deadlineManagement.selectedADFs', JSON.stringify(next));
-      return next;
-    });
-    setCurrentPage(1);
-  }, []);
+  const hasActiveFilters = selectedADFs.length > 0 || selectedCategories.length > 0 || selectedModuleType !== 'all' || searchTerm || threshold !== 95;
 
-  const handleCategoryToggle = useCallback((catName) => {
-    setSelectedCategories(prev => {
-      const next = prev.includes(catName) ? prev.filter(c => c !== catName) : [...prev, catName];
-      localStorage.setItem('deadlineManagement.selectedCategories', JSON.stringify(next));
-      return next;
-    });
-    setCurrentPage(1);
-  }, []);
-
-  const hasActiveFilters = selectedADFs.length > 0 || selectedCategories.length > 0;
-
-  const resetAllFilters = () => {
+  const resetAllFilters = useCallback(() => {
     setSelectedADFs([]);
     setSelectedCategories([]);
-    localStorage.removeItem('deadlineManagement.selectedADFs');
-    localStorage.removeItem('deadlineManagement.selectedCategories');
-    setCurrentPage(1);
-  };
+    setSelectedModuleType('all');
+    setSearchTerm('');
+    setThreshold(95);
+    sessionStorage.setItem('moduleManagement.threshold', 95);
+    localStorage.removeItem('moduleManagement.searchTerm');
+  }, []);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -187,6 +194,7 @@ const DeadlineManagement = () => {
       if (item.progression >= threshold) return false;
       if (selectedADFs.length > 0 && !selectedADFs.includes(item.id_action_formation)) return false;
       if (selectedCategories.length > 0 && !selectedCategories.includes(item.category_name)) return false;
+      if (selectedModuleType !== 'all' && item.mode_organisation !== selectedModuleType) return false;
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
         const match =
@@ -199,7 +207,7 @@ const DeadlineManagement = () => {
       }
       return true;
     });
-  }, [data, threshold, searchTerm, selectedADFs, selectedCategories]);
+  }, [data, threshold, searchTerm, selectedADFs, selectedCategories, selectedModuleType]);
 
   // Course view: group by ADF+module
   const groupEntries = useMemo(() => {
@@ -250,15 +258,15 @@ const DeadlineManagement = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg mr-4">
-                <AlertTriangle size={24} className="text-red-600 dark:text-red-400" />
+              <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg mr-4">
+                <LayoutList size={24} className="text-primary-600 dark:text-primary-400" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Gestion de Deadline
+                  {t('moduleManagement.title')}
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  Modules dont la date de fin est d&eacute;pass&eacute;e avec une progression insuffisante
+                  {t('moduleManagement.subtitle')}
                 </p>
               </div>
             </div>
@@ -270,21 +278,9 @@ const DeadlineManagement = () => {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                 >
                   <X size={18} />
-                  <span className="font-medium">Retirer les filtres</span>
+                  <span className="font-medium">{t('moduleManagement.resetFilters')}</span>
                 </button>
               )}
-
-              <button
-                onClick={() => setShowSettings(!showSettings)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                  showSettings
-                    ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400'
-                    : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
-                }`}
-              >
-                <Settings size={18} />
-                <span className="font-medium">Param&egrave;tres</span>
-              </button>
 
               <button
                 onClick={handleViewModeChange}
@@ -292,7 +288,7 @@ const DeadlineManagement = () => {
               >
                 <BarChart3 size={18} />
                 <span className="font-medium">
-                  {viewMode === 'course' ? 'Vue Participant' : 'Vue Formation'}
+                  {viewMode === 'course' ? t('moduleManagement.viewParticipant') : t('moduleManagement.viewCourse')}
                 </span>
               </button>
             </div>
@@ -302,132 +298,278 @@ const DeadlineManagement = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Settings Panel */}
-        {showSettings && (
-          <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 mb-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Settings size={20} className="text-gray-600 dark:text-gray-400" />
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Filtres &amp; Seuil
-              </h3>
+        {/* Filter Bar - always visible */}
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 mb-6 space-y-4">
+          {/* Row 1: Module type pills + threshold */}
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Module Type Filter */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
+                <Filter size={14} />
+                {t('moduleManagement.filterByType')}
+              </span>
+              {MODE_FILTER_OPTIONS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setSelectedModuleType(key)}
+                  className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    selectedModuleType === key
+                      ? key === 'elearning_async' ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400'
+                        : key === 'elearning_sync' ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400'
+                        : key === 'mixte' ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400'
+                        : 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {key === 'all' ? t('moduleManagement.allTypes') : label}
+                </button>
+              ))}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Threshold Slider */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Seuil de progression
-                </label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={threshold}
-                    onChange={(e) => handleThresholdChange(e.target.value)}
-                    className="flex-1 h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={threshold}
-                      onChange={(e) => handleThresholdChange(e.target.value)}
-                      className="w-16 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-center text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                    />
-                    <span className="text-sm text-gray-500 dark:text-gray-400">%</span>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Afficher les participants avec une progression strictement inf&eacute;rieure &agrave; {threshold}%
-                </p>
-              </div>
 
-              {/* ADF Filter */}
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Filtrer par ADF
-                </label>
-                <button
-                  onClick={() => { setShowADFFilter(!showADFFilter); setShowCategoryFilter(false); }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-left text-gray-900 dark:text-white"
-                >
-                  {selectedADFs.length === 0 ? 'Toutes les ADF' : `${selectedADFs.length} s\u00e9lectionn\u00e9e(s)`}
-                  <ChevronDown size={14} className="float-right mt-0.5 text-gray-400" />
-                </button>
-                {showADFFilter && (
-                  <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg">
-                    <div className="p-2 border-b border-gray-100 dark:border-slate-700">
-                      <input
-                        type="text"
-                        value={adfSearch}
-                        onChange={(e) => setAdfSearch(e.target.value)}
-                        placeholder="Rechercher..."
-                        className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      />
-                    </div>
-                    {adfList
-                      .filter(a => !adfSearch || a.title.toLowerCase().includes(adfSearch.toLowerCase()))
-                      .map(adf => (
-                        <label key={adf.id} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer text-xs">
-                          <input
-                            type="checkbox"
-                            checked={selectedADFs.includes(adf.id)}
-                            onChange={() => handleADFToggle(adf.id)}
-                            className="w-3.5 h-3.5 rounded"
-                          />
-                          <span className="text-gray-700 dark:text-gray-300 truncate">{adf.title}</span>
-                        </label>
-                      ))}
-                  </div>
-                )}
-              </div>
+            {/* Divider */}
+            <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
 
-              {/* Category Filter */}
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Filtrer par cat&eacute;gorie
-                </label>
-                <button
-                  onClick={() => { setShowCategoryFilter(!showCategoryFilter); setShowADFFilter(false); }}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-sm text-left text-gray-900 dark:text-white"
-                >
-                  {selectedCategories.length === 0 ? 'Toutes les cat\u00e9gories' : `${selectedCategories.length} s\u00e9lectionn\u00e9e(s)`}
-                  <ChevronDown size={14} className="float-right mt-0.5 text-gray-400" />
-                </button>
-                {showCategoryFilter && (
-                  <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg">
-                    <div className="p-2 border-b border-gray-100 dark:border-slate-700">
-                      <input
-                        type="text"
-                        value={categorySearch}
-                        onChange={(e) => setCategorySearch(e.target.value)}
-                        placeholder="Rechercher..."
-                        className="w-full px-2 py-1 text-xs border border-gray-200 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                      />
-                    </div>
-                    {categoryList
-                      .filter(c => !categorySearch || c.name.toLowerCase().includes(categorySearch.toLowerCase()))
-                      .map(cat => (
-                        <label key={cat.name} className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer text-xs">
-                          <input
-                            type="checkbox"
-                            checked={selectedCategories.includes(cat.name)}
-                            onChange={() => handleCategoryToggle(cat.name)}
-                            className="w-3.5 h-3.5 rounded"
-                          />
-                          {cat.color && (
-                            <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: `#${cat.color}` }} />
-                          )}
-                          <span className="text-gray-700 dark:text-gray-300 truncate">{cat.name}</span>
-                        </label>
-                      ))}
-                  </div>
-                )}
+            {/* Threshold */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <Target size={14} />
+                {t('moduleManagement.thresholdLabel')}
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={threshold}
+                onChange={(e) => handleThresholdChange(e.target.value)}
+                className="w-32 h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"
+              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={threshold}
+                  onChange={(e) => handleThresholdChange(e.target.value)}
+                  className="w-14 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-center text-xs bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                />
+                <span className="text-xs text-gray-500 dark:text-gray-400">%</span>
               </div>
             </div>
           </div>
-        )}
+
+          {/* Row 2: ADF + Category Filters side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 border-t border-gray-100 dark:border-slate-700 pt-4">
+            {/* ADF Filter */}
+            <div>
+              <button
+                onClick={() => { setShowAdfDropdown(!showAdfDropdown); setShowCategoryDropdown(false); }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <BookOpen size={16} className="text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{t('moduleManagement.filterByAdf')}</span>
+                  {selectedADFs.length > 0 && (
+                    <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium rounded-full">
+                      {selectedADFs.length}
+                    </span>
+                  )}
+                </div>
+                {showAdfDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+
+              {showAdfDropdown && (() => {
+                const filteredADFs = adfList.filter(adf =>
+                  adf.title.toLowerCase().includes(adfSearchTerm.toLowerCase())
+                );
+                const selectedButHiddenADFs = adfSearchTerm
+                  ? adfList.filter(adf => selectedADFs.includes(adf.id) && !adf.title.toLowerCase().includes(adfSearchTerm.toLowerCase()))
+                  : [];
+
+                return (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      type="text"
+                      value={adfSearchTerm}
+                      onChange={(e) => setAdfSearchTerm(e.target.value)}
+                      placeholder={t('moduleManagement.searchPlaceholder')}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white dark:placeholder-gray-500"
+                    />
+                    {selectedButHiddenADFs.length > 0 && (
+                      <div className="space-y-1 border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 rounded-lg p-2">
+                        <p className="text-[10px] font-medium text-primary-600 uppercase tracking-wide px-2">{t('moduleManagement.selected')}</p>
+                        {selectedButHiddenADFs.map((adf) => (
+                          <label key={adf.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-primary-100/50 cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={true}
+                              onChange={() => setSelectedADFs(selectedADFs.filter(id => id !== adf.id))}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                            />
+                            <span className="text-xs text-primary-700 leading-tight">{adf.title}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-slate-700 rounded-lg p-2">
+                      {filteredADFs.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">{t('moduleManagement.noResults')}</p>
+                      ) : (
+                        <>
+                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors border-b border-gray-200 dark:border-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={filteredADFs.length > 0 && filteredADFs.every(adf => selectedADFs.includes(adf.id))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedADFs(prev => [...new Set([...prev, ...filteredADFs.map(a => a.id)])]);
+                                } else {
+                                  const filteredIds = new Set(filteredADFs.map(a => a.id));
+                                  setSelectedADFs(prev => prev.filter(id => !filteredIds.has(id)));
+                                }
+                              }}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
+                            />
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                              {filteredADFs.length > 0 && filteredADFs.every(adf => selectedADFs.includes(adf.id)) ? t('moduleManagement.deselectAll') : t('moduleManagement.selectAll')}
+                            </span>
+                          </label>
+                          {filteredADFs.map((adf) => (
+                            <label key={adf.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={selectedADFs.includes(adf.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedADFs([...selectedADFs, adf.id]);
+                                  } else {
+                                    setSelectedADFs(selectedADFs.filter(id => id !== adf.id));
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                              />
+                              <span className="text-xs text-gray-700 dark:text-gray-300 leading-tight">{adf.title}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                    {selectedADFs.length > 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {selectedADFs.length} formation{selectedADFs.length > 1 ? 's' : ''} {t('moduleManagement.selected')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <button
+                onClick={() => { setShowCategoryDropdown(!showCategoryDropdown); setShowAdfDropdown(false); }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Filter size={16} className="text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{t('moduleManagement.filterByCategory')}</span>
+                  {selectedCategories.length > 0 && (
+                    <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium rounded-full">
+                      {selectedCategories.length}
+                    </span>
+                  )}
+                </div>
+                {showCategoryDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+
+              {showCategoryDropdown && (() => {
+                const filteredCategories = categoryList.filter(cat =>
+                  cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase())
+                );
+                const selectedButHiddenCategories = categorySearchTerm
+                  ? categoryList.filter(cat => selectedCategories.includes(cat.name) && !cat.name.toLowerCase().includes(categorySearchTerm.toLowerCase()))
+                  : [];
+
+                return (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      type="text"
+                      value={categorySearchTerm}
+                      onChange={(e) => setCategorySearchTerm(e.target.value)}
+                      placeholder={t('moduleManagement.searchPlaceholder')}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white dark:placeholder-gray-500"
+                    />
+                    {selectedButHiddenCategories.length > 0 && (
+                      <div className="space-y-1 border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 rounded-lg p-2">
+                        <p className="text-[10px] font-medium text-primary-600 uppercase tracking-wide px-2">{t('moduleManagement.selected')}</p>
+                        {selectedButHiddenCategories.map((cat) => (
+                          <label key={cat.name} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-primary-100/50 cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={true}
+                              onChange={() => setSelectedCategories(selectedCategories.filter(n => n !== cat.name))}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                            />
+                            {cat.color && <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1" style={{ backgroundColor: `#${cat.color}` }} />}
+                            <span className="text-xs text-primary-700 leading-tight">{cat.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-slate-700 rounded-lg p-2">
+                      {filteredCategories.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">{t('moduleManagement.noResults')}</p>
+                      ) : (
+                        <>
+                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors border-b border-gray-200 dark:border-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={filteredCategories.length > 0 && filteredCategories.every(cat => selectedCategories.includes(cat.name))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedCategories(prev => [...new Set([...prev, ...filteredCategories.map(c => c.name)])]);
+                                } else {
+                                  const filteredNames = new Set(filteredCategories.map(c => c.name));
+                                  setSelectedCategories(prev => prev.filter(n => !filteredNames.has(n)));
+                                }
+                              }}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
+                            />
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                              {filteredCategories.length > 0 && filteredCategories.every(cat => selectedCategories.includes(cat.name)) ? t('moduleManagement.deselectAll') : t('moduleManagement.selectAll')}
+                            </span>
+                          </label>
+                          {filteredCategories.map((cat) => (
+                            <label key={cat.name} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={selectedCategories.includes(cat.name)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedCategories([...selectedCategories, cat.name]);
+                                  } else {
+                                    setSelectedCategories(selectedCategories.filter(n => n !== cat.name));
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                              />
+                              {cat.color && <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1" style={{ backgroundColor: `#${cat.color}` }} />}
+                              <span className="text-xs text-gray-700 dark:text-gray-300 leading-tight">{cat.name}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                    {selectedCategories.length > 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {selectedCategories.length} {t('moduleManagement.selected')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
 
         {/* Search + Stats + Page Size Bar */}
         <div className="flex items-center justify-between mb-6">
@@ -437,14 +579,14 @@ const DeadlineManagement = () => {
               type="text"
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Rechercher par nom, email ou formation..."
+              placeholder={t('moduleManagement.searchPlaceholder')}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               <Target size={14} className="inline mr-1" />
-              {filteredItems.length} module(s) sous {threshold}%
+              {t('moduleManagement.statsCount', { count: filteredItems.length, threshold })}
             </span>
             <div className="flex items-center gap-1 border-l border-gray-300 dark:border-slate-600 pl-4">
               {PAGE_SIZE_OPTIONS.map(size => (
@@ -475,10 +617,10 @@ const DeadlineManagement = () => {
           <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-12 text-center">
             <AlertTriangle size={48} className="mx-auto text-gray-300 dark:text-slate-600 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              Aucun retard d&eacute;tect&eacute;
+              {t('moduleManagement.emptyTitle')}
             </h3>
             <p className="text-gray-500 dark:text-gray-400">
-              Tous les participants ont une progression sup&eacute;rieure ou &eacute;gale &agrave; {threshold}% pour les modules dont la date de fin est d&eacute;pass&eacute;e.
+              {t('moduleManagement.emptyMessage', { threshold })}
             </p>
           </div>
         )}
@@ -551,9 +693,9 @@ const DeadlineManagement = () => {
                       <table className="w-full">
                         <thead>
                           <tr className="bg-gray-50 dark:bg-slate-700/50">
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Participant</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-64">Progression</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.participant')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.type')}</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-64">{t('moduleManagement.progression')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
@@ -593,11 +735,11 @@ const DeadlineManagement = () => {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50 dark:bg-slate-700/50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Participant</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.participant')}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Formation</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.type')}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Deadline</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">Progression</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">{t('moduleManagement.progression')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
@@ -693,4 +835,4 @@ const DeadlineManagement = () => {
   );
 };
 
-export default DeadlineManagement;
+export default ModuleManagement;

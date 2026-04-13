@@ -337,22 +337,30 @@
     "expand": "Développer le menu",
     "collapse": "Réduire le menu",
     "comingSoon": "Bientôt",
-    "deadlineManagement": "Gestion de Deadline"
+    "moduleManagement": "Gestion des Modules"
   },
-  "deadlineManagement": {
-    "title": "Gestion de Deadline",
+  "moduleManagement": {
+    "title": "Gestion des Modules",
     "subtitle": "Modules dont la date de fin est d\u00e9pass\u00e9e avec une progression insuffisante",
-    "settings": "Param\u00e8tres",
-    "settingsTitle": "Seuil de progression",
-    "thresholdLabel": "Afficher les participants sous ce seuil",
-    "thresholdHelp": "Les participants avec une progression strictement inf\u00e9rieure \u00e0 {{threshold}}% apr\u00e8s la date de fin du module seront affich\u00e9s.",
     "searchPlaceholder": "Rechercher par nom, email ou formation...",
     "statsCount": "{{count}} module(s) sous {{threshold}}%",
     "participant": "Participant",
     "type": "Type",
     "progression": "Progression",
     "emptyTitle": "Aucun retard d\u00e9tect\u00e9",
-    "emptyMessage": "Tous les participants ont une progression sup\u00e9rieure ou \u00e9gale \u00e0 {{threshold}}% pour les modules dont la date de fin est d\u00e9pass\u00e9e."
+    "emptyMessage": "Tous les participants ont une progression sup\u00e9rieure ou \u00e9gale \u00e0 {{threshold}}% pour les modules dont la date de fin est d\u00e9pass\u00e9e.",
+    "thresholdLabel": "Seuil",
+    "filterByAdf": "Filtrer par formation (ADF)",
+    "filterByCategory": "Filtrer par cat\u00e9gorie",
+    "filterByType": "Type de module",
+    "allTypes": "Tous",
+    "selectAll": "Tout s\u00e9lectionner",
+    "deselectAll": "Tout d\u00e9s\u00e9lectionner",
+    "selected": "s\u00e9lectionn\u00e9e(s)",
+    "noResults": "Aucun r\u00e9sultat",
+    "viewCourse": "Vue Formation",
+    "viewParticipant": "Vue Participant",
+    "resetFilters": "Retirer les filtres"
   },
   "account": {
     "title": "Mon compte",

@@ -202,8 +202,8 @@ export const apiService = {
     await api.delete(`/views/${viewId}`);
   },
 
-  // Deadline management
-  async getDeadlineData() {
+  // Module management
+  async getModuleData() {
     const response = await api.get('/courses/deadline-data');
     return response.data;
   },
