@@ -30,6 +30,7 @@ import { apiService } from '../services/api';
 import { queryKeys } from '../queryClient';
 import ProgressBar from '../components/ProgressBar';
 import LoadingSpinner from '../components/LoadingSpinner';
+import InterventionPanel from '../components/InterventionPanel';
 
 const MODE_LABELS = {
   elearning_async: 'E-Learning',
@@ -110,6 +111,9 @@ const ModuleManagement = () => {
     return cached || 'all';
   });
 
+  // Completion status filter (deadline mode): 'all', 'incomplete', 'completed'
+  const [completionFilter, setCompletionFilter] = useState('all');
+
   // Show latest notes (reads from settings page toggle)
   const showLatestNotes = useMemo(() => {
     const cached = localStorage.getItem('inactiveManagement.showLatestNotes');
@@ -126,6 +130,16 @@ const ModuleManagement = () => {
   // Expanded states
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
+  // Expanded intervention panels (participant key -> open)
+  const [expandedParticipants, setExpandedParticipants] = useState(new Set());
+  const toggleParticipantExpand = useCallback((key) => {
+    setExpandedParticipants(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+
   // Persist state
   useEffect(() => { sessionStorage.setItem('moduleManagement.deadlineMode', JSON.stringify(deadlineMode)); }, [deadlineMode]);
   useEffect(() => { localStorage.setItem('moduleManagement.selectedADFs', JSON.stringify(selectedADFs)); }, [selectedADFs]);
@@ -139,7 +153,7 @@ const ModuleManagement = () => {
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedADFs, selectedCategories, selectedModuleType, searchTerm, threshold, pageSize, viewMode, deadlineMode, sortBy, sortDirection]);
+  }, [selectedADFs, selectedCategories, selectedModuleType, searchTerm, threshold, pageSize, viewMode, deadlineMode, sortBy, sortDirection, completionFilter]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.moduleData,
@@ -162,12 +176,13 @@ const ModuleManagement = () => {
     }
   }, [sortBy]);
 
-  const hasActiveFilters = selectedADFs.length > 0 || selectedCategories.length > 0 || selectedModuleType !== 'all' || searchTerm;
+  const hasActiveFilters = selectedADFs.length > 0 || selectedCategories.length > 0 || selectedModuleType !== 'all' || searchTerm || completionFilter !== 'all';
 
   const resetAllFilters = useCallback(() => {
     setSelectedADFs([]);
     setSelectedCategories([]);
     setSelectedModuleType('all');
+    setCompletionFilter('all');
     setSearchTerm('');
     localStorage.removeItem('moduleManagement.searchTerm');
   }, []);
@@ -215,8 +230,12 @@ const ModuleManagement = () => {
   const filteredItems = useMemo(() => {
     if (!data?.items) return [];
     let items = data.items.filter((item) => {
-      // In deadline mode, apply threshold filter
-      if (deadlineMode && item.progression >= threshold) return false;
+      // In deadline mode, apply completion filter
+      if (deadlineMode) {
+        const isComplete = item.progression >= threshold;
+        if (completionFilter === 'incomplete' && isComplete) return false;
+        if (completionFilter === 'completed' && !isComplete) return false;
+      }
       if (selectedADFs.length > 0 && !selectedADFs.includes(item.id_action_formation)) return false;
       if (selectedCategories.length > 0 && !selectedCategories.includes(item.category_name)) return false;
       if (selectedModuleType !== 'all' && item.mode_organisation !== selectedModuleType) return false;
@@ -260,7 +279,7 @@ const ModuleManagement = () => {
     });
 
     return items;
-  }, [data, threshold, searchTerm, selectedADFs, selectedCategories, selectedModuleType, deadlineMode, sortBy, sortDirection]);
+  }, [data, threshold, searchTerm, selectedADFs, selectedCategories, selectedModuleType, deadlineMode, completionFilter, sortBy, sortDirection]);
 
   // Course view: group by ADF+module
   const groupEntries = useMemo(() => {
@@ -326,19 +345,25 @@ const ModuleManagement = () => {
     );
   };
 
-  // Latest note badge
+  // Latest note badge with hover tooltip
   const NoteBadge = ({ item }) => {
     if (!showLatestNotes) return null;
     if (item.latest_note_date) {
+      const tooltipText = item.latest_note_text
+        ? `${item.latest_note_text.substring(0, 200)}${item.latest_note_text.length > 200 ? '...' : ''}`
+        : '';
       return (
-        <span className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">
+        <span
+          className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full cursor-default"
+          title={tooltipText}
+        >
           <MessageSquare size={12} />
           {t('moduleManagement.latestNote')}: {new Date(item.latest_note_date).toLocaleDateString('fr-FR')}
         </span>
       );
     }
     return (
-      <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full">
+      <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
         <MessageSquare size={12} />
         {t('moduleManagement.noNote')}
       </span>
@@ -471,7 +496,7 @@ const ModuleManagement = () => {
               ))}
             </div>
 
-            {/* Threshold - only shown in deadline mode */}
+            {/* Threshold + Completion filter - only shown in deadline mode */}
             {deadlineMode && (
               <>
                 <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
@@ -499,6 +524,27 @@ const ModuleManagement = () => {
                     />
                     <span className="text-xs text-gray-500 dark:text-gray-400">%</span>
                   </div>
+                </div>
+                <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
+                <div className="flex items-center gap-2">
+                  {[
+                    { key: 'all', label: t('moduleManagement.allTypes'), icon: null, colors: 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400' },
+                    { key: 'incomplete', label: t('moduleManagement.incomplete'), icon: <XCircle size={12} />, colors: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400' },
+                    { key: 'completed', label: t('moduleManagement.completed'), icon: <CheckCircle2 size={12} />, colors: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400' },
+                  ].map(({ key, label, icon, colors }) => (
+                    <button
+                      key={key}
+                      onClick={() => setCompletionFilter(key)}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                        completionFilter === key
+                          ? colors
+                          : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {icon}
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </>
             )}
@@ -845,13 +891,18 @@ const ModuleManagement = () => {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.type')}</th>
                             {deadlineMode && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>}
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">{t('moduleManagement.progression')}</th>
+                            <th className="w-10" />
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                           {group.participants
                             .sort((a, b) => a.progression - b.progression)
-                            .map((item) => (
-                              <tr key={`${item.participant_id}-${item.id_lam}`} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
+                            .map((item) => {
+                              const pKey = `${item.participant_id}-${item.id_action_formation}`;
+                              const colSpan = 4 + (deadlineMode ? 1 : 0);
+                              return (
+                              <React.Fragment key={`${item.participant_id}-${item.id_lam}`}>
+                              <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
                                 <td className="px-6 py-3">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Link to={`/participants/${item.participant_id}`} className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
@@ -874,8 +925,28 @@ const ModuleManagement = () => {
                                 <td className="px-6 py-3">
                                   <ProgressBar percentage={item.progression} size="small" />
                                 </td>
+                                <td className="px-2 py-3 text-right">
+                                  <button
+                                    onClick={() => toggleParticipantExpand(pKey)}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors"
+                                  >
+                                    {expandedParticipants.has(pKey)
+                                      ? <ChevronDown size={16} className="text-gray-400" />
+                                      : <ChevronRight size={16} className="text-gray-400" />
+                                    }
+                                  </button>
+                                </td>
                               </tr>
-                            ))}
+                              {expandedParticipants.has(pKey) && (
+                                <tr>
+                                  <td colSpan={colSpan} className="px-6 py-0 bg-gray-50 dark:bg-slate-700/30">
+                                    <InterventionPanel participant={{ id: item.participant_id, id_action_formation: item.id_action_formation, nom: item.nom, prenom: item.prenom, email: item.email }} />
+                                  </td>
+                                </tr>
+                              )}
+                              </React.Fragment>
+                              );
+                            })}
                         </tbody>
                       </table>
                     </div>
@@ -898,13 +969,17 @@ const ModuleManagement = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Deadline</th>
                   {deadlineMode && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">{t('moduleManagement.progression')}</th>
+                  <th className="w-10" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {paginatedFlat.map((item) => {
                   const daysOverdue = daysSince(item.date_fin);
+                  const pKey = `${item.participant_id}-${item.id_action_formation}`;
+                  const flatColSpan = 6 + (deadlineMode ? 1 : 0);
                   return (
-                    <tr key={`${item.participant_id}-${item.id_lam}`} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
+                    <React.Fragment key={`${item.participant_id}-${item.id_lam}`}>
+                    <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
                       <td className="px-6 py-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           <Link to={`/participants/${item.participant_id}`} className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
@@ -959,7 +1034,26 @@ const ModuleManagement = () => {
                       <td className="px-6 py-3">
                         <ProgressBar percentage={item.progression} size="small" />
                       </td>
+                      <td className="px-2 py-3 text-right">
+                        <button
+                          onClick={() => toggleParticipantExpand(pKey)}
+                          className="p-1 hover:bg-gray-200 dark:hover:bg-slate-600 rounded transition-colors"
+                        >
+                          {expandedParticipants.has(pKey)
+                            ? <ChevronDown size={16} className="text-gray-400" />
+                            : <ChevronRight size={16} className="text-gray-400" />
+                          }
+                        </button>
+                      </td>
                     </tr>
+                    {expandedParticipants.has(pKey) && (
+                      <tr>
+                        <td colSpan={flatColSpan} className="px-6 py-0 bg-gray-50 dark:bg-slate-700/30">
+                          <InterventionPanel participant={{ id: item.participant_id, id_action_formation: item.id_action_formation, nom: item.nom, prenom: item.prenom, email: item.email }} />
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

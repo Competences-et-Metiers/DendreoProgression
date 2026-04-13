@@ -841,24 +841,49 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 attended = sum(1 for cid in creneau_ids if (pid, cid) in attended_set)
                 liveroom_prog_map[(pid, adf_id, lam_id)] = round((attended / total) * 100, 2)
 
-        # Build latest note date map: (participant_id, adf_id) -> datetime
-        latest_notes_map = {}
-        note_rows = (
+        # Build latest note map: (participant_id, adf_id) -> {date, text}
+        # First get the max date per (participant, adf)
+        from sqlalchemy import and_
+        latest_dates_sub = (
             db.query(
                 Intervention.participant_id,
                 Intervention.id_action_formation,
-                func.max(Intervention.created_at).label('latest_note')
+                func.max(Intervention.created_at).label('max_date')
             )
             .filter(
                 Intervention.intervention_type.in_(['note', 'call', 'email']),
                 Intervention.is_active == True
             )
             .group_by(Intervention.participant_id, Intervention.id_action_formation)
+            .subquery()
+        )
+        # Then join back to get details of the latest intervention
+        latest_notes_map = {}
+        note_rows = (
+            db.query(Intervention)
+            .join(
+                latest_dates_sub,
+                and_(
+                    Intervention.participant_id == latest_dates_sub.c.participant_id,
+                    Intervention.id_action_formation == latest_dates_sub.c.id_action_formation,
+                    Intervention.created_at == latest_dates_sub.c.max_date
+                )
+            )
+            .filter(
+                Intervention.intervention_type.in_(['note', 'call', 'email']),
+                Intervention.is_active == True
+            )
             .all()
         )
-        for pid, adf, latest in note_rows:
-            if adf:
-                latest_notes_map[(pid, adf)] = latest
+        for note in note_rows:
+            if note.id_action_formation:
+                details = note.details or {}
+                text = details.get('text', '') if isinstance(details, dict) else ''
+                latest_notes_map[(note.participant_id, note.id_action_formation)] = {
+                    "date": note.created_at,
+                    "text": text,
+                    "type": note.intervention_type,
+                }
 
         items = []
         for course, module, participant in rows:
@@ -872,7 +897,7 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
             else:
                 progression = module.lms_progression
 
-            latest_note = latest_notes_map.get((participant.id, course.id_action_formation))
+            note_info = latest_notes_map.get((participant.id, course.id_action_formation))
 
             items.append({
                 "participant_id": participant.id,
@@ -890,7 +915,9 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 "date_debut": course.date_debut.isoformat() if course.date_debut else None,
                 "category_name": cat_info.get("name"),
                 "category_color": cat_info.get("color"),
-                "latest_note_date": latest_note.isoformat() if latest_note else None,
+                "latest_note_date": note_info["date"].isoformat() if note_info else None,
+                "latest_note_text": note_info["text"] if note_info else None,
+                "latest_note_type": note_info["type"] if note_info else None,
             })
 
         # Sort by progression ascending (worst first)
