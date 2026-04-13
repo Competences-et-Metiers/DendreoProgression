@@ -40,7 +40,7 @@ COPY --chown=appuser:appuser . .
 # Create logs directory
 RUN mkdir -p logs && chown appuser:appuser logs
 
-# Create optimized startup script
+# Create optimized startup script (runs as appuser via entrypoint)
 RUN echo '#!/bin/bash\n\
 echo "=== FastAPI Application Starting ==="\n\
 echo "Environment: ${APP_ENV:-production}"\n\
@@ -55,8 +55,16 @@ echo "🚀 Starting FastAPI server..."\n\
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level info\n\
 ' > /app/start.sh && chmod +x /app/start.sh && chown appuser:appuser /app/start.sh
 
-# Switch to non-root user
-USER appuser
+# Create entrypoint that fixes volume permissions then drops to appuser
+RUN echo '#!/bin/bash\n\
+chown -R appuser:appuser /app/logs 2>/dev/null || true\n\
+exec gosu appuser "$@"\n\
+' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+
+# Install gosu for secure privilege drop
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
+
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Expose port
 EXPOSE 8000

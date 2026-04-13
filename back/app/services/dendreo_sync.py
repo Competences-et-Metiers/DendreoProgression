@@ -635,6 +635,52 @@ class DendreoSync:
                                         pc.date_add = date_add
                                     pc.updated_at = datetime.utcnow()
 
+                            # Process HubSpot data from this LAP
+                            c_url_transaction_hubspot = lap_record.get('c_url_transaction_hubspot')
+                            c_id_transaction_hubspot = lap_record.get('c_id_transaction_hubspot')
+
+                            if c_url_transaction_hubspot or c_id_transaction_hubspot:
+                                hubspot_data = self.db.query(ParticipantHubspotData).filter(
+                                    ParticipantHubspotData.participant_id == participant.id,
+                                    ParticipantHubspotData.id_action_formation == id_adf
+                                ).first()
+
+                                if hubspot_data:
+                                    if hubspot_data.is_manual_link:
+                                        hubspot_data.id_lap = id_lap
+                                        hubspot_data.updated_at = datetime.utcnow()
+                                    else:
+                                        hubspot_data.id_lap = id_lap
+                                        hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
+                                        hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
+                                        hubspot_data.updated_at = datetime.utcnow()
+                                        self.stats["hubspot_data_updated"] += 1
+                                else:
+                                    try:
+                                        hubspot_data = ParticipantHubspotData(
+                                            participant_id=participant.id,
+                                            id_action_formation=id_adf,
+                                            id_lap=id_lap,
+                                            c_url_transaction_hubspot=c_url_transaction_hubspot,
+                                            c_id_transaction_hubspot=c_id_transaction_hubspot
+                                        )
+                                        self.db.add(hubspot_data)
+                                        self.db.flush()
+                                        self.stats["hubspot_data_created"] += 1
+                                    except Exception as e:
+                                        if "unique constraint" in str(e).lower() or "duplicate key" in str(e).lower():
+                                            self.db.rollback()
+                                            hubspot_data = self.db.query(ParticipantHubspotData).filter(
+                                                ParticipantHubspotData.participant_id == participant.id,
+                                                ParticipantHubspotData.id_action_formation == id_adf
+                                            ).first()
+                                            if hubspot_data and not hubspot_data.is_manual_link:
+                                                hubspot_data.id_lap = id_lap
+                                                hubspot_data.c_url_transaction_hubspot = c_url_transaction_hubspot
+                                                hubspot_data.c_id_transaction_hubspot = c_id_transaction_hubspot
+                                                hubspot_data.updated_at = datetime.utcnow()
+                                                self.stats["hubspot_data_updated"] += 1
+
                     except Exception as e:
                         logger.warning(f"Error processing LAP {id_lap}: {e}")
                         continue
