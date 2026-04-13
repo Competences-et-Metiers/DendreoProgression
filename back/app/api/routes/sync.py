@@ -15,10 +15,11 @@ router = APIRouter()
 
 @router.get("/last-sync")
 async def get_last_sync(db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """Get information about the last sync-all operation"""
+    """Get information about the last completed sync operation (any type)"""
     try:
         sync_metadata = db.query(SyncMetadata).filter(
-            SyncMetadata.sync_type == 'sync_all'
+            SyncMetadata.sync_type.in_(['sync_all', 'sync_adf']),
+            SyncMetadata.status != 'in_progress'
         ).order_by(SyncMetadata.last_sync_at.desc()).first()
         
         if not sync_metadata:
