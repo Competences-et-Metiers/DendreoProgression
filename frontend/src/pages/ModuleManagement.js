@@ -19,6 +19,12 @@ import {
   BookOpen,
   Filter,
   LayoutList,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  MessageSquare,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { queryKeys } from '../queryClient';
@@ -49,7 +55,13 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100, 0];
 const ModuleManagement = () => {
   const { t } = useTranslation();
 
-  // Threshold
+  // Deadline mode toggle
+  const [deadlineMode, setDeadlineMode] = useState(() => {
+    const cached = sessionStorage.getItem('moduleManagement.deadlineMode');
+    return cached ? JSON.parse(cached) : false;
+  });
+
+  // Threshold (only used in deadline mode)
   const [threshold, setThreshold] = useState(() => {
     const cached = sessionStorage.getItem('moduleManagement.threshold');
     return cached !== null ? Number(cached) : 95;
@@ -64,6 +76,16 @@ const ModuleManagement = () => {
   const [viewMode, setViewMode] = useState(() => {
     const cached = sessionStorage.getItem('moduleManagement.viewMode');
     return cached || 'course';
+  });
+
+  // Sorting
+  const [sortBy, setSortBy] = useState(() => {
+    const cached = localStorage.getItem('moduleManagement.sortBy');
+    return cached || 'progression';
+  });
+  const [sortDirection, setSortDirection] = useState(() => {
+    const cached = localStorage.getItem('moduleManagement.sortDirection');
+    return cached || 'asc';
   });
 
   // ADF filter
@@ -88,6 +110,12 @@ const ModuleManagement = () => {
     return cached || 'all';
   });
 
+  // Show latest notes (reads from settings page toggle)
+  const showLatestNotes = useMemo(() => {
+    const cached = localStorage.getItem('inactiveManagement.showLatestNotes');
+    return cached ? JSON.parse(cached) : false;
+  }, []);
+
   // Pagination
   const [pageSize, setPageSize] = useState(() => {
     const cached = localStorage.getItem('moduleManagement.pageSize');
@@ -99,16 +127,19 @@ const ModuleManagement = () => {
   const [expandedGroups, setExpandedGroups] = useState(new Set());
 
   // Persist state
+  useEffect(() => { sessionStorage.setItem('moduleManagement.deadlineMode', JSON.stringify(deadlineMode)); }, [deadlineMode]);
   useEffect(() => { localStorage.setItem('moduleManagement.selectedADFs', JSON.stringify(selectedADFs)); }, [selectedADFs]);
   useEffect(() => { localStorage.setItem('moduleManagement.selectedCategories', JSON.stringify(selectedCategories)); }, [selectedCategories]);
   useEffect(() => { localStorage.setItem('moduleManagement.selectedModuleType', selectedModuleType); }, [selectedModuleType]);
   useEffect(() => { localStorage.setItem('moduleManagement.searchTerm', searchTerm); }, [searchTerm]);
   useEffect(() => { localStorage.setItem('moduleManagement.pageSize', JSON.stringify(pageSize)); }, [pageSize]);
+  useEffect(() => { localStorage.setItem('moduleManagement.sortBy', sortBy); }, [sortBy]);
+  useEffect(() => { localStorage.setItem('moduleManagement.sortDirection', sortDirection); }, [sortDirection]);
 
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedADFs, selectedCategories, selectedModuleType, searchTerm, threshold, pageSize, viewMode]);
+  }, [selectedADFs, selectedCategories, selectedModuleType, searchTerm, threshold, pageSize, viewMode, deadlineMode, sortBy, sortDirection]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.moduleData,
@@ -122,29 +153,22 @@ const ModuleManagement = () => {
     sessionStorage.setItem('moduleManagement.threshold', v);
   };
 
-  const handleSearchChange = (value) => {
-    setSearchTerm(value);
-  };
+  const toggleSort = useCallback((key) => {
+    if (sortBy === key) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(key);
+      setSortDirection(key === 'name' ? 'asc' : 'asc');
+    }
+  }, [sortBy]);
 
-  const handleViewModeChange = () => {
-    const next = viewMode === 'course' ? 'participant' : 'course';
-    setViewMode(next);
-    sessionStorage.setItem('moduleManagement.viewMode', next);
-  };
-
-  const handlePageSizeChange = (size) => {
-    setPageSize(size);
-  };
-
-  const hasActiveFilters = selectedADFs.length > 0 || selectedCategories.length > 0 || selectedModuleType !== 'all' || searchTerm || threshold !== 95;
+  const hasActiveFilters = selectedADFs.length > 0 || selectedCategories.length > 0 || selectedModuleType !== 'all' || searchTerm;
 
   const resetAllFilters = useCallback(() => {
     setSelectedADFs([]);
     setSelectedCategories([]);
     setSelectedModuleType('all');
     setSearchTerm('');
-    setThreshold(95);
-    sessionStorage.setItem('moduleManagement.threshold', 95);
     localStorage.removeItem('moduleManagement.searchTerm');
   }, []);
 
@@ -187,11 +211,12 @@ const ModuleManagement = () => {
     };
   }, [data]);
 
-  // Apply all filters
+  // Apply all filters + sorting
   const filteredItems = useMemo(() => {
     if (!data?.items) return [];
-    return data.items.filter((item) => {
-      if (item.progression >= threshold) return false;
+    let items = data.items.filter((item) => {
+      // In deadline mode, apply threshold filter
+      if (deadlineMode && item.progression >= threshold) return false;
       if (selectedADFs.length > 0 && !selectedADFs.includes(item.id_action_formation)) return false;
       if (selectedCategories.length > 0 && !selectedCategories.includes(item.category_name)) return false;
       if (selectedModuleType !== 'all' && item.mode_organisation !== selectedModuleType) return false;
@@ -207,7 +232,35 @@ const ModuleManagement = () => {
       }
       return true;
     });
-  }, [data, threshold, searchTerm, selectedADFs, selectedCategories, selectedModuleType]);
+
+    // Sort
+    const sortMultiplier = sortDirection === 'desc' ? -1 : 1;
+    items.sort((a, b) => {
+      let comparison = 0;
+      switch (sortBy) {
+        case 'progression':
+          comparison = a.progression - b.progression;
+          break;
+        case 'name':
+          comparison = `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`);
+          break;
+        case 'deadline':
+          comparison = new Date(a.date_fin || 0) - new Date(b.date_fin || 0);
+          break;
+        case 'latest_note': {
+          const dateA = a.latest_note_date ? new Date(a.latest_note_date).getTime() : 0;
+          const dateB = b.latest_note_date ? new Date(b.latest_note_date).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+        }
+        default:
+          comparison = 0;
+      }
+      return comparison * sortMultiplier;
+    });
+
+    return items;
+  }, [data, threshold, searchTerm, selectedADFs, selectedCategories, selectedModuleType, deadlineMode, sortBy, sortDirection]);
 
   // Course view: group by ADF+module
   const groupEntries = useMemo(() => {
@@ -230,13 +283,21 @@ const ModuleManagement = () => {
       }
       groups[key].participants.push(item);
     }
-    return Object.entries(groups).sort(([, a], [, b]) => new Date(a.date_fin) - new Date(b.date_fin));
-  }, [filteredItems, viewMode]);
+    // Sort groups by earliest date_fin
+    const entries = Object.entries(groups);
+    if (sortBy === 'deadline') {
+      const m = sortDirection === 'desc' ? -1 : 1;
+      entries.sort(([, a], [, b]) => (new Date(a.date_fin) - new Date(b.date_fin)) * m);
+    } else {
+      entries.sort(([, a], [, b]) => new Date(a.date_fin) - new Date(b.date_fin));
+    }
+    return entries;
+  }, [filteredItems, viewMode, sortBy, sortDirection]);
 
-  // Participant view: flat list
+  // Participant view: flat list (already sorted by filteredItems)
   const flatItems = useMemo(() => {
     if (viewMode !== 'participant') return [];
-    return [...filteredItems].sort((a, b) => a.progression - b.progression);
+    return filteredItems;
   }, [filteredItems, viewMode]);
 
   // Pagination
@@ -248,6 +309,41 @@ const ModuleManagement = () => {
   const pageEnd = Math.min(pageStart + effectivePageSize, totalItems);
   const paginatedGroups = groupEntries.slice(pageStart, pageEnd);
   const paginatedFlat = flatItems.slice(pageStart, pageEnd);
+
+  // Completion badge helper for deadline mode
+  const CompletionBadge = ({ progression }) => {
+    if (!deadlineMode) return null;
+    const isComplete = progression >= threshold;
+    return (
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+        isComplete
+          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+          : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+      }`}>
+        {isComplete ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
+        {isComplete ? t('moduleManagement.completed') : t('moduleManagement.incomplete')}
+      </span>
+    );
+  };
+
+  // Latest note badge
+  const NoteBadge = ({ item }) => {
+    if (!showLatestNotes) return null;
+    if (item.latest_note_date) {
+      return (
+        <span className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">
+          <MessageSquare size={12} />
+          {t('moduleManagement.latestNote')}: {new Date(item.latest_note_date).toLocaleDateString('fr-FR')}
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full">
+        <MessageSquare size={12} />
+        {t('moduleManagement.noNote')}
+      </span>
+    );
+  };
 
   if (isLoading) return <LoadingSpinner />;
 
@@ -282,8 +378,25 @@ const ModuleManagement = () => {
                 </button>
               )}
 
+              {/* Deadline Mode Toggle */}
               <button
-                onClick={handleViewModeChange}
+                onClick={() => setDeadlineMode(!deadlineMode)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                  deadlineMode
+                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                    : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                <AlertTriangle size={18} />
+                <span className="font-medium">{t('moduleManagement.deadlineMode')}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const next = viewMode === 'course' ? 'participant' : 'course';
+                  setViewMode(next);
+                  sessionStorage.setItem('moduleManagement.viewMode', next);
+                }}
                 className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <BarChart3 size={18} />
@@ -300,8 +413,40 @@ const ModuleManagement = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Filter Bar - always visible */}
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-4 mb-6 space-y-4">
-          {/* Row 1: Module type pills + threshold */}
+          {/* Row 1: Sorting + Module type pills + threshold (in deadline mode) */}
           <div className="flex flex-col lg:flex-row gap-4">
+            {/* Sorting */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
+                <ArrowUpDown size={14} />
+                {t('moduleManagement.sortBy')}
+              </span>
+              {[
+                { key: 'progression', label: t('moduleManagement.sortByProgression') },
+                { key: 'name', label: t('moduleManagement.sortByName') },
+                { key: 'deadline', label: t('moduleManagement.sortByDeadline') },
+                ...(showLatestNotes ? [{ key: 'latest_note', label: t('moduleManagement.sortByNote') }] : []),
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => toggleSort(key)}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    sortBy === key
+                      ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {label}
+                  {sortBy === key && (
+                    sortDirection === 'desc' ? <ArrowDown size={12} /> : <ArrowUp size={12} />
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Divider */}
+            <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
+
             {/* Module Type Filter */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
@@ -326,35 +471,37 @@ const ModuleManagement = () => {
               ))}
             </div>
 
-            {/* Divider */}
-            <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
-
-            {/* Threshold */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                <Target size={14} />
-                {t('moduleManagement.thresholdLabel')}
-              </span>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={threshold}
-                onChange={(e) => handleThresholdChange(e.target.value)}
-                className="w-32 h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"
-              />
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={threshold}
-                  onChange={(e) => handleThresholdChange(e.target.value)}
-                  className="w-14 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-center text-xs bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
-                />
-                <span className="text-xs text-gray-500 dark:text-gray-400">%</span>
-              </div>
-            </div>
+            {/* Threshold - only shown in deadline mode */}
+            {deadlineMode && (
+              <>
+                <div className="hidden lg:block w-px bg-gray-200 dark:bg-slate-600" />
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                    <Target size={14} />
+                    {t('moduleManagement.thresholdLabel')}
+                  </span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={threshold}
+                    onChange={(e) => handleThresholdChange(e.target.value)}
+                    className="w-32 h-2 bg-gray-200 dark:bg-slate-600 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={threshold}
+                      onChange={(e) => handleThresholdChange(e.target.value)}
+                      className="w-14 px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-center text-xs bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
+                    />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">%</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Row 2: ADF + Category Filters side by side */}
@@ -578,7 +725,7 @@ const ModuleManagement = () => {
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={t('moduleManagement.searchPlaceholder')}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
@@ -586,13 +733,14 @@ const ModuleManagement = () => {
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               <Target size={14} className="inline mr-1" />
-              {t('moduleManagement.statsCount', { count: filteredItems.length, threshold })}
+              {filteredItems.length} module(s)
+              {deadlineMode && ` < ${threshold}%`}
             </span>
             <div className="flex items-center gap-1 border-l border-gray-300 dark:border-slate-600 pl-4">
               {PAGE_SIZE_OPTIONS.map(size => (
                 <button
                   key={size}
-                  onClick={() => handlePageSizeChange(size)}
+                  onClick={() => setPageSize(size)}
                   className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                     pageSize === size
                       ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
@@ -695,7 +843,8 @@ const ModuleManagement = () => {
                           <tr className="bg-gray-50 dark:bg-slate-700/50">
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.participant')}</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.type')}</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-64">{t('moduleManagement.progression')}</th>
+                            {deadlineMode && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>}
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">{t('moduleManagement.progression')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
@@ -704,9 +853,12 @@ const ModuleManagement = () => {
                             .map((item) => (
                               <tr key={`${item.participant_id}-${item.id_lam}`} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
                                 <td className="px-6 py-3">
-                                  <Link to={`/participants/${item.participant_id}`} className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
-                                    {item.prenom} {item.nom}
-                                  </Link>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Link to={`/participants/${item.participant_id}`} className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                                      {item.prenom} {item.nom}
+                                    </Link>
+                                    <NoteBadge item={item} />
+                                  </div>
                                   <p className="text-xs text-gray-500 dark:text-gray-400">{item.email}</p>
                                 </td>
                                 <td className="px-6 py-3">
@@ -714,6 +866,11 @@ const ModuleManagement = () => {
                                     {MODE_LABELS[item.mode_organisation] || item.mode_organisation}: {item.progression.toFixed(1)}%
                                   </span>
                                 </td>
+                                {deadlineMode && (
+                                  <td className="px-6 py-3">
+                                    <CompletionBadge progression={item.progression} />
+                                  </td>
+                                )}
                                 <td className="px-6 py-3">
                                   <ProgressBar percentage={item.progression} size="small" />
                                 </td>
@@ -739,6 +896,7 @@ const ModuleManagement = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Formation</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.type')}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Deadline</th>
+                  {deadlineMode && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">{t('moduleManagement.progression')}</th>
                 </tr>
               </thead>
@@ -748,9 +906,12 @@ const ModuleManagement = () => {
                   return (
                     <tr key={`${item.participant_id}-${item.id_lam}`} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
                       <td className="px-6 py-3">
-                        <Link to={`/participants/${item.participant_id}`} className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
-                          {item.prenom} {item.nom}
-                        </Link>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link to={`/participants/${item.participant_id}`} className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:underline">
+                            {item.prenom} {item.nom}
+                          </Link>
+                          <NoteBadge item={item} />
+                        </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{item.email}</p>
                       </td>
                       <td className="px-6 py-3">
@@ -790,6 +951,11 @@ const ModuleManagement = () => {
                           +{daysOverdue}j
                         </span>
                       </td>
+                      {deadlineMode && (
+                        <td className="px-6 py-3">
+                          <CompletionBadge progression={item.progression} />
+                        </td>
+                      )}
                       <td className="px-6 py-3">
                         <ProgressBar percentage={item.progression} size="small" />
                       </td>

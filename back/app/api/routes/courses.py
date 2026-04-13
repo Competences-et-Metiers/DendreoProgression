@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Dict, Any
 from app.models.database import get_db
-from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData, Creneau, CreneauParticipant, ModuleCategory
+from app.models.models import Course, ParticipantCourse, Participant, Module, ParticipantHubspotData, Creneau, CreneauParticipant, ModuleCategory, Intervention
 from datetime import datetime, timezone
 from app.models.schemas import CourseWithParticipants, ParticipantCourse as ParticipantCourseSchema
 from app.schemas.course import CourseResponse, ModuleResponse
@@ -841,6 +841,25 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 attended = sum(1 for cid in creneau_ids if (pid, cid) in attended_set)
                 liveroom_prog_map[(pid, adf_id, lam_id)] = round((attended / total) * 100, 2)
 
+        # Build latest note date map: (participant_id, adf_id) -> datetime
+        latest_notes_map = {}
+        note_rows = (
+            db.query(
+                Intervention.participant_id,
+                Intervention.id_action_formation,
+                func.max(Intervention.created_at).label('latest_note')
+            )
+            .filter(
+                Intervention.intervention_type.in_(['note', 'call', 'email']),
+                Intervention.is_active == True
+            )
+            .group_by(Intervention.participant_id, Intervention.id_action_formation)
+            .all()
+        )
+        for pid, adf, latest in note_rows:
+            if adf:
+                latest_notes_map[(pid, adf)] = latest
+
         items = []
         for course, module, participant in rows:
             cat_info = category_map.get(course.categorie_module_id, {})
@@ -852,6 +871,8 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 )
             else:
                 progression = module.lms_progression
+
+            latest_note = latest_notes_map.get((participant.id, course.id_action_formation))
 
             items.append({
                 "participant_id": participant.id,
@@ -869,6 +890,7 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 "date_debut": course.date_debut.isoformat() if course.date_debut else None,
                 "category_name": cat_info.get("name"),
                 "category_color": cat_info.get("color"),
+                "latest_note_date": latest_note.isoformat() if latest_note else None,
             })
 
         # Sort by progression ascending (worst first)

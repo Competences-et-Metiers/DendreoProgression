@@ -355,7 +355,17 @@
     "noResults": "No results found",
     "viewCourse": "Course view",
     "viewParticipant": "Participant view",
-    "resetFilters": "Reset filters"
+    "resetFilters": "Reset filters",
+    "deadlineMode": "Deadline mode",
+    "incomplete": "Incomplete",
+    "completed": "Completed",
+    "sortBy": "Sort",
+    "sortByProgression": "Progression",
+    "sortByName": "Name",
+    "sortByDeadline": "Deadline",
+    "sortByNote": "Latest note",
+    "latestNote": "Latest note",
+    "noNote": "No note"
   },
   "account": {
     "title": "My Account",
