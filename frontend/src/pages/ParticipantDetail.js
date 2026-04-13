@@ -104,9 +104,7 @@ const ParticipantDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="large" />
-      </div>
+      <LoadingSpinner size="large" />
     );
   }
 

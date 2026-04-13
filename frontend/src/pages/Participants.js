@@ -173,9 +173,7 @@ const Participants = () => {
   // If we have stable data, we can show the page with a loading overlay instead
   if ((loading || countLoading) && stableParticipants.length === 0 && participants.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <LoadingSpinner size="large" />
-      </div>
+      <LoadingSpinner size="large" />
     );
   }
 

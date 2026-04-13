@@ -29,7 +29,7 @@ const TimeStats = ({ courseId }) => {
   }, [courseId]);
 
   if (loading) {
-    return <LoadingSpinner />;
+    return <LoadingSpinner fullPage={false} />;
   }
 
   if (error) {
