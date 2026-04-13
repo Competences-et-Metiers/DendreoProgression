@@ -1036,9 +1036,9 @@ const AdminSyncDashboard = () => {
               {/* API Calls */}
               <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-3">
                 <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">API Calls</h4>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>Dendreo: <span className="font-medium">{selectedSync.api_calls_count}</span></div>
-                  <div>HubSpot: <span className="font-medium">{selectedSync.hubspot_api_calls_count || 0}</span></div>
+                <div className="grid grid-cols-2 gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <div>Dendreo: <span className="font-medium text-gray-900 dark:text-white">{selectedSync.api_calls_count}</span></div>
+                  <div>HubSpot: <span className="font-medium text-gray-900 dark:text-white">{selectedSync.hubspot_api_calls_count || 0}</span></div>
                 </div>
               </div>
 
