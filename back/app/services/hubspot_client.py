@@ -212,7 +212,7 @@ class HubSpotClient:
             async with httpx.AsyncClient(timeout=30) as client:
                 batch_url = f"{self.base_url}/crm/v3/objects/deals/batch/read"
                 batch_body = {
-                    "properties": ["dealname", "amount"],
+                    "properties": ["dealname", "amount", "formation_detaillee"],
                     "inputs": [{"id": did} for did in deal_ids[:100]]
                 }
                 response = await client.post(batch_url, json=batch_body, headers=headers)
@@ -226,6 +226,7 @@ class HubSpotClient:
                         'id': result.get('id'),
                         'dealname': props.get('dealname', ''),
                         'amount': props.get('amount'),
+                        'formation_detaillee': props.get('formation_detaillee'),
                     })
                 return deals
 

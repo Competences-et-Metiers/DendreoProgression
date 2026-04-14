@@ -63,7 +63,7 @@ async def link_deal(
     if not participant:
         raise HTTPException(status_code=404, detail="Participant not found")
 
-    deal_url = f"https://app.hubspot.com/contacts/deal/{body.deal_id}"
+    deal_url = f"https://app-eu1.hubspot.com/contacts/25868618/record/0-3/{body.deal_id}"
 
     # Upsert: find existing or create new
     hubspot_data = db.query(ParticipantHubspotData).filter(
