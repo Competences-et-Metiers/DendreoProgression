@@ -193,10 +193,20 @@ const ModuleManagement = () => {
     return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  const daysSince = (dateString) => {
+  // Positive when date_fin is in the future, negative when overdue
+  const daysUntilDeadline = (dateString) => {
     if (!dateString) return 0;
-    return Math.floor((new Date() - new Date(dateString)) / (1000 * 60 * 60 * 24));
+    return Math.floor((new Date(dateString) - new Date()) / (1000 * 60 * 60 * 24));
   };
+
+  const deadlineBadgeStyle = (days) => {
+    if (days < -30) return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+    if (days < -7) return 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400';
+    if (days < 0) return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400';
+    return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+  };
+
+  const formatDaysLabel = (days) => `${days > 0 ? '+' : ''}${days}j`;
 
   const toggleGroup = (key) => {
     setExpandedGroups(prev => {
@@ -826,7 +836,7 @@ const ModuleManagement = () => {
           <div className="space-y-4">
             {paginatedGroups.map(([key, group]) => {
               const isExpanded = expandedGroups.has(key);
-              const daysOverdue = daysSince(group.date_fin);
+              const daysOverdue = daysUntilDeadline(group.date_fin);
 
               return (
                 <div key={key} className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
@@ -838,11 +848,11 @@ const ModuleManagement = () => {
                       {isExpanded ? <ChevronDown size={20} className="text-gray-400" /> : <ChevronRight size={20} className="text-gray-400" />}
                       <div className="text-left">
                         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                          {group.course_title}
+                          {group.module_intitule}
                         </h3>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {group.module_intitule} - {MODE_LABELS[group.mode_organisation] || group.mode_organisation}
+                            {group.course_title} - {MODE_LABELS[group.mode_organisation] || group.mode_organisation}
                           </span>
                           {group.category_name && (
                             <span
@@ -867,15 +877,9 @@ const ModuleManagement = () => {
                         <Calendar size={12} className="mr-1" />
                         {formatDate(group.date_debut)} {'\u2192'} {formatDate(group.date_fin)}
                       </span>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        daysOverdue > 30
-                          ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                          : daysOverdue > 7
-                          ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
-                          : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                      }`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${deadlineBadgeStyle(daysOverdue)}`}>
                         <Clock size={10} className="mr-1" />
-                        +{daysOverdue}j
+                        {formatDaysLabel(daysOverdue)}
                       </span>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300">
                         <User size={10} className="mr-1" />
@@ -976,7 +980,7 @@ const ModuleManagement = () => {
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {paginatedFlat.map((item) => {
-                  const daysOverdue = daysSince(item.date_fin);
+                  const daysOverdue = daysUntilDeadline(item.date_fin);
                   const pKey = `${item.participant_id}-${item.id_action_formation}`;
                   const flatColSpan = 6 + (deadlineMode ? 1 : 0);
                   return (
@@ -992,9 +996,9 @@ const ModuleManagement = () => {
                         <p className="text-xs text-gray-500 dark:text-gray-400">{item.email}</p>
                       </td>
                       <td className="px-6 py-3">
-                        <div className="text-sm text-gray-900 dark:text-white">{item.course_title}</div>
+                        <div className="text-sm text-gray-900 dark:text-white">{item.module_intitule}</div>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">{item.module_intitule}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{item.course_title}</span>
                           {item.category_name && (
                             <span
                               className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full"
@@ -1018,14 +1022,8 @@ const ModuleManagement = () => {
                       </td>
                       <td className="px-6 py-3">
                         <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(item.date_fin)}</span>
-                        <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          daysOverdue > 30
-                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                            : daysOverdue > 7
-                            ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
-                            : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-                        }`}>
-                          +{daysOverdue}j
+                        <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${deadlineBadgeStyle(daysOverdue)}`}>
+                          {formatDaysLabel(daysOverdue)}
                         </span>
                       </td>
                       {deadlineMode && (
