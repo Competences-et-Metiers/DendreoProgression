@@ -229,9 +229,11 @@ const ModuleManagement = () => {
   // Apply all filters + sorting
   const filteredItems = useMemo(() => {
     if (!data?.items) return [];
+    const nowMs = Date.now();
     let items = data.items.filter((item) => {
-      // In deadline mode, apply completion filter
+      // In deadline mode: only show overdue modules + apply completion filter
       if (deadlineMode) {
+        if (!item.date_fin || new Date(item.date_fin).getTime() >= nowMs) return false;
         const isComplete = item.progression >= threshold;
         if (completionFilter === 'incomplete' && isComplete) return false;
         if (completionFilter === 'completed' && !isComplete) return false;
