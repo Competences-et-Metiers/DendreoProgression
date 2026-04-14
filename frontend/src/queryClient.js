@@ -68,4 +68,8 @@ export const queryKeys = {
   // Admin interventions
   adminInterventions: (params) => ['admin', 'interventions', params],
   adminInterventionStats: ['admin', 'interventions', 'stats'],
+
+  // Admin action history
+  adminActionHistory: (params) => ['admin', 'action-history', params],
+  adminActionHistoryStats: ['admin', 'action-history', 'stats'],
 }; 

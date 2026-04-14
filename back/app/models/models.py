@@ -275,3 +275,30 @@ class UserView(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User")
+
+
+class ActionHistory(Base):
+    """History of user-triggered actions (manip) that hit external APIs.
+    Separate from SyncMetadata (which tracks automated syncs) but shares the API budget."""
+    __tablename__ = "action_history"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    action_type = Column(String(40), nullable=False, index=True)  # 'link_deal', 'unlink_deal', ...
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)  # null = system
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    status = Column(String(20), nullable=False)  # 'success', 'partial', 'error', 'blocked'
+
+    # Target of the action
+    participant_id = Column(Integer, ForeignKey("participants.id"), nullable=True)
+    id_action_formation = Column(String, nullable=True, index=True)
+    deal_id = Column(String, nullable=True)
+
+    # API usage & result
+    api_calls_count = Column(Integer, default=0, nullable=False)  # Dendreo calls
+    hubspot_api_calls_count = Column(Integer, default=0, nullable=False)  # HubSpot calls
+    duration_seconds = Column(Float, nullable=True)
+    error_message = Column(Text, nullable=True)
+    details = Column(JSON, nullable=True)  # extra payload (progression value, platform push flags...)
+
+    user = relationship("User")
+    participant = relationship("Participant")

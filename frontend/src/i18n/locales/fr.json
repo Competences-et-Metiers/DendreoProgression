@@ -41,8 +41,8 @@
     "withHubSpot": "Avec HubSpot",
     "withoutHubSpot": "Sans HubSpot",
     "hubSpotLinked": "HubSpot lié",
-    "noHubSpotDeal": "Aucun deal HubSpot lié",
-    "openHubSpotDeal": "Ouvrir le deal HubSpot",
+    "noHubSpotDeal": "Aucune transac HubSpot liée",
+    "openHubSpotDeal": "Ouvrir la transac HubSpot",
     "hubSpot": "HubSpot",
     "transaction": "Transaction",
     "mode": "Mode",
@@ -120,9 +120,9 @@
     "hubspotNotFound": "Contact non trouvé dans HubSpot",
     "hubspotError": "Erreur HubSpot",
     "openDendreoADF": "Ouvrir l'ADF sur Dendreo",
-    "openHubSpotDeal": "Ouvrir le deal HubSpot",
-    "hubSpotDeal": "Deal HubSpot",
-    "noHubSpotDealLinked": "Aucun deal HubSpot lié",
+    "openHubSpotDeal": "Ouvrir la transac HubSpot",
+    "hubSpotDeal": "Transac HubSpot",
+    "noHubSpotDealLinked": "Aucune transac HubSpot liée",
     "hubSpotTransaction": "Transaction HubSpot",
     "moduleProgressDetails": "Détails de progression des modules",
     "moduleProgressCount": "Progression des modules ({{count}} modules)",
@@ -250,6 +250,12 @@
     "allParticipants": "Tous les participants",
     "subtitleWithCount": "{{filtered}} de {{total}} participants",
     "searchPlaceholder": "Rechercher des participants...",
+    "linkedDeals": "Transac reliée(s)",
+    "dealFilter": {
+      "all": "Toutes",
+      "with": "Avec transac",
+      "without": "Sans transac"
+    },
     "filters": {
       "allStatus": "Tous les statuts",
       "active": "Actifs",
@@ -600,12 +606,13 @@
     "microsoftSignIn": "Se connecter avec Microsoft"
   },
   "hubspotDeal": {
-    "deal": "Deal",
-    "linkDeal": "Lier un deal",
-    "unlink": "Dissocier le deal",
-    "openDeal": "Ouvrir le deal dans HubSpot",
+    "deal": "Transac",
+    "linkedLabel": "HubSpot Transac",
+    "linkDeal": "Lier une transac",
+    "unlink": "Dissocier la transac",
+    "openDeal": "Ouvrir la transac dans HubSpot",
     "noEmail": "Aucune adresse email disponible",
-    "noDeals": "Aucun deal trouvé pour ce contact",
-    "fetchError": "Impossible de charger les deals depuis HubSpot"
+    "noDeals": "Aucune transac trouvée pour ce contact",
+    "fetchError": "Impossible de charger les transacs depuis HubSpot"
   }
 } 

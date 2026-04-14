@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query as QueryParam, stat
 from sqlalchemy.orm import Session, subqueryload
 from sqlalchemy import func, extract, desc, asc
 from app.models.database import get_db
-from app.models.models import User, SyncMetadata, AdminSyncConfig, ModuleCategory, Intervention, Participant
+from app.models.models import User, SyncMetadata, AdminSyncConfig, ModuleCategory, Intervention, Participant, ActionHistory
 from app.auth.dependencies import require_admin
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
@@ -1019,5 +1019,125 @@ async def get_admin_intervention_stats(
         "by_type": by_type,
         "active_snoozes": active_snoozes,
         "active_dismissals": active_dismissals,
+        "staff": staff,
+    }
+
+
+@router.get("/action-history", dependencies=[Depends(require_admin)])
+async def get_action_history(
+    page: int = QueryParam(1, ge=1),
+    page_size: int = QueryParam(50, ge=1, le=200),
+    sort_order: str = QueryParam("desc", pattern="^(asc|desc)$"),
+    action_type: Optional[str] = QueryParam(None),
+    status_filter: Optional[str] = QueryParam(None, alias="status"),
+    user_id: Optional[int] = QueryParam(None),
+    search: Optional[str] = QueryParam(None),
+    date_from: Optional[str] = QueryParam(None),
+    date_to: Optional[str] = QueryParam(None),
+    db: Session = Depends(get_db),
+):
+    """Admin endpoint: list action history (user-triggered manip actions) with filtering and pagination."""
+    query = db.query(ActionHistory).options(
+        subqueryload(ActionHistory.participant),
+        subqueryload(ActionHistory.user),
+    )
+
+    if action_type:
+        query = query.filter(ActionHistory.action_type == action_type)
+    if status_filter:
+        query = query.filter(ActionHistory.status == status_filter)
+    if user_id:
+        query = query.filter(ActionHistory.user_id == user_id)
+    if search:
+        term = f"%{search}%"
+        query = query.outerjoin(Participant, Participant.id == ActionHistory.participant_id).filter(
+            func.concat(Participant.nom, ' ', Participant.prenom).ilike(term)
+        )
+    if date_from:
+        try:
+            dt_from = datetime.fromisoformat(date_from)
+            query = query.filter(ActionHistory.created_at >= dt_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt_to = datetime.fromisoformat(date_to).replace(hour=23, minute=59, second=59)
+            query = query.filter(ActionHistory.created_at <= dt_to)
+        except ValueError:
+            pass
+
+    total = query.count()
+
+    order_fn = desc if sort_order == "desc" else asc
+    query = query.order_by(order_fn(ActionHistory.created_at))
+
+    offset = (page - 1) * page_size
+    rows = query.offset(offset).limit(page_size).all()
+
+    items = []
+    for r in rows:
+        items.append({
+            "id": r.id,
+            "action_type": r.action_type,
+            "category": "manip",
+            "status": r.status,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "duration_seconds": r.duration_seconds,
+            "api_calls_count": r.api_calls_count,
+            "hubspot_api_calls_count": r.hubspot_api_calls_count,
+            "error_message": r.error_message,
+            "details": r.details,
+            "participant_id": r.participant_id,
+            "participant_name": f"{r.participant.prenom} {r.participant.nom}".strip() if r.participant else None,
+            "id_action_formation": r.id_action_formation,
+            "deal_id": r.deal_id,
+            "user_id": r.user_id,
+            "source": (r.user.display_name or r.user.username) if r.user else "Système",
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": max(1, -(-total // page_size)),
+    }
+
+
+@router.get("/action-history/stats", dependencies=[Depends(require_admin)])
+async def get_action_history_stats(db: Session = Depends(get_db)):
+    """Aggregate stats for the action-history page header."""
+    type_rows = db.query(
+        ActionHistory.action_type,
+        func.count(ActionHistory.id),
+    ).group_by(ActionHistory.action_type).all()
+    by_type = {r[0]: r[1] for r in type_rows}
+    total = sum(by_type.values())
+
+    status_rows = db.query(
+        ActionHistory.status,
+        func.count(ActionHistory.id),
+    ).group_by(ActionHistory.status).all()
+    by_status = {r[0]: r[1] for r in status_rows}
+
+    staff_rows = db.query(
+        User.id,
+        User.display_name,
+        User.username,
+        func.count(ActionHistory.id).label("count"),
+    ).join(ActionHistory, ActionHistory.user_id == User.id
+    ).group_by(User.id, User.display_name, User.username
+    ).order_by(desc(func.count(ActionHistory.id))
+    ).all()
+
+    staff = [
+        {"id": r.id, "display_name": r.display_name or r.username, "count": r.count}
+        for r in staff_rows
+    ]
+
+    return {
+        "total": total,
+        "by_type": by_type,
+        "by_status": by_status,
         "staff": staff,
     }

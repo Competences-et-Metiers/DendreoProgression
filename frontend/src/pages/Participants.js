@@ -86,10 +86,18 @@ const Participants = () => {
     }
   });
 
-  // Reset to first page when search/sort changes
+  // Deal-link filter: 'all' | 'with' | 'without'
+  const [dealFilter, setDealFilter] = useState(() => {
+    return localStorage.getItem('participants.dealFilter') || 'all';
+  });
+  useEffect(() => {
+    localStorage.setItem('participants.dealFilter', dealFilter);
+  }, [dealFilter]);
+
+  // Reset to first page when search/sort/filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearchTerm, sortBy, sortDirection]);
+  }, [debouncedSearchTerm, sortBy, sortDirection, dealFilter]);
 
   const toggleSortDirection = () => {
     setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -142,7 +150,13 @@ const Participants = () => {
   const getFilteredAndSortedParticipants = () => {
     const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
 
-    return [...displayParticipants].sort((a, b) => {
+    const filtered = displayParticipants.filter(p => {
+      if (dealFilter === 'with') return (p.linked_deals_count || 0) > 0;
+      if (dealFilter === 'without') return (p.linked_deals_count || 0) === 0;
+      return true;
+    });
+
+    return [...filtered].sort((a, b) => {
       let comparison = 0;
       switch (sortBy) {
         case 'name':
@@ -274,6 +288,27 @@ const Participants = () => {
                   </button>
                 </div>
 
+                {/* Deal-link filter pills */}
+                <div className="flex items-center gap-1 border-l border-gray-300 dark:border-slate-600 pl-3">
+                  {[
+                    { key: 'all', label: t('participants.dealFilter.all', 'Toutes') },
+                    { key: 'with', label: t('participants.dealFilter.with', 'Avec transac') },
+                    { key: 'without', label: t('participants.dealFilter.without', 'Sans transac') },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setDealFilter(key)}
+                      className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                        dealFilter === key
+                          ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-400'
+                          : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
                 {/* Per Page */}
                 <div className="flex items-center space-x-2">
                   <select
@@ -357,7 +392,7 @@ const Participants = () => {
                         <ChevronRight size={16} className="text-gray-400 dark:text-gray-500" />
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-3">
                         <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                           <BookOpen size={14} className="mr-1" />
                           {participant.total_courses || 0} {t('common.totalCourses')}
@@ -365,6 +400,12 @@ const Participants = () => {
                         <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
                           <Target size={14} className="mr-1" />
                           {participant.completed_courses || 0} {t('common.completed')}
+                        </div>
+                        <div className="flex items-center text-sm">
+                          <ExternalLink size={14} className={`mr-1 ${(participant.linked_deals_count || 0) > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`} />
+                          <span className={(participant.linked_deals_count || 0) > 0 ? 'text-orange-700 dark:text-orange-400' : 'text-gray-500 dark:text-gray-500'}>
+                            {participant.linked_deals_count || 0} {t('participants.linkedDeals', 'Transac reliée(s)')}
+                          </span>
                         </div>
                       </div>
                       

@@ -30,52 +30,33 @@ class HubSpotClient:
             response.raise_for_status()
             return response.json()
 
-    async def update_transaction_progress(self, transaction_id: str, progression: float, status: str) -> bool:
-        """Update progress in HubSpot transaction"""
-        if not self.api_key:
-            logger.warning("HubSpot API key not configured")
-            return False
-
-        # This would be the actual HubSpot API call
-        # Implementation depends on your HubSpot setup
-        url = f"{self.base_url}/deals/v1/deal/{transaction_id}"
-
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
-        }
-
-        data = {
-            "properties": [
-                {
-                    "name": "course_progression",
-                    "value": str(progression)
-                },
-                {
-                    "name": "activity_status",
-                    "value": status
-                }
-            ]
-        }
-
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.put(url, json=data, headers=headers)
-                response.raise_for_status()
-                logger.info(f"Updated HubSpot transaction {transaction_id}")
-                return True
-        except httpx.HTTPError as e:
-            logger.error(f"Error updating HubSpot transaction: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error updating HubSpot: {e}")
-            return False
-
     def _get_headers(self) -> Dict[str, str]:
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
+
+    async def update_deal_properties(self, deal_id: str, properties: Dict[str, Any]) -> bool:
+        """PATCH deal properties via v3 API. Returns True on success, False on failure."""
+        if not self.api_key:
+            logger.warning("HubSpot API key not configured")
+            return False
+
+        url = f"{self.base_url}/crm/v3/objects/deals/{deal_id}"
+        body = {"properties": {k: str(v) for k, v in properties.items()}}
+
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.patch(url, json=body, headers=self._get_headers())
+                response.raise_for_status()
+                logger.info(f"Updated HubSpot deal {deal_id} with properties {list(properties.keys())}")
+                return True
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HubSpot deal {deal_id} PATCH failed: {e.response.status_code} {e.response.text}")
+            return False
+        except httpx.HTTPError as e:
+            logger.error(f"HubSpot connection error updating deal {deal_id}: {e}")
+            return False
 
     async def get_contact_id_by_email(self, email: str) -> Optional[str]:
         """Get the HubSpot contact ID for an email."""

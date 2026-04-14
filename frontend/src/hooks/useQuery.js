@@ -62,10 +62,11 @@ export const useParticipantsCount = (searchTerm = '') => {
 };
 
 export const useParticipantDetails = (participantId) => {
+  const id = participantId != null ? parseInt(participantId, 10) : null;
   return useQuery({
-    queryKey: queryKeys.participantDetails(participantId),
-    queryFn: () => apiService.getParticipantDetails(participantId),
-    enabled: !!participantId, // Only run if participantId is provided
+    queryKey: queryKeys.participantDetails(id),
+    queryFn: () => apiService.getParticipantDetails(id),
+    enabled: !!id,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     refetchOnMount: false,
@@ -182,7 +183,36 @@ export const useLinkDeal = () => {
   return useMutation({
     mutationFn: ({ participantId, idActionFormation, dealId }) =>
       apiService.linkDeal(participantId, idActionFormation, dealId),
-    onSuccess: (data, variables) => {
+    onMutate: async ({ participantId, idActionFormation, dealId }) => {
+      const key = queryKeys.participantDetails(participantId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      const optimisticDeal = {
+        deal_id: dealId,
+        deal_url: `https://app-eu1.hubspot.com/contacts/25868618/record/0-3/${dealId}`,
+      };
+      queryClient.setQueryData(key, (old) => {
+        if (!old?.courses) return old;
+        return {
+          ...old,
+          courses: old.courses.map((c) =>
+            c.id_action_formation === idActionFormation
+              ? { ...c, hubspot_deal: optimisticDeal }
+              : c
+          ),
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          queryKeys.participantDetails(variables.participantId),
+          context.previous
+        );
+      }
+    },
+    onSettled: (_data, _err, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.participantDetails(variables.participantId),
       });
@@ -195,7 +225,32 @@ export const useUnlinkDeal = () => {
   return useMutation({
     mutationFn: ({ participantId, idActionFormation }) =>
       apiService.unlinkDeal(participantId, idActionFormation),
-    onSuccess: (data, variables) => {
+    onMutate: async ({ participantId, idActionFormation }) => {
+      const key = queryKeys.participantDetails(participantId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      queryClient.setQueryData(key, (old) => {
+        if (!old?.courses) return old;
+        return {
+          ...old,
+          courses: old.courses.map((c) =>
+            c.id_action_formation === idActionFormation
+              ? { ...c, hubspot_deal: null }
+              : c
+          ),
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(
+          queryKeys.participantDetails(variables.participantId),
+          context.previous
+        );
+      }
+    },
+    onSettled: (_data, _err, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.participantDetails(variables.participantId),
       });

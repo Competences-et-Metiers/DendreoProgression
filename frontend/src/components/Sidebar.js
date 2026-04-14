@@ -17,6 +17,7 @@ import {
   Moon,
   Sun,
   LayoutList,
+  History,
 } from 'lucide-react';
 
 const Sidebar = ({ collapsed, onToggle }) => {
@@ -88,6 +89,14 @@ const Sidebar = ({ collapsed, onToggle }) => {
           label: 'Admin: Interventions',
           icon: ClipboardList,
           path: '/admin/interventions',
+          active: true,
+          isAdmin: true
+        },
+        {
+          id: 'admin-action-history',
+          label: 'Admin: Historique',
+          icon: History,
+          path: '/admin/action-history',
           active: true,
           isAdmin: true
         },

@@ -118,6 +118,45 @@ class DendreoClient:
         except ValueError as e:
             raise DendreoAPIError(f"Invalid JSON response: {str(e)}")
 
+    async def update_lap(self, id_lap: str, id_participant: str, fields: Dict[str, Any]) -> Dict[str, Any]:
+        """POST an update to an existing LAP. id_lap and id_participant are mandatory.
+
+        Args:
+            id_lap: LAP ID to update
+            id_participant: Participant ID (mandatory in body)
+            fields: Dict of additional fields to update (e.g. c_id_transaction_hubspot)
+
+        Returns:
+            Updated LAP record from Dendreo
+        """
+        await self._wait_for_rate_limit()
+
+        url = f"{self.base_url}/laps.php"
+        params = {"id": str(id_lap), "key": self.api_key}
+        body = {"id_lap": int(id_lap), "id_participant": int(id_participant), **fields}
+
+        self.request_timestamps.append(datetime.now())
+        self.total_requests += 1
+        self._write_api_counter()
+
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, params=params, json=body, timeout=120.0)
+
+                if response.status_code == 401:
+                    raise DendreoAPIError("Invalid API key or unauthorized access")
+                if response.status_code == 404:
+                    raise DendreoAPIError(f"LAP {id_lap} not found")
+
+                response.raise_for_status()
+                return response.json()
+        except httpx.TimeoutException:
+            raise DendreoAPIError(f"Request timed out: {url}")
+        except httpx.RequestError as e:
+            raise DendreoAPIError(f"Request failed: {str(e)}")
+        except ValueError as e:
+            raise DendreoAPIError(f"Invalid JSON response: {str(e)}")
+
     async def get_lmps(self) -> List[Dict[str, Any]]:
         """Get all LMPs (modules) with participant and module data"""
         params = {"include": "participant,module"}

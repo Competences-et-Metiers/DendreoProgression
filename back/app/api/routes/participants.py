@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, func as sa_func
 from typing import List, Optional
 from app.models.database import get_db
-from app.models.models import Participant, ParticipantCourse, Course, ModuleCategory
+from app.models.models import Participant, ParticipantCourse, Course, ModuleCategory, ParticipantHubspotData
 from app.models.schemas import ParticipantWithProgress, ParticipantCourse as ParticipantCourseSchema, InactivitySummary, ModuleCategoryResponse
 from app.services.cache_service import cache_service
 from app.services.inactivity_service import InactivityService
@@ -194,10 +194,29 @@ async def get_participants(
         # Apply pagination
         participants = query.offset(skip).limit(limit).all()
 
+        # Batch-fetch linked deal counts for this page
+        participant_ids = [p.id for p in participants]
+        linked_counts = {}
+        if participant_ids:
+            count_rows = (
+                db.query(
+                    ParticipantHubspotData.participant_id,
+                    sa_func.count(ParticipantHubspotData.id).label("c")
+                )
+                .filter(
+                    ParticipantHubspotData.participant_id.in_(participant_ids),
+                    ParticipantHubspotData.c_id_transaction_hubspot.isnot(None),
+                )
+                .group_by(ParticipantHubspotData.participant_id)
+                .all()
+            )
+            linked_counts = {pid: int(c) for pid, c in count_rows}
+
         result = []
 
         for participant in participants:
             participant_data = ParticipantWithProgress.model_validate(participant)
+            participant_data.linked_deals_count = linked_counts.get(participant.id, 0)
 
             # Calculate overall progression and counts
             if participant.courses:

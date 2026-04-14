@@ -52,7 +52,7 @@ const DealLinkButton = ({ participantId, idActionFormation, email, hubspotDeal }
           title={t('hubspotDeal.openDeal')}
         >
           <ExternalLink size={10} className="mr-1" />
-          HubSpot Deal
+          {t('hubspotDeal.linkedLabel', 'HubSpot Transac')}
         </a>
         <button
           onClick={handleUnlink}
@@ -74,13 +74,17 @@ const DealLinkButton = ({ participantId, idActionFormation, email, hubspotDeal }
     <div className="relative inline-block">
       <button
         onClick={() => setShowDropdown(!showDropdown)}
-        disabled={!email}
-        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-30"
+        disabled={!email || linkMutation.isPending}
+        className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-gray-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         title={!email ? t('hubspotDeal.noEmail') : t('hubspotDeal.linkDeal')}
       >
-        <Link2 size={10} className="mr-1" />
+        {linkMutation.isPending ? (
+          <Loader size={10} className="mr-1 animate-spin" />
+        ) : (
+          <Link2 size={10} className="mr-1" />
+        )}
         {t('hubspotDeal.linkDeal')}
-        <ChevronDown size={10} className="ml-1" />
+        {!linkMutation.isPending && <ChevronDown size={10} className="ml-1" />}
       </button>
 
       {showDropdown && (
