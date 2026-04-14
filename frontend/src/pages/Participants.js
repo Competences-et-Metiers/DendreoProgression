@@ -15,8 +15,52 @@ import {
   Search,
   ExternalLink,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Loader
 } from 'lucide-react';
+import { apiService } from '../services/api';
+
+// Per-row HubSpot button with own loading/error/cache state
+const HubspotButton = ({ email, title }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const urlCache = useRef(null);
+
+  const handleClick = async (e) => {
+    e.stopPropagation();
+    if (!email) return;
+    if (urlCache.current) {
+      window.open(urlCache.current, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiService.getHubspotContact(email);
+      if (data?.url) {
+        urlCache.current = data.url;
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+      }
+    } catch (err) {
+      setError(err.response?.status === 404 ? 'Not found' : 'Error');
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-md hover:bg-gray-200 dark:hover:bg-slate-600 hover:text-gray-900 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50"
+      title={error || title}
+    >
+      {loading ? <Loader size={12} className="mr-1 animate-spin" /> : <ExternalLink size={12} className="mr-1" />}
+      HubSpot
+    </button>
+  );
+};
 
 const Participants = () => {
   const { t } = useTranslation();
@@ -116,29 +160,6 @@ const Participants = () => {
     }
   };
 
-  // Helper to get participant's most recent activity from their courses
-  const getParticipantLastActivity = (participant) => {
-    if (!participant.courses || participant.courses.length === 0) return null;
-
-    const lastActivities = participant.courses
-      .map(c => c.last_activity)
-      .filter(Boolean)
-      .map(date => new Date(date));
-
-    if (lastActivities.length === 0) return null;
-    return new Date(Math.max(...lastActivities));
-  };
-
-  // Helper to calculate days since last activity
-  const getDaysSinceLastActivity = (participant) => {
-    const lastActivity = getParticipantLastActivity(participant);
-    if (!lastActivity) return Infinity;
-
-    const now = new Date();
-    const diffTime = Math.abs(now - lastActivity);
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  };
-
   const getFilteredAndSortedParticipants = () => {
     const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
 
@@ -152,15 +173,6 @@ const Participants = () => {
           break;
         case 'progression':
           comparison = (a.overall_progression || 0) - (b.overall_progression || 0);
-          break;
-        case 'courses':
-          comparison = (a.total_courses || 0) - (b.total_courses || 0);
-          break;
-        case 'email':
-          comparison = (a.email || '').localeCompare(b.email || '', 'fr');
-          break;
-        case 'inactivity':
-          comparison = getDaysSinceLastActivity(a) - getDaysSinceLastActivity(b);
           break;
         default:
           comparison = 0;
@@ -257,9 +269,6 @@ const Participants = () => {
                   >
                     <option value="name">{t('participants.sort.byName')}</option>
                     <option value="progression">{t('participants.sort.byProgress')}</option>
-                    <option value="courses">{t('participants.sort.byCourses')}</option>
-                    <option value="email">{t('participants.sort.byEmail')}</option>
-                    <option value="inactivity">{t('participants.sort.byInactivity')}</option>
                   </select>
                   <button
                     onClick={toggleSortDirection}
@@ -346,6 +355,9 @@ const Participants = () => {
                                   <ExternalLink size={12} className="mr-1" />
                                   Dendreo
                                 </button>
+                              )}
+                              {participant.email && (
+                                <HubspotButton email={participant.email} title={t('common.openHubspotProfile')} />
                               )}
                             </h3>
                             <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">

@@ -16,6 +16,7 @@ import {
 const AdfList = () => {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [sortBy, setSortBy] = useState('progression');
   const navigate = useNavigate();
 
@@ -164,8 +165,13 @@ const AdfList = () => {
                     <input
                       type="text"
                       placeholder={t('adfList.courses.searchPlaceholder')}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setSearchTerm(searchInput);
+                        }
+                      }}
                       className="pl-10 pr-4 py-2 border-2 border-blue-300 dark:border-blue-700 rounded-md text-sm w-64 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                       style={{ minWidth: '250px' }}
                     />
@@ -204,7 +210,7 @@ const AdfList = () => {
                 </p>
                 {searchTerm && (
                   <button
-                    onClick={() => setSearchTerm('')}
+                    onClick={() => { setSearchTerm(''); setSearchInput(''); }}
                     className="mt-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                   >
                     {t('common.clearSearch')}

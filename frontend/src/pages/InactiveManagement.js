@@ -622,7 +622,7 @@ const InactiveManagement = () => {
     return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || statusFilter.snoozed || statusFilter.dismissed || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || !filters.atRiskEnabled || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive;
+  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || statusFilter.snoozed || statusFilter.dismissed || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || !filters.atRiskEnabled || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive || noteFilterWithNote || noteFilterWithoutNote || noteFilterOlderThan;
 
   const resetAllFilters = useCallback(() => {
     setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true, snoozed: false, dismissed: false });
@@ -633,6 +633,11 @@ const InactiveManagement = () => {
     setCvPlannedIsActive(false);
     setProgressionRange([0, 100]);
     setFilters(f => ({ ...f, atRiskThreshold: 14, atRiskEnabled: true, inactivityThreshold: 30, excludeRecentDays: 0 }));
+    setNoteFilterWithNote(false);
+    setNoteFilterWithoutNote(false);
+    setNoteFilterOlderThan(false);
+    setNoteOlderThanDays(7);
+    setNoteOlderThanInput('7');
   }, []);
 
   const collectCurrentFilters = useCallback(() => ({
