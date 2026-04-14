@@ -41,8 +41,8 @@ api.interceptors.response.use(
 
 // API service functions
 export const apiService = {
-  // Dashboard stats
-  async getDashboardStats() {
+  // ADF list stats
+  async getAdfListStats() {
     const response = await api.get('/courses/stats');
     return response.data;
   },

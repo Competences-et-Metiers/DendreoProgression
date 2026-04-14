@@ -35,10 +35,10 @@ const Sidebar = ({ collapsed, onToggle }) => {
       active: true
     },
     {
-      id: 'dashboard',
+      id: 'adf-list',
       label: t('sidebar.dashboard'),
       icon: BookOpen,
-      path: '/dashboard',
+      path: '/adf-list',
       active: true
     },
     {

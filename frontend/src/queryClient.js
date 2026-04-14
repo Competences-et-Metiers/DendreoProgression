@@ -38,8 +38,8 @@ export const queryClient = new QueryClient({
 
 // Query keys for consistent caching
 export const queryKeys = {
-  // Dashboard
-  dashboardStats: ['dashboard', 'stats'],
+  // ADF List
+  adfListStats: ['adfList', 'stats'],
   
   // Courses
   courses: ['courses'],

@@ -9,7 +9,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+import AdfList from './pages/AdfList';
 import CourseDetail from './pages/CourseDetail';
 import Participants from './pages/Participants';
 import ParticipantDetail from './pages/ParticipantDetail';
@@ -83,7 +83,7 @@ const AppContent = () => {
               <Layout>
                 <Routes>
                   <Route path="/" element={<Navigate to="/inactive-management" replace />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/adf-list" element={<AdfList />} />
                   <Route path="/courses/:courseId" element={<CourseDetail />} />
                   <Route path="/participants" element={<Participants />} />
                   <Route path="/participants/:participantId" element={<ParticipantDetail />} />

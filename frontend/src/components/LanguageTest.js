@@ -12,7 +12,7 @@ const LanguageTest = () => {
       <div className="space-y-2 text-sm">
         <p><strong>Current Language:</strong> {i18n.language}</p>
         <p><strong>French Test:</strong> {t('common.loading')}</p>
-        <p><strong>Dashboard Title:</strong> {t('dashboard.title')}</p>
+        <p><strong>ADF List Title:</strong> {t('adfList.title')}</p>
         <p><strong>Error Message:</strong> {t('common.error')}</p>
         <p><strong>Refresh Button:</strong> {t('common.refresh')}</p>
       </div>

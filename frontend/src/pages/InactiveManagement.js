@@ -742,7 +742,7 @@ const InactiveManagement = () => {
                         lastSync.sync_status === 'error' ? 'text-red-600 dark:text-red-400' :
                         'text-gray-500 dark:text-gray-400'
                       }`}>
-                        ({t(`dashboard.sync.status.${lastSync.sync_status === 'success' ? 'success' : lastSync.sync_status === 'error' ? 'error' : 'unknown'}`)})
+                        ({t(`adfList.sync.status.${lastSync.sync_status === 'success' ? 'success' : lastSync.sync_status === 'error' ? 'error' : 'unknown'}`)})
                       </span>
                     )}
                   </div>

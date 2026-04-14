@@ -174,8 +174,8 @@
     "backToDashboard": "Retour au tableau de bord",
     "backToParticipants": "Retour aux participants"
   },
-  "dashboard": {
-    "title": "Tableau de bord des ADF",
+  "adfList": {
+    "title": "Les ADF",
     "subtitle": "Suivre la progression des ADF et l'engagement des participants",
     "stats": {
       "totalCourses": "ADF totaux",
@@ -328,7 +328,7 @@
     "lastPage": "Dernière page"
   },
   "sidebar": {
-    "dashboard": "Tableau de bord",
+    "dashboard": "Les ADF",
     "participants": "Participants",
     "inactiveManagement": "Gestion des inactifs",
     "account": "Mon compte",

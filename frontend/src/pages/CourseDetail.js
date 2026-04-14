@@ -192,7 +192,7 @@ const CourseDetail = () => {
             {t('common.retry')}
           </button>
           <button
-            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/dashboard'))}
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/adf-list'))}
             className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
           >
             {t('navigation.backToDashboard')}
@@ -215,11 +215,11 @@ const CourseDetail = () => {
                 onClick={(e) => {
                   // Check if Ctrl/Cmd key is pressed or middle mouse button for new tab
                   if (e.ctrlKey || e.metaKey || e.button === 1) {
-                    window.open('/dashboard', '_blank', 'noopener,noreferrer');
+                    window.open('/adf-list', '_blank', 'noopener,noreferrer');
                   } else if (window.history.length > 1) {
                     navigate(-1);
                   } else {
-                    navigate('/dashboard');
+                    navigate('/adf-list');
                   }
                 }}
                 className="mr-4 p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
