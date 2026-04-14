@@ -1736,7 +1736,7 @@ const InactiveManagement = () => {
                                       ) : (
                                         <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
                                           <CalendarClock size={12} />
-                                          pas de CV programmées
+                                          pas de CV
                                         </span>
                                       )}
                                       {participant.total_planned_duration_hours > 0 && (
@@ -1896,7 +1896,7 @@ const InactiveManagement = () => {
                               ) : (
                                 <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
                                   <CalendarClock size={12} />
-                                  pas de CV programmées
+                                  pas de CV
                                 </span>
                               )}
                               {participant.total_planned_duration_hours > 0 && (
