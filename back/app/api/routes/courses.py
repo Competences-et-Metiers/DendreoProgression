@@ -758,20 +758,16 @@ async def get_courses(db: Session = Depends(get_db)):
 
 @router.get("/deadline-data")
 async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """Return all participant-module combinations where date_fin has passed.
-    Frontend filters by progression threshold."""
+    """Return all participant-module combinations for active courses.
+    Frontend filters by deadline (overdue) status and progression threshold."""
     try:
-        now = datetime.now(timezone.utc)
-
         # Single JOIN query: Course + Module + Participant (replaces N+1 loop)
         rows = (
             db.query(Course, Module, Participant)
             .join(Module, Module.id_lam == Course.id_lam)
             .join(Participant, Participant.id == Module.participant_id)
             .filter(
-                Course.status.in_(['5', '6', '7']),
-                Course.date_fin != None,
-                Course.date_fin < now
+                Course.status.in_(['5', '6', '7'])
             )
             .all()
         )
