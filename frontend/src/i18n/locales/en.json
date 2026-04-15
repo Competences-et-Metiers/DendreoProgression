@@ -352,6 +352,7 @@
     "emptyMessage": "All participants have progression at or above {{threshold}}% for modules past their end date.",
     "thresholdLabel": "Threshold",
     "filterByAdf": "Filter by course (ADF)",
+    "filterByModule": "Filter by module",
     "filterByCategory": "Filter by category",
     "filterByType": "Module type",
     "allTypes": "All",

@@ -97,6 +97,14 @@ const ModuleManagement = () => {
   const [showAdfDropdown, setShowAdfDropdown] = useState(false);
   const [adfSearchTerm, setAdfSearchTerm] = useState('');
 
+  // Module (by id_lam) filter
+  const [selectedModules, setSelectedModules] = useState(() => {
+    const cached = localStorage.getItem('moduleManagement.selectedModules');
+    return cached ? JSON.parse(cached) : [];
+  });
+  const [showModuleDropdown, setShowModuleDropdown] = useState(false);
+  const [moduleSearchTerm, setModuleSearchTerm] = useState('');
+
   // Category filter
   const [selectedCategories, setSelectedCategories] = useState(() => {
     const cached = localStorage.getItem('moduleManagement.selectedCategories');
@@ -143,6 +151,7 @@ const ModuleManagement = () => {
   // Persist state
   useEffect(() => { sessionStorage.setItem('moduleManagement.deadlineMode', JSON.stringify(deadlineMode)); }, [deadlineMode]);
   useEffect(() => { localStorage.setItem('moduleManagement.selectedADFs', JSON.stringify(selectedADFs)); }, [selectedADFs]);
+  useEffect(() => { localStorage.setItem('moduleManagement.selectedModules', JSON.stringify(selectedModules)); }, [selectedModules]);
   useEffect(() => { localStorage.setItem('moduleManagement.selectedCategories', JSON.stringify(selectedCategories)); }, [selectedCategories]);
   useEffect(() => { localStorage.setItem('moduleManagement.selectedModuleType', selectedModuleType); }, [selectedModuleType]);
   useEffect(() => { localStorage.setItem('moduleManagement.searchTerm', searchTerm); }, [searchTerm]);
@@ -153,7 +162,7 @@ const ModuleManagement = () => {
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedADFs, selectedCategories, selectedModuleType, searchTerm, threshold, pageSize, viewMode, deadlineMode, sortBy, sortDirection, completionFilter]);
+  }, [selectedADFs, selectedModules, selectedCategories, selectedModuleType, searchTerm, threshold, pageSize, viewMode, deadlineMode, sortBy, sortDirection, completionFilter]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: queryKeys.moduleData,
@@ -176,10 +185,11 @@ const ModuleManagement = () => {
     }
   }, [sortBy]);
 
-  const hasActiveFilters = selectedADFs.length > 0 || selectedCategories.length > 0 || selectedModuleType !== 'all' || searchTerm || completionFilter !== 'all';
+  const hasActiveFilters = selectedADFs.length > 0 || selectedModules.length > 0 || selectedCategories.length > 0 || selectedModuleType !== 'all' || searchTerm || completionFilter !== 'all';
 
   const resetAllFilters = useCallback(() => {
     setSelectedADFs([]);
+    setSelectedModules([]);
     setSelectedCategories([]);
     setSelectedModuleType('all');
     setCompletionFilter('all');
@@ -217,14 +227,18 @@ const ModuleManagement = () => {
     });
   };
 
-  // Extract unique ADFs and categories
-  const { adfList, categoryList } = useMemo(() => {
-    if (!data?.items) return { adfList: [], categoryList: [] };
+  // Extract unique ADFs, modules (by id_lam), and categories
+  const { adfList, moduleList, categoryList } = useMemo(() => {
+    if (!data?.items) return { adfList: [], moduleList: [], categoryList: [] };
     const adfs = new Map();
+    const mods = new Map();
     const cats = new Map();
     for (const item of data.items) {
       if (!adfs.has(item.id_action_formation)) {
         adfs.set(item.id_action_formation, item.course_title);
+      }
+      if (item.id_lam && !mods.has(item.id_lam)) {
+        mods.set(item.id_lam, item.module_intitule || `Module ${item.id_lam}`);
       }
       if (item.category_name && !cats.has(item.category_name)) {
         cats.set(item.category_name, item.category_color || '');
@@ -232,6 +246,7 @@ const ModuleManagement = () => {
     }
     return {
       adfList: Array.from(adfs.entries()).map(([id, title]) => ({ id, title })).sort((a, b) => a.title.localeCompare(b.title)),
+      moduleList: Array.from(mods.entries()).map(([id, title]) => ({ id, title })).sort((a, b) => a.title.localeCompare(b.title)),
       categoryList: Array.from(cats.entries()).map(([name, color]) => ({ name, color })).sort((a, b) => a.name.localeCompare(b.name)),
     };
   }, [data]);
@@ -249,6 +264,7 @@ const ModuleManagement = () => {
         if (completionFilter === 'completed' && !isComplete) return false;
       }
       if (selectedADFs.length > 0 && !selectedADFs.includes(item.id_action_formation)) return false;
+      if (selectedModules.length > 0 && !selectedModules.includes(item.id_lam)) return false;
       if (selectedCategories.length > 0 && !selectedCategories.includes(item.category_name)) return false;
       if (selectedModuleType !== 'all' && item.mode_organisation !== selectedModuleType) return false;
       if (searchTerm) {
@@ -291,7 +307,7 @@ const ModuleManagement = () => {
     });
 
     return items;
-  }, [data, threshold, searchTerm, selectedADFs, selectedCategories, selectedModuleType, deadlineMode, completionFilter, sortBy, sortDirection]);
+  }, [data, threshold, searchTerm, selectedADFs, selectedModules, selectedCategories, selectedModuleType, deadlineMode, completionFilter, sortBy, sortDirection]);
 
   // Course view: group by ADF+module
   const groupEntries = useMemo(() => {
@@ -562,12 +578,12 @@ const ModuleManagement = () => {
             )}
           </div>
 
-          {/* Row 2: ADF + Category Filters side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 border-t border-gray-100 dark:border-slate-700 pt-4">
+          {/* Row 2: ADF + Module + Category Filters side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 border-t border-gray-100 dark:border-slate-700 pt-4">
             {/* ADF Filter */}
             <div>
               <button
-                onClick={() => { setShowAdfDropdown(!showAdfDropdown); setShowCategoryDropdown(false); }}
+                onClick={() => { setShowAdfDropdown(!showAdfDropdown); setShowModuleDropdown(false); setShowCategoryDropdown(false); }}
                 className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <div className="flex items-center gap-2">
@@ -668,10 +684,114 @@ const ModuleManagement = () => {
               })()}
             </div>
 
+            {/* Module Filter (unique by id_lam) */}
+            <div>
+              <button
+                onClick={() => { setShowModuleDropdown(!showModuleDropdown); setShowAdfDropdown(false); setShowCategoryDropdown(false); }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <LayoutList size={16} className="text-gray-600 dark:text-gray-400" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{t('moduleManagement.filterByModule', 'Filtrer par module')}</span>
+                  {selectedModules.length > 0 && (
+                    <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400 text-xs font-medium rounded-full">
+                      {selectedModules.length}
+                    </span>
+                  )}
+                </div>
+                {showModuleDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+
+              {showModuleDropdown && (() => {
+                const filteredModules = moduleList.filter(m =>
+                  m.title.toLowerCase().includes(moduleSearchTerm.toLowerCase())
+                );
+                const selectedButHiddenModules = moduleSearchTerm
+                  ? moduleList.filter(m => selectedModules.includes(m.id) && !m.title.toLowerCase().includes(moduleSearchTerm.toLowerCase()))
+                  : [];
+
+                return (
+                  <div className="mt-2 space-y-2">
+                    <input
+                      type="text"
+                      value={moduleSearchTerm}
+                      onChange={(e) => setModuleSearchTerm(e.target.value)}
+                      placeholder={t('moduleManagement.searchPlaceholder')}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white dark:placeholder-gray-500"
+                    />
+                    {selectedButHiddenModules.length > 0 && (
+                      <div className="space-y-1 border border-primary-200 dark:border-primary-800 bg-primary-50/50 dark:bg-primary-900/20 rounded-lg p-2">
+                        <p className="text-[10px] font-medium text-primary-600 uppercase tracking-wide px-2">{t('moduleManagement.selected')}</p>
+                        {selectedButHiddenModules.map((m) => (
+                          <label key={m.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-primary-100/50 cursor-pointer transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={true}
+                              onChange={() => setSelectedModules(selectedModules.filter(id => id !== m.id))}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                            />
+                            <span className="text-xs text-primary-700 leading-tight">{m.title}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    <div className="max-h-48 overflow-y-auto space-y-1 border border-gray-200 dark:border-slate-700 rounded-lg p-2">
+                      {filteredModules.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">{t('moduleManagement.noResults')}</p>
+                      ) : (
+                        <>
+                          <label className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors border-b border-gray-200 dark:border-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={filteredModules.length > 0 && filteredModules.every(m => selectedModules.includes(m.id))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedModules(prev => [...new Set([...prev, ...filteredModules.map(m => m.id)])]);
+                                } else {
+                                  const filteredIds = new Set(filteredModules.map(m => m.id));
+                                  setSelectedModules(prev => prev.filter(id => !filteredIds.has(id)));
+                                }
+                              }}
+                              className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500"
+                            />
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                              {filteredModules.length > 0 && filteredModules.every(m => selectedModules.includes(m.id)) ? t('moduleManagement.deselectAll') : t('moduleManagement.selectAll')}
+                            </span>
+                          </label>
+                          {filteredModules.map((m) => (
+                            <label key={m.id} className="flex items-start gap-2 px-2 py-1.5 rounded hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={selectedModules.includes(m.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedModules([...selectedModules, m.id]);
+                                  } else {
+                                    setSelectedModules(selectedModules.filter(id => id !== m.id));
+                                  }
+                                }}
+                                className="w-4 h-4 text-primary-600 rounded focus:ring-2 focus:ring-primary-500 mt-0.5"
+                              />
+                              <span className="text-xs text-gray-700 dark:text-gray-300 leading-tight">{m.title}</span>
+                            </label>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                    {selectedModules.length > 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {selectedModules.length} module{selectedModules.length > 1 ? 's' : ''} {t('moduleManagement.selected')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* Category Filter */}
             <div>
               <button
-                onClick={() => { setShowCategoryDropdown(!showCategoryDropdown); setShowAdfDropdown(false); }}
+                onClick={() => { setShowCategoryDropdown(!showCategoryDropdown); setShowAdfDropdown(false); setShowModuleDropdown(false); }}
                 className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <div className="flex items-center gap-2">
