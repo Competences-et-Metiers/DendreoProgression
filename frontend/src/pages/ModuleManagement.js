@@ -911,7 +911,7 @@ const ModuleManagement = () => {
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               <Target size={14} className="inline mr-1" />
-              {filteredItems.length} module(s)
+              {t('moduleManagement.results', 'Résultats')}: {totalItems}
               {deadlineMode && ` < ${threshold}%`}
             </span>
             <div className="flex items-center gap-1 border-l border-gray-300 dark:border-slate-600 pl-4">
