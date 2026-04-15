@@ -205,19 +205,25 @@ async def get_participants(
             participant_data = ParticipantWithProgress.model_validate(participant)
             participant_data.linked_deals_count = linked_counts.get(participant.id, 0)
 
-            # Calculate overall progression and counts
-            if participant.courses:
-                progressions = [pc.overall_progression for pc in participant.courses if pc.overall_progression is not None]
-                participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
-                participant_data.total_courses = len(participant.courses)
+            # Filter out courses whose ADF is no longer active (status ∉ {5, 6, 7}).
+            # Archived ADFs should drop off the participant summary the same way
+            # they're hidden from the ADF list.
+            active_pc = [
+                pc for pc in (participant.courses or [])
+                if pc.course and pc.course.status in ('5', '6', '7')
+            ]
 
-                # Update activity statuses and count them
+            if active_pc:
+                progressions = [pc.overall_progression for pc in active_pc if pc.overall_progression is not None]
+                participant_data.overall_progression = sum(progressions) / len(progressions) if progressions else 0.0
+                participant_data.total_courses = len(active_pc)
+
                 completed_courses = 0
                 active_courses = 0
 
-                for pc in participant.courses:
+                for pc in active_pc:
                     status = calculate_activity_status(pc, db)
-                    pc.activity_status = status  # Update the status
+                    pc.activity_status = status
                     if status == 'completed':
                         completed_courses += 1
                     elif status in ('active', 'not_started'):
@@ -225,7 +231,13 @@ async def get_participants(
 
                 participant_data.completed_courses = completed_courses
                 participant_data.active_courses = active_courses
-                participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in participant.courses]
+                participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in active_pc]
+            else:
+                participant_data.overall_progression = 0.0
+                participant_data.total_courses = 0
+                participant_data.completed_courses = 0
+                participant_data.active_courses = 0
+                participant_data.courses = []
 
             result.append(participant_data)
 

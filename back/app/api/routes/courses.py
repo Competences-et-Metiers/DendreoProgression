@@ -167,7 +167,11 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
         logger.info("📚 Computing courses list from database")
         # Group courses by ADF (id_action_formation)
         # Each ADF should appear only once, regardless of how many modules (id_lam) it contains
-        adfs = db.query(Course.id_action_formation).distinct().all()
+        # Only active ADFs (Dendreo etape_process 5, 6, 7) are listed — inactive ones drop off
+        # once sync updates their Course.status.
+        adfs = db.query(Course.id_action_formation).filter(
+            Course.status.in_(['5', '6', '7'])
+        ).distinct().all()
         
         result = []
         for (id_adf,) in adfs:
@@ -584,11 +588,13 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
             ParticipantCourse.participant_id == participant_id
         ).all()
         
-        # Group by ADF to avoid duplicate courses
+        # Group by ADF to avoid duplicate courses.
+        # Skip ADFs whose status is no longer active (Dendreo etape 5/6/7); they're
+        # considered archived and should drop off the participant's view.
         adf_groups = {}
         for pc in participant_courses:
             course = db.query(Course).filter(Course.id == pc.course_id).first()
-            if course and course.id_action_formation:
+            if course and course.id_action_formation and course.status in ('5', '6', '7'):
                 adf_id = course.id_action_formation
                 if adf_id not in adf_groups:
                     adf_groups[adf_id] = {
