@@ -177,11 +177,12 @@ async def link_deal(
     hubspot_push_ok = False
     if progression is not None:
         hubspot_calls = 1
-        # HubSpot property expects comma decimal separator (European format)
-        progression_str = f"{progression:.2f}".replace('.', ',')
+        # HubSpot percentage property stores fraction-of-one (0.661 = 66.1%)
+        # Keep 3 decimals = 0.1% precision
+        progression_fraction = f"{progression / 100:.3f}"
         try:
             hubspot_push_ok = await hubspot_client.update_deal_properties(
-                body.deal_id, {"progression_e_learning": progression_str},
+                body.deal_id, {"progression_e_learning": progression_fraction},
             )
         except Exception as e:
             logger.warning(f"HubSpot deal property push failed: {e}")
