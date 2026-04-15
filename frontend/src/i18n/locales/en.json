@@ -353,6 +353,7 @@
     "thresholdLabel": "Threshold",
     "filterByAdf": "Filter by course (ADF)",
     "filterByModule": "Filter by module",
+    "results": "Results",
     "filterByCategory": "Filter by category",
     "filterByType": "Module type",
     "allTypes": "All",
