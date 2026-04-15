@@ -82,6 +82,7 @@ class ParticipantWithProgress(Participant):
     completed_courses: int = 0
     active_courses: int = 0
     id_lap: Optional[str] = None
+    linked_deals_count: int = 0
 
 class CourseWithParticipants(CourseResponse):
     participants: List[ParticipantCourse] = []

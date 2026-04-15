@@ -122,6 +122,28 @@ export const adminService = {
     const response = await api.get('/admin/interventions/stats');
     return response.data;
   },
+
+  // ─── Admin Action History ───
+
+  getActionHistory: async (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.page) query.set('page', params.page);
+    if (params.page_size) query.set('page_size', params.page_size);
+    if (params.sort_order) query.set('sort_order', params.sort_order);
+    if (params.action_type) query.set('action_type', params.action_type);
+    if (params.status) query.set('status', params.status);
+    if (params.user_id) query.set('user_id', params.user_id);
+    if (params.search) query.set('search', params.search);
+    if (params.date_from) query.set('date_from', params.date_from);
+    if (params.date_to) query.set('date_to', params.date_to);
+    const response = await api.get(`/admin/action-history?${query.toString()}`);
+    return response.data;
+  },
+
+  getActionHistoryStats: async () => {
+    const response = await api.get('/admin/action-history/stats');
+    return response.data;
+  },
 };
 
 export default adminService;

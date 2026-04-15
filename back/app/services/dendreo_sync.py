@@ -63,27 +63,19 @@ class DendreoSync:
         }
 
     def _apply_period_budget(self, admin_config, per_sync_limit, daily_field, weekly_field, monthly_field, count_column_name, label):
-        """Compute effective per-sync limit by capping with remaining period budgets."""
-        from datetime import timedelta
-        now = datetime.now()
-        sync_types = ['sync_all', 'sync_adf']
-        count_col = getattr(SyncMetadata, count_column_name)
+        """Compute effective per-sync limit by capping with remaining period budgets.
+        Usage is summed across SyncMetadata and ActionHistory (user-triggered actions)."""
+        from app.services.api_budget import get_period_usage
 
-        periods = [
-            (daily_field, now.replace(hour=0, minute=0, second=0, microsecond=0), 'daily'),
-            (weekly_field, now - timedelta(days=7), 'weekly'),
-            (monthly_field, now.replace(day=1, hour=0, minute=0, second=0, microsecond=0), 'monthly'),
-        ]
+        provider = 'dendreo' if count_column_name == 'api_calls_count' else 'hubspot'
+        periods = [(daily_field, 'daily'), (weekly_field, 'weekly'), (monthly_field, 'monthly')]
 
         effective = per_sync_limit
-        for field, period_start, period_label in periods:
+        for field, period_label in periods:
             limit_val = getattr(admin_config, field, None)
             if not limit_val or limit_val <= 0:
                 continue
-            usage = self.db.query(func.sum(count_col)).filter(
-                SyncMetadata.sync_type.in_(sync_types),
-                SyncMetadata.last_sync_at >= period_start
-            ).scalar() or 0
+            usage = get_period_usage(self.db, provider, period_label)
             remaining = max(0, limit_val - usage)
             logger.info(f"🔒 {label} {period_label} budget: {usage}/{limit_val} used, {remaining} remaining")
             if effective is None:

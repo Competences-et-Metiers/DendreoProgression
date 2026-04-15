@@ -18,6 +18,7 @@ import InactiveManagement from './pages/InactiveManagement';
 import Settings from './pages/Settings';
 import AdminSyncDashboard from './pages/AdminSyncDashboard';
 import AdminInterventions from './pages/AdminInterventions';
+import AdminActionHistory from './pages/AdminActionHistory';
 import ModuleManagement from './pages/ModuleManagement';
 import { Loader2 } from 'lucide-react';
 
@@ -104,6 +105,14 @@ const AppContent = () => {
                     element={
                       <AdminRoute>
                         <AdminInterventions />
+                      </AdminRoute>
+                    }
+                  />
+                  <Route
+                    path="/admin/action-history"
+                    element={
+                      <AdminRoute>
+                        <AdminActionHistory />
                       </AdminRoute>
                     }
                   />

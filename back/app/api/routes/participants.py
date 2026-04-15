@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, and_, func as sa_func
 from typing import List, Optional
 from app.models.database import get_db
-from app.models.models import Participant, ParticipantCourse, Course, ModuleCategory
+from app.models.models import Participant, ParticipantCourse, Course, ModuleCategory, ParticipantHubspotData
 from app.models.schemas import ParticipantWithProgress, ParticipantCourse as ParticipantCourseSchema, InactivitySummary, ModuleCategoryResponse
 from app.services.cache_service import cache_service
 from app.services.inactivity_service import InactivityService
@@ -48,38 +48,21 @@ def normalize_search_term(search: str) -> list:
         f"%{search_no_accent.lower()}%"  # Lowercase without accents
     ])
     
-    # If the search term has no accents, generate all possible accented variations
+    # If the search term has no accents, generate single-substitution variants
+    # (swap ONE character at a time). The previous implementation generated every
+    # combinatorial product of accents across all vowels — for a 13-character name
+    # with many vowels that's hundreds of thousands of variants, producing a SQL
+    # query with millions of ILIKE branches and hanging Postgres.
     if search == search_no_accent:
-        # Generate all possible combinations of accented characters
-        # This creates patterns like "Frédéric", "Frèdéric", "Frêdéric", etc.
-        def generate_accented_variations(text, index=0):
-            if index >= len(text):
-                return [text]
-            
-            char = text[index].lower()
-            variations = []
-            
-            if char in reverse_accent_map:
-                # For each accent variation of this character
-                for accent in reverse_accent_map[char]:
-                    # Create variation with this accent
-                    accented_text = text[:index] + accent + text[index+1:]
-                    # Recursively generate variations for remaining characters
-                    sub_variations = generate_accented_variations(accented_text, index + 1)
-                    variations.extend(sub_variations)
-            
-            # Also include the original character (no accent)
-            sub_variations = generate_accented_variations(text, index + 1)
-            variations.extend(sub_variations)
-            
-            return variations
-        
-        # Generate all accented variations
-        accented_variations = generate_accented_variations(search)
-        
-        # Add patterns for each variation
+        accented_variations = []
+        for i, ch in enumerate(search):
+            lower_ch = ch.lower()
+            if lower_ch in reverse_accent_map:
+                for accent in reverse_accent_map[lower_ch]:
+                    accented_variations.append(search[:i] + accent + search[i + 1:])
+
         for variation in accented_variations:
-            if variation != search:  # Avoid duplicates
+            if variation != search:
                 patterns.extend([
                     f"%{variation}%",
                     f"%{variation.lower()}%"
@@ -169,22 +152,26 @@ async def get_participants(
 
         # Apply filters
         if search:
-            # Search across email, first name, and last name with accent-insensitive search
-            search_patterns = normalize_search_term(search)
-            logger.info(f"🔍 Search patterns for '{search}': {search_patterns}")
-            
-            # Build OR conditions for each pattern
-            search_conditions = []
-            
-            for pattern in search_patterns:
-                search_conditions.extend([
-                    Participant.email.ilike(pattern),
-                    Participant.prenom.ilike(pattern),
-                    Participant.nom.ilike(pattern),
-                    (Participant.prenom + ' ' + Participant.nom).ilike(pattern)
-                ])
-            
-            query = query.filter(or_(*search_conditions))
+            # Split search into tokens so "RIGOULET Maeva" matches "Maeva RIGOULET".
+            # Each token must match at least one searchable field (ORed within a token),
+            # and ALL tokens must match (ANDed across tokens).
+            tokens = [t for t in search.strip().split() if t]
+            if tokens:
+                per_token_conditions = []
+                for token in tokens:
+                    token_patterns = normalize_search_term(token)
+                    logger.info(f"🔍 Token '{token}' -> {len(token_patterns)} patterns")
+                    or_clauses = []
+                    for pattern in token_patterns:
+                        or_clauses.extend([
+                            Participant.email.ilike(pattern),
+                            Participant.prenom.ilike(pattern),
+                            Participant.nom.ilike(pattern),
+                            (Participant.prenom + ' ' + Participant.nom).ilike(pattern),
+                            (Participant.nom + ' ' + Participant.prenom).ilike(pattern),
+                        ])
+                    per_token_conditions.append(or_(*or_clauses))
+                query = query.filter(and_(*per_token_conditions))
         elif email:
             query = query.filter(Participant.email.ilike(f"%{email}%"))
         # Note: company field doesn't exist in our model, so removing this filter
@@ -194,10 +181,29 @@ async def get_participants(
         # Apply pagination
         participants = query.offset(skip).limit(limit).all()
 
+        # Batch-fetch linked deal counts for this page
+        participant_ids = [p.id for p in participants]
+        linked_counts = {}
+        if participant_ids:
+            count_rows = (
+                db.query(
+                    ParticipantHubspotData.participant_id,
+                    sa_func.count(ParticipantHubspotData.id).label("c")
+                )
+                .filter(
+                    ParticipantHubspotData.participant_id.in_(participant_ids),
+                    ParticipantHubspotData.c_id_transaction_hubspot.isnot(None),
+                )
+                .group_by(ParticipantHubspotData.participant_id)
+                .all()
+            )
+            linked_counts = {pid: int(c) for pid, c in count_rows}
+
         result = []
 
         for participant in participants:
             participant_data = ParticipantWithProgress.model_validate(participant)
+            participant_data.linked_deals_count = linked_counts.get(participant.id, 0)
 
             # Calculate overall progression and counts
             if participant.courses:

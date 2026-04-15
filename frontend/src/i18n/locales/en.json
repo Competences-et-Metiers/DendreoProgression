@@ -245,6 +245,12 @@
     "allParticipants": "All Participants",
     "subtitleWithCount": "{{filtered}} of {{total}} participants",
     "searchPlaceholder": "Search participants...",
+    "linkedDeals": "linked deal(s)",
+    "dealFilter": {
+      "all": "All",
+      "with": "With deal",
+      "without": "Without deal"
+    },
     "filters": {
       "allStatus": "All Status",
       "active": "Active",
@@ -568,6 +574,7 @@
   },
   "hubspotDeal": {
     "deal": "Deal",
+    "linkedLabel": "HubSpot Deal",
     "linkDeal": "Link Deal",
     "unlink": "Unlink deal",
     "openDeal": "Open deal in HubSpot",

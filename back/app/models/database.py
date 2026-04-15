@@ -100,7 +100,7 @@ def create_tables():
     """Create all database tables with proper error handling."""
     try:
         # Import all models to ensure they're registered
-        from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, SyncMetadata, User, Creneau, CreneauParticipant, ModuleCategory, Intervention, UserView
+        from app.models.models import Participant, Course, Module, ParticipantCourse, ParticipantHubspotData, SyncMetadata, User, Creneau, CreneauParticipant, ModuleCategory, Intervention, UserView, ActionHistory
 
         logger.info("Creating database tables...")
 
