@@ -357,6 +357,7 @@
     "emptyMessage": "Tous les participants ont une progression sup\u00e9rieure ou \u00e9gale \u00e0 {{threshold}}% pour les modules dont la date de fin est d\u00e9pass\u00e9e.",
     "thresholdLabel": "Seuil",
     "filterByAdf": "Filtrer par formation (ADF)",
+    "filterByModule": "Filtrer par module",
     "filterByCategory": "Filtrer par cat\u00e9gorie",
     "filterByType": "Type de module",
     "allTypes": "Tous",
