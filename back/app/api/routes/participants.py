@@ -314,7 +314,14 @@ async def get_inactive_participants(
     - Participants with 100% completion
     """
     try:
-        logger.info(f"Fetching participants (group_by_course={group_by_course}, course_id={course_id})")
+        # Build cache key from query params
+        cache_key = f"{group_by_course}:{course_id}:{at_risk_threshold_days}:{inactivity_threshold_days}:{exclude_recent_enrollments_days}:{min_progression}:{max_progression}"
+        cached = cache_service.get_inactivity_data(cache_key)
+        if cached:
+            logger.info("Inactivity data served from cache")
+            return cached
+
+        logger.info(f"Computing inactivity data (group_by_course={group_by_course}, course_id={course_id})")
 
         service = InactivityService(
             db=db,
@@ -329,6 +336,9 @@ async def get_inactive_participants(
             min_progression=min_progression,
             max_progression=max_progression
         )
+
+        # Cache the result (serialize Pydantic model to dict)
+        cache_service.set_inactivity_data(cache_key, result.model_dump(mode='json'), ttl=180)
 
         logger.info(f"Found {result.total_participants} participants ({result.active_count} active, {result.at_risk_count} at risk, {result.inactive_count} inactive, {result.never_started_count} never started)")
         return result

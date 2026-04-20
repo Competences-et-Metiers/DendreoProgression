@@ -126,19 +126,21 @@ class CacheService:
         logger.info("🗑️  Course cache invalidated")
 
     def invalidate_participant_cache(self, participant_id: Optional[int] = None):
-        """Invalidate participant-related cache"""
+        """Invalidate participant-related cache including inactivity data"""
         if participant_id:
             patterns = [
                 f"participants:details:{participant_id}",
                 f"participants:course:*:{participant_id}",
-                "participants:list"
+                "participants:list",
+                "inactivity:*",
             ]
         else:
             patterns = [
                 "participants:*",
-                "dashboard:*"
+                "dashboard:*",
+                "inactivity:*",
             ]
-        
+
         for pattern in patterns:
             self.delete_pattern(pattern)
         logger.info(f"🗑️  Participant cache invalidated (ID: {participant_id})")
@@ -151,6 +153,19 @@ class CacheService:
     def set_dashboard_stats(self, stats: Dict, ttl: int = 300) -> bool:
         """Cache dashboard stats (5 min TTL)"""
         return self.set("dashboard:stats", stats, ttl)
+
+    def get_inactivity_data(self, cache_key: str) -> Optional[Dict]:
+        """Get cached inactivity data"""
+        return self.get(f"inactivity:{cache_key}")
+
+    def set_inactivity_data(self, cache_key: str, data: Dict, ttl: int = 180) -> bool:
+        """Cache inactivity data (3 min TTL)"""
+        return self.set(f"inactivity:{cache_key}", data, ttl)
+
+    def invalidate_inactivity_cache(self):
+        """Invalidate all inactivity cache entries"""
+        self.delete_pattern("inactivity:*")
+        logger.info("Inactivity cache invalidated")
 
     def get_courses_list(self) -> Optional[list]:
         """Get cached courses list"""
