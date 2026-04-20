@@ -99,15 +99,15 @@ jobs:
 
             # Graceful deploy: wait for any running sync to finish before replacing containers.
             # Checks if sync_dendreo.py is running inside the sync container; waits up to 10 min.
-            WAIT_MAX=20
+            WAIT_MAX=60
             WAIT_COUNT=0
             while docker exec dendreo_sync_prod pgrep -f sync_dendreo.py > /dev/null 2>&1; do
               WAIT_COUNT=$((WAIT_COUNT + 1))
               if [ "$WAIT_COUNT" -ge "$WAIT_MAX" ]; then
-                echo "WARNING: Sync still running after $((WAIT_MAX * 30))s — proceeding with deploy anyway"
+                echo "WARNING: Sync still running after $((WAIT_MAX * 30 / 60)) min — proceeding with deploy anyway"
                 break
               fi
-              echo "Sync in progress, waiting 30s... ($WAIT_COUNT/$WAIT_MAX)"
+              echo "Sync in progress, waiting 30s... ($((WAIT_COUNT * 30 / 60))m / $((WAIT_MAX * 30 / 60))m)"
               sleep 30
             done
 
