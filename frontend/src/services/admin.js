@@ -64,8 +64,8 @@ export const adminService = {
   /**
    * Get sync history
    */
-  getSyncHistory: async (limit = 10) => {
-    const response = await api.get(`/admin/sync/history?limit=${limit}`);
+  getSyncHistory: async (page = 1, pageSize = 50) => {
+    const response = await api.get(`/admin/sync/history?page=${page}&page_size=${pageSize}`);
     return response.data;
   },
 

@@ -460,6 +460,12 @@ const InactiveManagement = () => {
             comparison = interventionOrder(a) - interventionOrder(b);
             break;
           }
+          case 'date_add': {
+            const addA = a.enrollment_date ? new Date(a.enrollment_date).getTime() : 0;
+            const addB = b.enrollment_date ? new Date(b.enrollment_date).getTime() : 0;
+            comparison = addA - addB;
+            break;
+          }
           case 'latest_note': {
             // No note = sort last (Infinity), otherwise by date descending
             const dateA = a.latest_note_date ? new Date(a.latest_note_date).getTime() : 0;
@@ -919,6 +925,7 @@ const InactiveManagement = () => {
                 { key: 'progression', label: t('inactiveManagement.sorting.byProgression') },
                 { key: 'status', label: t('inactiveManagement.sorting.byStatus') },
                 { key: 'intervention', label: t('inactiveManagement.sorting.byIntervention') },
+                { key: 'date_add', label: t('inactiveManagement.sorting.byDateAdd') },
                 ...(showLatestNotes ? [{ key: 'latest_note', label: t('inactiveManagement.noteFilters.sortByNote') }] : []),
               ].map(({ key, label }) => (
                 <button

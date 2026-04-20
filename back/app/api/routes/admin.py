@@ -573,21 +573,26 @@ async def get_sync_status(
     )
 
 
-@router.get("/sync/history", response_model=List[SyncHistoryItem])
+@router.get("/sync/history")
 async def get_sync_history(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
-    limit: int = 10
+    page: int = QueryParam(1, ge=1),
+    page_size: int = QueryParam(50, ge=1, le=200),
 ):
     """
-    Get recent sync history (last N syncs)
+    Get full sync history with pagination.
     """
-    syncs = db.query(SyncMetadata).filter(
+    query = db.query(SyncMetadata).filter(
         SyncMetadata.sync_type.in_(['sync_all', 'sync_adf'])
-    ).order_by(SyncMetadata.last_sync_at.desc()).limit(limit).all()
+    ).order_by(SyncMetadata.last_sync_at.desc())
+
+    total = query.count()
+    offset = (page - 1) * page_size
+    syncs = query.offset(offset).limit(page_size).all()
 
     import ast
-    result = []
+    items = []
     for sync in syncs:
         parsed_stats = None
         if sync.stats:
@@ -595,19 +600,25 @@ async def get_sync_history(
                 parsed_stats = ast.literal_eval(sync.stats) if isinstance(sync.stats, str) else sync.stats
             except (ValueError, SyntaxError):
                 pass
-        result.append(SyncHistoryItem(
-            id=sync.id,
-            sync_type=sync.sync_type,
-            last_sync_at=sync.last_sync_at,
-            status=sync.status,
-            api_calls_count=sync.api_calls_count or 0,
-            hubspot_api_calls_count=sync.hubspot_api_calls_count or 0,
-            duration_seconds=sync.duration_seconds,
-            error_message=sync.error_message,
-            stats=parsed_stats,
-        ))
+        items.append({
+            "id": sync.id,
+            "sync_type": sync.sync_type,
+            "last_sync_at": sync.last_sync_at.isoformat() if sync.last_sync_at else None,
+            "status": sync.status,
+            "api_calls_count": sync.api_calls_count or 0,
+            "hubspot_api_calls_count": sync.hubspot_api_calls_count or 0,
+            "duration_seconds": sync.duration_seconds,
+            "error_message": sync.error_message,
+            "stats": parsed_stats,
+        })
 
-    return result
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": max(1, -(-total // page_size)),
+    }
 
 
 @router.post("/sync/resume", response_model=SyncCommandResponse)

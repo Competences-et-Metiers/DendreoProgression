@@ -210,25 +210,21 @@ const InterventionPanel = ({ participant }) => {
     return false;
   }, [user]);
 
-  // --- Action button click with filter auto-select ---
+  // --- Close all open forms ---
+  const closeAllForms = useCallback(() => {
+    setShowSnoozeForm(false);
+    setShowNoteInput(false);
+    setShowDismissConfirm(false);
+    setShowCallConfirm(false);
+    setShowEmailConfirm(false);
+  }, []);
 
-  const handleSnoozeToggle = useCallback(() => {
-    const opening = !showSnoozeForm;
-    setShowSnoozeForm(opening);
-    if (opening) setTimelineFilter('snooze');
-  }, [showSnoozeForm]);
-
-  const handleNoteToggle = useCallback(() => {
-    const opening = !showNoteInput;
-    setShowNoteInput(opening);
-    if (opening) setTimelineFilter('notes');
-  }, [showNoteInput]);
-
-  const handleDismissToggle = useCallback(() => {
-    const opening = !showDismissConfirm;
-    setShowDismissConfirm(opening);
-    if (opening) setTimelineFilter('dismiss');
-  }, [showDismissConfirm]);
+  // --- Open a specific form (closing any other first) ---
+  const openForm = useCallback((setter) => {
+    closeAllForms();
+    // Use setTimeout so the close fires before the open
+    setTimeout(() => setter(true), 0);
+  }, [closeAllForms]);
 
   // --- Helpers ---
 
@@ -316,67 +312,44 @@ const InterventionPanel = ({ participant }) => {
   const visibleEntries = showAllEntries ? filteredEntries : filteredEntries.slice(0, 5);
   const hasMore = filteredEntries.length > 5;
 
-  // Count entries per filter for badges
-  const filterCounts = useMemo(() => {
-    const counts = {};
-    for (const key of Object.keys(FILTER_MATCHERS)) {
-      if (key === 'all') continue;
-      counts[key] = entries.filter(FILTER_MATCHERS[key]).length;
-    }
-    return counts;
-  }, [entries]);
-
-  // Filter chip definitions
-  const filterChips = [
-    { key: 'all', label: t('inactiveManagement.interventions.filters.all') },
-    { key: 'calls', label: t('inactiveManagement.interventions.filters.calls'), icon: <Phone size={10} /> },
-    { key: 'snooze', label: t('inactiveManagement.interventions.filters.snooze'), icon: <AlarmClock size={10} /> },
-    { key: 'notes', label: t('inactiveManagement.interventions.filters.notes'), icon: <MessageSquare size={10} /> },
-    { key: 'email', label: t('inactiveManagement.interventions.filters.email'), icon: <Mail size={10} /> },
-    { key: 'dismiss', label: t('inactiveManagement.interventions.filters.dismiss'), icon: <Ban size={10} /> },
-  ];
-
   return (
     <div className="bg-gray-50 dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700 px-6 py-4">
-      {/* Action Buttons */}
+      {/* Action Buttons — clicking only filters the timeline; sub-buttons below open forms */}
       <div className="flex items-center gap-2 mb-4">
         <button
-          onClick={handleCall}
-          disabled={!participant.email || hubspotLoading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          title={t('inactiveManagement.interventions.callTooltip')}
+          onClick={() => { closeAllForms(); setTimelineFilter('calls'); }}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            timelineFilter === 'calls' ? 'bg-blue-200 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30'
+          }`}
         >
-          {hubspotLoading ? <Loader2 size={13} className="animate-spin" /> : <Phone size={13} />}
+          <Phone size={13} />
           {t('inactiveManagement.interventions.call')}
         </button>
 
         <button
-          onClick={handleSnoozeToggle}
-          disabled={participant.has_active_snooze}
+          onClick={() => { closeAllForms(); setTimelineFilter('snooze'); }}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            participant.has_active_snooze ? 'opacity-40 cursor-not-allowed bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400' :
-            showSnoozeForm ? 'bg-amber-200 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30'
+            timelineFilter === 'snooze' ? 'bg-amber-200 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/30'
           }`}
-          title={participant.has_active_snooze ? t('inactiveManagement.interventions.snoozeActive') : t('inactiveManagement.interventions.snoozeTooltip')}
         >
           <AlarmClock size={13} />
           {t('inactiveManagement.interventions.snooze')}
         </button>
 
         <button
-          onClick={handleEmail}
-          disabled={!participant.email}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          title={t('inactiveManagement.interventions.emailTooltip')}
+          onClick={() => { closeAllForms(); setTimelineFilter('email'); }}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            timelineFilter === 'email' ? 'bg-purple-200 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300' : 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30'
+          }`}
         >
           <Mail size={13} />
           {t('inactiveManagement.interventions.email')}
         </button>
 
         <button
-          onClick={handleNoteToggle}
+          onClick={() => { closeAllForms(); setTimelineFilter('notes'); }}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            showNoteInput ? 'bg-green-200 dark:bg-green-900/40 text-green-800 dark:text-green-300' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
+            timelineFilter === 'notes' ? 'bg-green-200 dark:bg-green-900/40 text-green-800 dark:text-green-300' : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30'
           }`}
         >
           <MessageSquare size={13} />
@@ -384,18 +357,80 @@ const InterventionPanel = ({ participant }) => {
         </button>
 
         <button
-          onClick={handleDismissToggle}
-          disabled={participant.is_dismissed}
+          onClick={() => { closeAllForms(); setTimelineFilter('dismiss'); }}
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            participant.is_dismissed ? 'opacity-40 cursor-not-allowed bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' :
-            showDismissConfirm ? 'bg-red-200 dark:bg-red-900/40 text-red-800 dark:text-red-300' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
+            timelineFilter === 'dismiss' ? 'bg-red-200 dark:bg-red-900/40 text-red-800 dark:text-red-300' : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30'
           }`}
-          title={participant.is_dismissed ? t('inactiveManagement.interventions.dismiss') : t('inactiveManagement.interventions.dismissTooltip')}
         >
           <Ban size={13} />
           {t('inactiveManagement.interventions.dismiss')}
         </button>
+
+        <button
+          onClick={() => { closeAllForms(); setTimelineFilter('all'); }}
+          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+            timelineFilter === 'all' ? 'bg-gray-700 dark:bg-slate-600 text-white' : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600'
+          }`}
+        >
+          {t('inactiveManagement.interventions.filters.all')}
+        </button>
       </div>
+
+      {/* Sub-action button for the currently filtered category */}
+      {timelineFilter !== 'all' && (
+        <div className="mb-3">
+          {timelineFilter === 'calls' && (
+            <button
+              onClick={handleCall}
+              disabled={!participant.email || hubspotLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {hubspotLoading ? <Loader2 size={12} className="animate-spin" /> : <Phone size={12} />}
+              {t('inactiveManagement.interventions.callTooltip', 'Passer un appel')}
+            </button>
+          )}
+          {timelineFilter === 'snooze' && (
+            <button
+              onClick={() => openForm(setShowSnoozeForm)}
+              disabled={participant.has_active_snooze || showSnoozeForm}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <AlarmClock size={12} />
+              {t('inactiveManagement.interventions.snoozeTooltip', 'Reporter')}
+            </button>
+          )}
+          {timelineFilter === 'email' && (
+            <button
+              onClick={handleEmail}
+              disabled={!participant.email}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Mail size={12} />
+              {t('inactiveManagement.interventions.emailTooltip', 'Envoyer un email')}
+            </button>
+          )}
+          {timelineFilter === 'notes' && (
+            <button
+              onClick={() => openForm(setShowNoteInput)}
+              disabled={showNoteInput}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <MessageSquare size={12} />
+              {t('inactiveManagement.interventions.notePlaceholder', 'Ajouter une note')}
+            </button>
+          )}
+          {timelineFilter === 'dismiss' && (
+            <button
+              onClick={() => openForm(setShowDismissConfirm)}
+              disabled={participant.is_dismissed || showDismissConfirm}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <Ban size={12} />
+              {t('inactiveManagement.interventions.dismissTooltip', 'Écarter')}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Call Confirmation */}
       {showCallConfirm && (
@@ -553,31 +588,10 @@ const InterventionPanel = ({ participant }) => {
           </h4>
         </div>
 
-        {/* Filter chips */}
-        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-          {filterChips.map(({ key, label, icon }) => {
-            const isActive = timelineFilter === key;
-            const count = key === 'all' ? entries.length : (filterCounts[key] || 0);
-            if (key !== 'all' && count === 0) return null;
-            return (
-              <button
-                key={key}
-                onClick={() => { setTimelineFilter(key); setShowAllEntries(false); }}
-                className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-full transition-colors ${
-                  isActive
-                    ? 'bg-gray-700 dark:bg-slate-600 text-white'
-                    : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600'
-                }`}
-              >
-                {icon}
-                {label}
-                <span className={`ml-0.5 ${isActive ? 'text-gray-300 dark:text-gray-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Count badge for current filter */}
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-2">
+          {filteredEntries.length} {t('inactiveManagement.interventions.entries', 'entrée(s)')}
+        </p>
 
         {timelineLoading ? (
           <div className="flex items-center justify-center py-4">

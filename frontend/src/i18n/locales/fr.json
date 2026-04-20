@@ -443,7 +443,8 @@
       "byName": "Trier par nom",
       "byProgression": "Trier par progression",
       "byStatus": "Trier par statut",
-      "byIntervention": "Trier par intervention"
+      "byIntervention": "Trier par intervention",
+      "byDateAdd": "Date d'ajout"
     },
     "statusFilter": {
       "title": "Filtrer par statut",

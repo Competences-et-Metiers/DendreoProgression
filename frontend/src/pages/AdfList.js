@@ -10,6 +10,9 @@ import {
   BookOpen,
   Users,
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   Search
 } from 'lucide-react';
 
@@ -18,6 +21,8 @@ const AdfList = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [sortBy, setSortBy] = useState('progression');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const navigate = useNavigate();
 
   const {
@@ -103,6 +108,12 @@ const AdfList = () => {
   }
 
   const filteredCourses = getFilteredAndSortedCourses();
+  const totalItems = filteredCourses.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, totalItems);
+  const paginatedCourses = filteredCourses.slice(pageStart, pageEnd);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
@@ -170,6 +181,7 @@ const AdfList = () => {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           setSearchTerm(searchInput);
+                          setCurrentPage(1);
                         }
                       }}
                       className="pl-10 pr-4 py-2 border-2 border-blue-300 dark:border-blue-700 rounded-md text-sm w-64 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
@@ -185,7 +197,7 @@ const AdfList = () => {
 
                 <select
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
+                  onChange={(e) => { setSortBy(e.target.value); setCurrentPage(1); }}
                   className="border border-gray-300 dark:border-slate-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 >
                   <option value="progression">{t('adfList.courses.sort.byProgress')}</option>
@@ -210,7 +222,7 @@ const AdfList = () => {
                 </p>
                 {searchTerm && (
                   <button
-                    onClick={() => { setSearchTerm(''); setSearchInput(''); }}
+                    onClick={() => { setSearchTerm(''); setSearchInput(''); setCurrentPage(1); }}
                     className="mt-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                   >
                     {t('common.clearSearch')}
@@ -218,7 +230,7 @@ const AdfList = () => {
                 )}
               </div>
             ) : (
-              filteredCourses.map((course) => (
+              paginatedCourses.map((course) => (
                 <div
                   key={course.id}
                   onClick={(e) => handleCourseClick(course.id, e)}
@@ -255,6 +267,53 @@ const AdfList = () => {
                 </div>
               ))
             )}
+          </div>
+
+          {/* Pagination */}
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-slate-700 flex items-center justify-between">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {pageStart + 1}-{pageEnd} / {totalItems}
+            </p>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                {[25, 50, 100].map(size => (
+                  <button
+                    key={size}
+                    onClick={() => { setPageSize(size); setCurrentPage(1); }}
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                      pageSize === size
+                        ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-400'
+                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setCurrentPage(1)} disabled={safePage <= 1}
+                    className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400">
+                    <ChevronsLeft size={16} />
+                  </button>
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safePage <= 1}
+                    className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400">
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="px-3 py-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {safePage} / {totalPages}
+                  </span>
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safePage >= totalPages}
+                    className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400">
+                    <ChevronRight size={16} />
+                  </button>
+                  <button onClick={() => setCurrentPage(totalPages)} disabled={safePage >= totalPages}
+                    className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-gray-600 dark:text-gray-400">
+                    <ChevronsRight size={16} />
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
