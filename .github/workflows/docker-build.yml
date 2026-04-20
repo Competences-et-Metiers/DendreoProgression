@@ -96,6 +96,21 @@ jobs:
           script: |
             cd /opt/dendreo
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+            # Graceful deploy: wait for any running sync to finish before replacing containers.
+            # Checks if sync_dendreo.py is running inside the sync container; waits up to 10 min.
+            WAIT_MAX=20
+            WAIT_COUNT=0
+            while docker exec dendreo_sync_prod pgrep -f sync_dendreo.py > /dev/null 2>&1; do
+              WAIT_COUNT=$((WAIT_COUNT + 1))
+              if [ "$WAIT_COUNT" -ge "$WAIT_MAX" ]; then
+                echo "WARNING: Sync still running after $((WAIT_MAX * 30))s — proceeding with deploy anyway"
+                break
+              fi
+              echo "Sync in progress, waiting 30s... ($WAIT_COUNT/$WAIT_MAX)"
+              sleep 30
+            done
+
             docker compose -f docker-compose.prod.yml --env-file .env.prod pull
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
             echo "Waiting for backend health..."
