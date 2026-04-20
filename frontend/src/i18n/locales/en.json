@@ -169,8 +169,8 @@
     "backToDashboard": "Back to Dashboard",
     "backToParticipants": "Back to Participants"
   },
-  "dashboard": {
-    "title": "ADF Dashboard",
+  "adfList": {
+    "title": "ADF List",
     "subtitle": "Track ADF progress and participant engagement",
     "stats": {
       "totalCourses": "Total ADFs",
@@ -329,7 +329,7 @@
     "lastPage": "Last page"
   },
   "sidebar": {
-    "dashboard": "Dashboard",
+    "dashboard": "ADF List",
     "participants": "Participants",
     "inactiveManagement": "Inactive Management",
     "account": "My Account",

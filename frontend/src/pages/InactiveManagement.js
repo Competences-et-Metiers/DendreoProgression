@@ -747,7 +747,7 @@ const InactiveManagement = () => {
                         lastSync.sync_status === 'error' ? 'text-red-600 dark:text-red-400' :
                         'text-gray-500 dark:text-gray-400'
                       }`}>
-                        ({t(`dashboard.sync.status.${lastSync.sync_status === 'success' ? 'success' : lastSync.sync_status === 'error' ? 'error' : 'unknown'}`)})
+                        ({t(`adfList.sync.status.${lastSync.sync_status === 'success' ? 'success' : lastSync.sync_status === 'error' ? 'error' : 'unknown'}`)})
                       </span>
                     )}
                   </div>
@@ -1741,7 +1741,7 @@ const InactiveManagement = () => {
                                       ) : (
                                         <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
                                           <CalendarClock size={12} />
-                                          pas de CV programmées
+                                          pas de CV
                                         </span>
                                       )}
                                       {participant.total_planned_duration_hours > 0 && (
@@ -1901,7 +1901,7 @@ const InactiveManagement = () => {
                               ) : (
                                 <span className="flex items-center gap-1 text-xs bg-gray-50 dark:bg-slate-700 text-gray-400 dark:text-gray-500 px-2 py-0.5 rounded-full cursor-default">
                                   <CalendarClock size={12} />
-                                  pas de CV programmées
+                                  pas de CV
                                 </span>
                               )}
                               {participant.total_planned_duration_hours > 0 && (

@@ -350,18 +350,22 @@ const AdminInterventions = () => {
                     <User size={12} />
                     {t('adminInterventions.staff')}
                   </span>
-                  {stats.staff.map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => setUserFilterAndReset(s.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
-                        userFilter === s.id ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      {s.display_name}
-                      <span className="text-[10px] opacity-60">({s.count})</span>
-                    </button>
-                  ))}
+                  <select
+                    value={userFilter ?? ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setUserFilter(val === '' ? null : Number(val));
+                      setPage(1);
+                    }}
+                    className="px-3 py-1.5 rounded-full border text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700"
+                  >
+                    <option value="">{t('adminInterventions.allStaff', 'Tous')}</option>
+                    {stats.staff.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.display_name} ({s.count})
+                      </option>
+                    ))}
+                  </select>
                 </>
               )}
             </div>

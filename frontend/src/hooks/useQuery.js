@@ -2,11 +2,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiService } from '../services/api';
 import { queryKeys } from '../queryClient';
 
-// Dashboard hooks
-export const useDashboardStats = () => {
+// ADF List hooks
+export const useAdfListStats = () => {
   return useQuery({
-    queryKey: queryKeys.dashboardStats,
-    queryFn: apiService.getDashboardStats,
+    queryKey: queryKeys.adfListStats,
+    queryFn: apiService.getAdfListStats,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     refetchOnMount: false, // Don't refetch if data is still fresh
@@ -266,7 +266,7 @@ export const useSyncMutation = () => {
     mutationFn: apiService.syncAll,
     onSuccess: () => {
       // Invalidate all queries after sync
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats });
+      queryClient.invalidateQueries({ queryKey: queryKeys.adfListStats });
       queryClient.invalidateQueries({ queryKey: queryKeys.courses });
       queryClient.invalidateQueries({ queryKey: queryKeys.participants });
       queryClient.invalidateQueries({ queryKey: ['lastSync'] });
@@ -280,8 +280,8 @@ export const usePrefetchQueries = () => {
   
   const prefetchDashboard = () => {
     queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboardStats,
-      queryFn: apiService.getDashboardStats,
+      queryKey: queryKeys.adfListStats,
+      queryFn: apiService.getAdfListStats,
       staleTime: 5 * 60 * 1000,
     });
   };
@@ -340,7 +340,7 @@ export const useCacheManager = () => {
   };
   
   const invalidateDashboard = () => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats });
+    queryClient.invalidateQueries({ queryKey: queryKeys.adfListStats });
   };
   
   const invalidateCourses = () => {

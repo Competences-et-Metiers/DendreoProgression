@@ -5,7 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import StatCard from '../components/StatCard';
 import ProgressBar from '../components/ProgressBar';
 import CacheStatus from '../components/CacheStatus';
-import { useDashboardStats, useCourses, usePrefetchQueries } from '../hooks/useQuery';
+import { useAdfListStats, useCourses, usePrefetchQueries } from '../hooks/useQuery';
 import {
   BookOpen,
   Users,
@@ -13,9 +13,10 @@ import {
   Search
 } from 'lucide-react';
 
-const Dashboard = () => {
+const AdfList = () => {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [sortBy, setSortBy] = useState('progression');
   const navigate = useNavigate();
 
@@ -24,7 +25,7 @@ const Dashboard = () => {
     isLoading: statsLoading,
     error: statsError,
     refetch: refetchStats
-  } = useDashboardStats();
+  } = useAdfListStats();
 
   const {
     data: courses = [],
@@ -110,8 +111,8 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('dashboard.title')}</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">{t('dashboard.subtitle')}</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('adfList.title')}</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">{t('adfList.subtitle')}</p>
             </div>
 
           </div>
@@ -123,13 +124,13 @@ const Dashboard = () => {
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <StatCard
-              title={t('dashboard.stats.totalCourses')}
+              title={t('adfList.stats.totalCourses')}
               value={courses.length}
               icon={BookOpen}
               color="blue"
             />
             <StatCard
-              title={t('dashboard.stats.totalParticipants')}
+              title={t('adfList.stats.totalParticipants')}
               value={stats.total_participants}
               icon={Users}
               color="green"
@@ -150,9 +151,9 @@ const Dashboard = () => {
           <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
             <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('dashboard.courses.title')}</h2>
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('adfList.courses.title')}</h2>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {t('dashboard.courses.subtitle', { count: filteredCourses.length, total: courses.length })}
+                  {t('adfList.courses.subtitle', { count: filteredCourses.length, total: courses.length })}
                   {searchTerm && ` ${t('common.matchingCriteria')}`}
                 </p>
               </div>
@@ -163,16 +164,21 @@ const Dashboard = () => {
                     <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
-                      placeholder={t('dashboard.courses.searchPlaceholder')}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder={t('adfList.courses.searchPlaceholder')}
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          setSearchTerm(searchInput);
+                        }
+                      }}
                       className="pl-10 pr-4 py-2 border-2 border-blue-300 dark:border-blue-700 rounded-md text-sm w-64 bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                       style={{ minWidth: '250px' }}
                     />
                   </div>
                   {searchTerm && (
                     <div className="absolute top-full left-0 mt-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
-                      {t('dashboard.courses.searching', { term: searchTerm })}
+                      {t('adfList.courses.searching', { term: searchTerm })}
                     </div>
                   )}
                 </div>
@@ -182,10 +188,10 @@ const Dashboard = () => {
                   onChange={(e) => setSortBy(e.target.value)}
                   className="border border-gray-300 dark:border-slate-600 rounded-md px-3 py-1 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white"
                 >
-                  <option value="progression">{t('dashboard.courses.sort.byProgress')}</option>
-                  <option value="participants">{t('dashboard.courses.sort.byParticipants')}</option>
-                  <option value="title">{t('dashboard.courses.sort.byTitle')}</option>
-                  <option value="modules">{t('dashboard.courses.sort.byModules')}</option>
+                  <option value="progression">{t('adfList.courses.sort.byProgress')}</option>
+                  <option value="participants">{t('adfList.courses.sort.byParticipants')}</option>
+                  <option value="title">{t('adfList.courses.sort.byTitle')}</option>
+                  <option value="modules">{t('adfList.courses.sort.byModules')}</option>
                 </select>
               </div>
             </div>
@@ -204,7 +210,7 @@ const Dashboard = () => {
                 </p>
                 {searchTerm && (
                   <button
-                    onClick={() => setSearchTerm('')}
+                    onClick={() => { setSearchTerm(''); setSearchInput(''); }}
                     className="mt-2 text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
                   >
                     {t('common.clearSearch')}
@@ -256,4 +262,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default AdfList;

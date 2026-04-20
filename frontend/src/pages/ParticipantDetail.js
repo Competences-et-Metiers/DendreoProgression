@@ -120,8 +120,8 @@ const ParticipantDetail = () => {
           >
             {t('common.retry')}
           </button>
-          <button 
-            onClick={() => navigate('/participants')}
+          <button
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/participants'))}
             className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
           >
             {t('navigation.backToParticipants')}
@@ -140,16 +140,16 @@ const ParticipantDetail = () => {
             <div className="flex items-center">
               <button
                 onClick={(e) => {
-                  // Check if Ctrl/Cmd key is pressed or middle mouse button for new tab
                   if (e.ctrlKey || e.metaKey || e.button === 1) {
-                    // Open in new tab
                     window.open('/participants', '_blank', 'noopener,noreferrer');
+                  } else if (window.history.length > 1) {
+                    navigate(-1);
                   } else {
                     navigate('/participants');
                   }
                 }}
                 className="mr-4 p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
-                title="Back to Participants (Ctrl+Click or middle-click to open in new tab)"
+                title="Back (Ctrl+Click or middle-click to open participants list in new tab)"
               >
                 <ArrowLeft size={20} />
               </button>
