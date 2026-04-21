@@ -415,7 +415,6 @@
     "stats": {
       "total": "Total participants",
       "active": "Actifs",
-      "atRisk": "À risque",
       "inactive": "Inactifs",
       "neverStarted": "Jamais commencé",
       "snoozed": "Reportés",
@@ -425,7 +424,6 @@
     },
     "status": {
       "active": "Actif",
-      "atRisk": "À risque",
       "inactive": "Inactif",
       "neverStarted": "Jamais",
       "snoozed": "Reporté",
@@ -433,7 +431,6 @@
     },
     "filters": {
       "title": "Filtres et seuils",
-      "atRiskThreshold": "Seuil à risque (jours)",
       "inactiveThreshold": "Seuil inactif (jours)",
       "excludeRecentDays": "Exclure les nouveaux inscrits (jours)"
     },
