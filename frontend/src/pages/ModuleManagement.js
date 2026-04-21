@@ -597,7 +597,7 @@ const ModuleManagement = () => {
                     </span>
                   )}
                 </div>
-                {showAdfDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {showAdfDropdown ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-300" /> : <ChevronRight size={16} className="text-gray-400 dark:text-gray-300" />}
               </button>
 
               {showAdfDropdown && (() => {
@@ -701,7 +701,7 @@ const ModuleManagement = () => {
                     </span>
                   )}
                 </div>
-                {showModuleDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {showModuleDropdown ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-300" /> : <ChevronRight size={16} className="text-gray-400 dark:text-gray-300" />}
               </button>
 
               {showModuleDropdown && (() => {
@@ -805,7 +805,7 @@ const ModuleManagement = () => {
                     </span>
                   )}
                 </div>
-                {showCategoryDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {showCategoryDropdown ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-300" /> : <ChevronRight size={16} className="text-gray-400 dark:text-gray-300" />}
               </button>
 
               {showCategoryDropdown && (() => {

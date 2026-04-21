@@ -660,7 +660,7 @@ const AdminSyncDashboard = () => {
                   type="time"
                   value={scheduleTime}
                   onChange={(e) => setScheduleTime(e.target.value)}
-                  className="w-32 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
+                  className="w-32 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white dark:[color-scheme:dark]"
                 />
               </div>
 
@@ -1207,7 +1207,7 @@ const AdminSyncDashboard = () => {
                       <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">HubSpot</h4>
                       <div className="grid grid-cols-3 gap-2 text-sm">
                         <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
-                          <div className="font-semibold">{selectedSync.stats.hubspot_updates_total || 0}</div>
+                          <div className="font-semibold text-gray-900 dark:text-white">{selectedSync.stats.hubspot_updates_total || 0}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
                         </div>
                         <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
