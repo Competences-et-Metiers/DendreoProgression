@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, subqueryload
 from sqlalchemy import func, extract, desc, asc
 from app.models.database import get_db
 from app.models.models import User, SyncMetadata, AdminSyncConfig, ModuleCategory, Intervention, Participant, ActionHistory
-from app.auth.dependencies import require_admin
+from app.auth.dependencies import require_admin, require_manager_or_admin
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
@@ -899,7 +899,7 @@ async def get_live_log(
 
 # ─── Admin Interventions Log ────────────────────────────────────────────────
 
-@router.get("/interventions", dependencies=[Depends(require_admin)])
+@router.get("/interventions", dependencies=[Depends(require_manager_or_admin)])
 async def get_admin_interventions(
     page: int = QueryParam(1, ge=1),
     page_size: int = QueryParam(50, ge=1, le=200),
@@ -984,7 +984,7 @@ async def get_admin_interventions(
     }
 
 
-@router.get("/interventions/stats", dependencies=[Depends(require_admin)])
+@router.get("/interventions/stats", dependencies=[Depends(require_manager_or_admin)])
 async def get_admin_intervention_stats(
     db: Session = Depends(get_db),
 ):
