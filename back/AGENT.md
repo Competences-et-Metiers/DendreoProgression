@@ -143,7 +143,7 @@ Course (1) <--> (M) Module
 
 **Query params:**
 - List: `skip`, `limit` (max 1000), `search`, `email`
-- Inactive: `group_by_course`, `course_id`, `min_progression`, `max_progression`, `inactivity_threshold_days`, `long_inactivity_threshold_days`, `exclude_recent_enrollments_days`, `at_risk_threshold_days`
+- Inactive: `group_by_course`, `course_id`, `min_progression`, `max_progression`, `inactivity_threshold_days`, `exclude_recent_enrollments_days`
 
 ### Courses (`/api/courses`)
 | Method | Path | Auth | Description |
@@ -508,12 +508,11 @@ When a participant is enrolled in an ADF with multiple LAMs, the system:
 
 Participants are classified into distinct categories based on days without progression updates:
 
-| Status | Days Inactive | Default Threshold | Description |
-|--------|---------------|-------------------|-------------|
-| `active` | < 21 days | `at_risk_threshold_days` | Recent progression activity |
-| `at_risk` | 21-29 days | `at_risk_threshold_days` | Warning stage - may need intervention |
-| `stalled` | 30-59 days | `inactivity_threshold_days` | Stalled progression - needs attention |
-| `long_inactive` | 60+ days | `long_inactivity_threshold_days` | Long-term inactive - high priority |
+| Status | Condition | Default Threshold | Description |
+|--------|-----------|-------------------|-------------|
+| `active` | < threshold days inactive | `inactivity_threshold_days` | Recent progression activity |
+| `inactive` | >= threshold days inactive | `inactivity_threshold_days` | Inactive - needs attention |
+| `never_started` | 0% progression, never active | - | Enrolled but never began |
 
 ### Exclusion Logic
 
@@ -537,10 +536,8 @@ The system automatically excludes:
 | `course_id` | int | `null` | - | Filter to specific course |
 | `min_progression` | float | `null` | 0-100 | Minimum progression % |
 | `max_progression` | float | `null` | 0-100 | Maximum progression % |
-| `inactivity_threshold_days` | int | `30` | 1-365 | Days for "stalled" status |
-| `long_inactivity_threshold_days` | int | `60` | 1-365 | Days for "long inactive" status |
+| `inactivity_threshold_days` | int | `30` | 1-365 | Days for "inactive" status |
 | `exclude_recent_enrollments_days` | int | `7` | 0-90 | Exclude enrollments newer than X days |
-| `at_risk_threshold_days` | int | `21` | 1-365 | Days for "at-risk" status |
 
 #### Response Format
 
@@ -548,12 +545,11 @@ The system automatically excludes:
 ```json
 {
   "total_participants_checked": 1450,
-  "total_inactive": 87,
-  "stalled_count": 45,
-  "long_inactive_count": 32,
-  "at_risk_count": 10,
+  "total_participants": 1450,
+  "active_count": 1200,
+  "inactive_count": 200,
+  "never_started_count": 50,
   "newly_enrolled_excluded": 23,
-  "completed_excluded": 340,
   "participants": [
     {
       "id": 123,
@@ -572,12 +568,11 @@ The system automatically excludes:
       "days_inactive": 65,
       "enrollment_date": "2025-10-01T08:00:00Z",
       "days_since_enrollment": 125,
-      "inactivity_status": "long_inactive",
-      "inactivity_reason": "No progression update for 65 days (long-term inactive)"
+      "inactivity_status": "inactive",
+      "inactivity_reason": "No progression update for 65 days"
     }
   ],
   "inactivity_threshold_days": 30,
-  "long_inactivity_threshold_days": 60,
   "exclude_recent_enrollments_days": 7
 }
 ```
@@ -586,19 +581,19 @@ The system automatically excludes:
 ```json
 {
   "total_participants_checked": 1450,
-  "total_inactive": 87,
-  "stalled_count": 45,
-  "long_inactive_count": 32,
-  "at_risk_count": 10,
+  "total_participants": 1450,
+  "active_count": 1200,
+  "inactive_count": 200,
+  "never_started_count": 50,
   "by_course": [
     {
       "course_id": 42,
       "course_title": "Formation Python Avancé",
       "id_action_formation": "ADF789",
-      "total_inactive": 15,
-      "stalled_count": 8,
-      "long_inactive_count": 5,
-      "at_risk_count": 2,
+      "total_participants": 30,
+      "active_count": 15,
+      "inactive_count": 13,
+      "never_started_count": 2,
       "participants": [/* array of InactiveParticipantDetail */]
     }
   ]
@@ -617,14 +612,9 @@ curl http://localhost:8000/api/participants/inactive
 curl "http://localhost:8000/api/participants/inactive?group_by_course=true"
 ```
 
-#### Get stalled participants in specific course
+#### Get inactive participants in specific course
 ```bash
-curl "http://localhost:8000/api/participants/inactive?course_id=42&inactivity_threshold_days=30&long_inactivity_threshold_days=999"
-```
-
-#### Get at-risk participants (early intervention)
-```bash
-curl "http://localhost:8000/api/participants/inactive?at_risk_threshold_days=14&inactivity_threshold_days=21&long_inactivity_threshold_days=30"
+curl "http://localhost:8000/api/participants/inactive?course_id=42&inactivity_threshold_days=30"
 ```
 
 #### Filter by progression range
@@ -644,7 +634,7 @@ const data = await response.json();
 
 // Display courses sorted by most inactive first
 data.by_course.forEach(course => {
-  console.log(`${course.course_title}: ${course.total_inactive} inactive`);
+  console.log(`${course.course_title}: ${course.inactive_count} inactive`);
 
   // Show participants sorted by days_inactive (already sorted)
   course.participants.forEach(p => {
@@ -674,10 +664,8 @@ Thresholds can be customized per request or set as defaults in the service:
 # Default configuration in InactivityService
 service = InactivityService(
     db=db,
-    inactivity_threshold_days=30,      # Stalled threshold
-    long_inactivity_threshold_days=60, # Long-term inactive threshold
+    inactivity_threshold_days=30,      # Inactivity threshold
     exclude_recent_enrollments_days=7, # Exclude new enrollments
-    at_risk_threshold_days=21          # At-risk threshold
 )
 ```
 

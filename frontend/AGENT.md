@@ -108,7 +108,7 @@ Common persisted states:
 - `inactiveManagement.*` - InactiveManagement page filters and settings:
   - `groupByCourse` - Group by ADF toggle
   - `sortBy` / `sortDirection` - Sort preferences
-  - `statusFilter` - Status filter checkboxes (at_risk, stalled, long_inactive)
+  - `statusFilter` - Status filter checkboxes (active, inactive, never_started)
   - `showActiveOnly` / `activeDaysThreshold` - Active users filter
   - `selectedADFs` - Selected formation (ADF) filter
 - `i18nextLng` - Selected language

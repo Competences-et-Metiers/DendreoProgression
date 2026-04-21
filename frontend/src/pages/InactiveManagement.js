@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import {
   UserX,
   User,
-  AlertTriangle,
   Clock,
   BookOpen,
   Calendar,
@@ -50,8 +49,6 @@ const InactiveManagement = () => {
       const parsed = JSON.parse(cached);
       // Migrate old filter format
       return {
-        atRiskThreshold: parsed.atRiskThreshold || 14,
-        atRiskEnabled: parsed.atRiskEnabled ?? true,
         inactivityThreshold: parsed.inactivityThreshold || 30,
         excludeRecentDays: parsed.excludeRecentDays ?? 0,
         minProgression: parsed.minProgression ?? null,
@@ -60,8 +57,6 @@ const InactiveManagement = () => {
       };
     }
     return {
-      atRiskThreshold: 14,
-      atRiskEnabled: true,
       inactivityThreshold: 30,
       excludeRecentDays: 0,
       minProgression: null,
@@ -89,7 +84,7 @@ const InactiveManagement = () => {
       const parsed = JSON.parse(cached);
       // Migrate old format if needed
       if ('stalled' in parsed || 'long_inactive' in parsed) {
-        return { active: true, at_risk: true, inactive: true, never_started: true, snoozed: false, dismissed: false };
+        return { active: true, inactive: true, never_started: true, snoozed: false, dismissed: false };
       }
       // Migrate: add never_started if missing
       if (!('never_started' in parsed)) {
@@ -100,7 +95,7 @@ const InactiveManagement = () => {
       if (!('dismissed' in parsed)) parsed.dismissed = false;
       return parsed;
     }
-    return { active: true, at_risk: true, inactive: true, never_started: true, snoozed: false, dismissed: false };
+    return { active: true, inactive: true, never_started: true, snoozed: false, dismissed: false };
   });
 
   // ADF filter state
@@ -255,7 +250,6 @@ const InactiveManagement = () => {
     queryFn: async () => {
       const params = new URLSearchParams({
         group_by_course: groupByCourse,
-        at_risk_threshold_days: filters.atRiskEnabled ? filters.atRiskThreshold : filters.inactivityThreshold,
         inactivity_threshold_days: filters.inactivityThreshold,
         exclude_recent_enrollments_days: filters.excludeRecentDays
       });
@@ -303,8 +297,6 @@ const InactiveManagement = () => {
     switch (status) {
       case 'active':
         return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 border-green-200 dark:border-green-800';
-      case 'at_risk':
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800';
       case 'inactive':
         return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 border-red-200 dark:border-red-800';
       case 'never_started':
@@ -322,8 +314,6 @@ const InactiveManagement = () => {
     switch (status) {
       case 'active':
         return <CheckCircle2 size={16} className="text-green-600 dark:text-green-400" />;
-      case 'at_risk':
-        return <AlertTriangle size={16} className="text-yellow-600 dark:text-yellow-400" />;
       case 'inactive':
         return <UserX size={16} className="text-red-600 dark:text-red-400" />;
       case 'never_started':
@@ -341,8 +331,6 @@ const InactiveManagement = () => {
     switch (status) {
       case 'active':
         return t('inactiveManagement.status.active');
-      case 'at_risk':
-        return t('inactiveManagement.status.atRisk');
       case 'inactive':
         return t('inactiveManagement.status.inactive');
       case 'never_started':
@@ -359,7 +347,7 @@ const InactiveManagement = () => {
   // Consolidated filtering: single useMemo produces stats, flat list, and grouped list
   const { filteredStats, filteredParticipantsFlat, filteredCourseGroups } = useMemo(() => {
     const emptyResult = {
-      filteredStats: { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0, snoozed: 0, dismissed: 0 },
+      filteredStats: { total: 0, active: 0, inactive: 0, never_started: 0, snoozed: 0, dismissed: 0 },
       filteredParticipantsFlat: [],
       filteredCourseGroups: [],
     };
@@ -450,7 +438,7 @@ const InactiveManagement = () => {
             break;
           }
           case 'status': {
-            const order = { never_started: 4, inactive: 3, at_risk: 2, active: 1 };
+            const order = { never_started: 3, inactive: 2, active: 1 };
             comparison = (order[a.inactivity_status] || 0) - (order[b.inactivity_status] || 0);
             break;
           }
@@ -504,7 +492,7 @@ const InactiveManagement = () => {
     const baseFiltered = applyBaseFilters(allParticipants);
 
     // Stats: only count participants whose status filter is active
-    const stats = { total: 0, active: 0, at_risk: 0, inactive: 0, never_started: 0, snoozed: 0, dismissed: 0 };
+    const stats = { total: 0, active: 0, inactive: 0, never_started: 0, snoozed: 0, dismissed: 0 };
     for (const p of baseFiltered) {
       let key;
       if (p.is_dismissed) {
@@ -628,17 +616,17 @@ const InactiveManagement = () => {
     return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  const hasActiveFilters = !statusFilter.active || !statusFilter.at_risk || !statusFilter.inactive || !statusFilter.never_started || statusFilter.snoozed || statusFilter.dismissed || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.atRiskThreshold !== 14 || !filters.atRiskEnabled || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive || noteFilterWithNote || noteFilterWithoutNote || noteFilterOlderThan;
+  const hasActiveFilters = !statusFilter.active || !statusFilter.inactive || !statusFilter.never_started || statusFilter.snoozed || statusFilter.dismissed || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive || noteFilterWithNote || noteFilterWithoutNote || noteFilterOlderThan;
 
   const resetAllFilters = useCallback(() => {
-    setStatusFilter({ active: true, at_risk: true, inactive: true, never_started: true, snoozed: false, dismissed: false });
+    setStatusFilter({ active: true, inactive: true, never_started: true, snoozed: false, dismissed: false });
     setSelectedADFs([]);
     setSelectedFormateurs([]);
     setSelectedCategories([]);
     setSearchTerm('');
     setCvPlannedIsActive(false);
     setProgressionRange([0, 100]);
-    setFilters(f => ({ ...f, atRiskThreshold: 14, atRiskEnabled: true, inactivityThreshold: 30, excludeRecentDays: 0 }));
+    setFilters(f => ({ ...f, inactivityThreshold: 30, excludeRecentDays: 0 }));
     setNoteFilterWithNote(false);
     setNoteFilterWithoutNote(false);
     setNoteFilterOlderThan(false);
@@ -648,8 +636,6 @@ const InactiveManagement = () => {
 
   const collectCurrentFilters = useCallback(() => ({
     filters: {
-      atRiskThreshold: filters.atRiskThreshold,
-      atRiskEnabled: filters.atRiskEnabled,
       inactivityThreshold: filters.inactivityThreshold,
       excludeRecentDays: filters.excludeRecentDays,
     },
@@ -706,7 +692,6 @@ const InactiveManagement = () => {
 
     const disabledStatuses = [];
     if (!statusFilter.active) disabledStatuses.push(t('inactiveManagement.status.active'));
-    if (!statusFilter.at_risk) disabledStatuses.push(t('inactiveManagement.status.atRisk'));
     if (!statusFilter.inactive) disabledStatuses.push(t('inactiveManagement.status.inactive'));
     if (!statusFilter.never_started) disabledStatuses.push(t('inactiveManagement.status.neverStarted'));
     if (statusFilter.snoozed) disabledStatuses.push(t('inactiveManagement.status.snoozed'));
@@ -827,28 +812,7 @@ const InactiveManagement = () => {
               </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={filters.atRiskEnabled}
-                    onChange={(e) => setFilters({ ...filters, atRiskEnabled: e.target.checked })}
-                    className="w-4 h-4 text-yellow-500 rounded focus:ring-2 focus:ring-yellow-400"
-                  />
-                  {t('inactiveManagement.filters.atRiskThreshold')}
-                </label>
-                <input
-                  type="number"
-                  value={filters.atRiskThreshold}
-                  onChange={(e) => setFilters({ ...filters, atRiskThreshold: parseInt(e.target.value) })}
-                  className={`w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-slate-700 dark:text-white ${!filters.atRiskEnabled ? 'opacity-40 pointer-events-none' : ''}`}
-                  min="1"
-                  max="365"
-                  disabled={!filters.atRiskEnabled}
-                />
-              </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {t('inactiveManagement.filters.inactiveThreshold')}
@@ -959,15 +923,6 @@ const InactiveManagement = () => {
                 <CheckCircle2 size={12} />
                 {t('inactiveManagement.status.active')}
               </label>
-              {filters.atRiskEnabled && (
-                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
-                  statusFilter.at_risk ? 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-700 dark:text-yellow-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
-                }`}>
-                  <input type="checkbox" checked={statusFilter.at_risk} onChange={() => toggleStatusFilter('at_risk')} className="sr-only" />
-                  <AlertTriangle size={12} />
-                  {t('inactiveManagement.status.atRisk')}
-                </label>
-              )}
               <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
                 statusFilter.inactive ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-400 dark:text-gray-500'
               }`}>
@@ -1000,15 +955,15 @@ const InactiveManagement = () => {
               {/* Select / Deselect all */}
               <button
                 onClick={() => {
-                  const allOn = statusFilter.active && statusFilter.at_risk && statusFilter.inactive && statusFilter.never_started && statusFilter.snoozed && statusFilter.dismissed;
+                  const allOn = statusFilter.active && statusFilter.inactive && statusFilter.never_started && statusFilter.snoozed && statusFilter.dismissed;
                   setStatusFilter(allOn
-                    ? { active: false, at_risk: false, inactive: false, never_started: false, snoozed: false, dismissed: false }
-                    : { active: true, at_risk: true, inactive: true, never_started: true, snoozed: true, dismissed: true }
+                    ? { active: false, inactive: false, never_started: false, snoozed: false, dismissed: false }
+                    : { active: true, inactive: true, never_started: true, snoozed: true, dismissed: true }
                   );
                 }}
                 className="px-2.5 py-1.5 rounded-full border border-gray-200 dark:border-slate-700 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
               >
-                {statusFilter.active && statusFilter.at_risk && statusFilter.inactive && statusFilter.never_started && statusFilter.snoozed && statusFilter.dismissed
+                {statusFilter.active && statusFilter.inactive && statusFilter.never_started && statusFilter.snoozed && statusFilter.dismissed
                   ? t('inactiveManagement.statusFilter.deselectAll')
                   : t('inactiveManagement.statusFilter.selectAll')
                 }
@@ -1472,20 +1427,6 @@ const InactiveManagement = () => {
                 </div>
               </div>
 
-              {filters.atRiskEnabled && (
-                <div className="bg-white dark:bg-slate-800 rounded-lg border border-yellow-200 dark:border-yellow-800 p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-yellow-700 dark:text-yellow-400">{t('inactiveManagement.stats.atRisk')}</p>
-                      <p className="text-3xl font-bold text-yellow-900 dark:text-yellow-100 mt-2">{filteredStats.at_risk}</p>
-                    </div>
-                    <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                      <AlertTriangle size={24} className="text-yellow-600 dark:text-yellow-400" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
               <div className="bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-800 p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1656,11 +1597,6 @@ const InactiveManagement = () => {
                             <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full text-sm font-medium">
                               {course.active_count} {t('inactiveManagement.status.active')}
                             </span>
-                            {filters.atRiskEnabled && (
-                              <span className="px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 rounded-full text-sm font-medium">
-                                {course.at_risk_count} {t('inactiveManagement.status.atRisk')}
-                              </span>
-                            )}
                             <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 rounded-full text-sm font-medium">
                               {course.inactive_count} {t('inactiveManagement.status.inactive')}
                             </span>

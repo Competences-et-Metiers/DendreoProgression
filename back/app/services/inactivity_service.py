@@ -2,8 +2,8 @@
 Inactivity Tracking Service
 
 Assesses participant inactivity based on learning progression changes over time,
-not login/connection events. Uses two thresholds to classify participants as
-active, at_risk, or inactive.
+not login/connection events. Classifies participants as active, inactive, or
+never_started based on the inactivity threshold.
 """
 
 from sqlalchemy.orm import Session
@@ -27,12 +27,10 @@ class InactivityService:
     def __init__(
         self,
         db: Session,
-        at_risk_threshold_days: int = 14,
         inactivity_threshold_days: int = 30,
         exclude_recent_enrollments_days: int = 0
     ):
         self.db = db
-        self.at_risk_threshold = at_risk_threshold_days
         self.inactivity_threshold = inactivity_threshold_days
         self.exclude_recent_threshold = exclude_recent_enrollments_days
 
@@ -45,7 +43,7 @@ class InactivityService:
     ) -> InactivitySummary:
         """
         Get all non-completed participants grouped by ADF, classified as
-        active / at_risk / inactive.
+        active / inactive / never_started.
         """
         now = datetime.now(timezone.utc)
 
@@ -139,7 +137,6 @@ class InactivityService:
         stats = {
             'total_checked': len(adf_groups),
             'active': 0,
-            'at_risk': 0,
             'inactive': 0,
             'never_started': 0,
             'newly_enrolled_excluded': 0
@@ -324,17 +321,15 @@ class InactivityService:
                     by_course_map[adf_id] = []
                 by_course_map[adf_id].append(detail)
 
-        total_participants = stats['active'] + stats['at_risk'] + stats['inactive'] + stats['never_started']
+        total_participants = stats['active'] + stats['inactive'] + stats['never_started']
 
         summary_kwargs = dict(
             total_participants_checked=stats['total_checked'],
             total_participants=total_participants,
             active_count=stats['active'],
-            at_risk_count=stats['at_risk'],
             inactive_count=stats['inactive'],
             never_started_count=stats['never_started'],
             newly_enrolled_excluded=stats['newly_enrolled_excluded'],
-            at_risk_threshold_days=self.at_risk_threshold,
             inactivity_threshold_days=self.inactivity_threshold,
             exclude_recent_enrollments_days=self.exclude_recent_threshold
         )
@@ -367,15 +362,9 @@ class InactivityService:
         return result[0] if result else None
 
     def _classify(self, days_since_activity: int) -> tuple[str, str]:
-        """Classify into active / at_risk / inactive based on days since last activity."""
-        if days_since_activity < self.at_risk_threshold:
-            return ('active', 'Recent activity detected')
-
+        """Classify into active / inactive based on days since last activity."""
         if days_since_activity < self.inactivity_threshold:
-            return (
-                'at_risk',
-                f'No activity for {days_since_activity} days'
-            )
+            return ('active', 'Recent activity detected')
 
         return (
             'inactive',
@@ -396,7 +385,6 @@ class InactivityService:
             first = participants[0]
 
             active = sum(1 for p in participants if p.inactivity_status == 'active')
-            at_risk = sum(1 for p in participants if p.inactivity_status == 'at_risk')
             inactive = sum(1 for p in participants if p.inactivity_status == 'inactive')
             never_started = sum(1 for p in participants if p.inactivity_status == 'never_started')
 
@@ -410,7 +398,6 @@ class InactivityService:
                 category_color=first.category_color,
                 total_participants=len(participants),
                 active_count=active,
-                at_risk_count=at_risk,
                 inactive_count=inactive,
                 never_started_count=never_started,
                 participants=participants

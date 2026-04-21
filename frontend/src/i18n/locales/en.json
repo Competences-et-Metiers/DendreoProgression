@@ -407,7 +407,6 @@
     "stats": {
       "total": "Total participants",
       "active": "Active",
-      "atRisk": "At Risk",
       "inactive": "Inactive",
       "neverStarted": "Never Started",
       "snoozed": "Snoozed",
@@ -417,7 +416,6 @@
     },
     "status": {
       "active": "Active",
-      "atRisk": "At Risk",
       "inactive": "Inactive",
       "neverStarted": "Never Started",
       "snoozed": "Snoozed",
