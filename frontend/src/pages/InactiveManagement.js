@@ -1110,7 +1110,7 @@ const InactiveManagement = () => {
                     </span>
                   )}
                 </div>
-                {showAdfDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {showAdfDropdown ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-300" /> : <ChevronRight size={16} className="text-gray-400 dark:text-gray-300" />}
               </button>
 
               {showAdfDropdown && data && (() => {
@@ -1215,7 +1215,7 @@ const InactiveManagement = () => {
                     </span>
                   )}
                 </div>
-                {showFormateurDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {showFormateurDropdown ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-300" /> : <ChevronRight size={16} className="text-gray-400 dark:text-gray-300" />}
               </button>
 
               {showFormateurDropdown && data && (() => {
@@ -1320,7 +1320,7 @@ const InactiveManagement = () => {
                     </span>
                   )}
                 </div>
-                {showCategoryDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {showCategoryDropdown ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-300" /> : <ChevronRight size={16} className="text-gray-400 dark:text-gray-300" />}
               </button>
 
               {showCategoryDropdown && data && (() => {
