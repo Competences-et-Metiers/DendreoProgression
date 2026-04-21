@@ -200,12 +200,12 @@ const InterventionPanel = ({ participant }) => {
     // Local notes/emails: creator or admin
     if (entry.source === 'local') {
       if (entry.intervention_type !== 'note' && entry.intervention_type !== 'email') return false;
-      if (user?.role === 'admin') return true;
+      if (['admin', 'manager'].includes(user?.role)) return true;
       return entry.user_id === user?.id;
     }
     // HubSpot notes: owner or admin (ownership checked server-side, but show button for all authenticated users)
     if (entry.source === 'hubspot_note') {
-      return user?.role === 'admin' || !!entry.hubspot_owner_id;
+      return ['admin', 'manager'].includes(user?.role) || !!entry.hubspot_owner_id;
     }
     return false;
   }, [user]);
@@ -674,7 +674,7 @@ const InterventionPanel = ({ participant }) => {
                     {entry.source === 'local' &&
                       entry.is_active &&
                       (entry.intervention_type === 'snooze' || entry.intervention_type === 'dismiss') &&
-                      (user?.role === 'admin' || entry.user_id === user?.id) && (
+                      (['admin', 'manager'].includes(user?.role) || entry.user_id === user?.id) && (
                         <button
                           onClick={() => handleCancelIntervention(entry.intervention_id)}
                           disabled={cancelIntervention.isPending}

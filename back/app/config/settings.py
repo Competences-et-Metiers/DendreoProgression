@@ -82,6 +82,7 @@ class Settings(BaseSettings):
     azure_ad_client_id: Optional[str] = Field(None, env="AZURE_AD_CLIENT_ID")
     azure_ad_client_secret: Optional[str] = Field(None, env="AZURE_AD_CLIENT_SECRET")
     azure_ad_admin_group_id: Optional[str] = Field(None, env="AZURE_AD_ADMIN_GROUP_ID")
+    azure_ad_manager_group_id: Optional[str] = Field(None, env="AZURE_AD_MANAGER_GROUP_ID")
 
     # Server settings
     host: str = Field(default="0.0.0.0", env="HOST")

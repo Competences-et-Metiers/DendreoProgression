@@ -86,13 +86,16 @@ async def validate_id_token(id_token: str) -> dict:
 def determine_role_from_groups(groups: list) -> str:
     """
     Map Microsoft security group memberships to app role.
-    If user is in the admin group, return 'admin'. Otherwise 'user'.
+    Admin group takes precedence over manager group if user is in both.
+    Non-members default to 'user'.
     """
-    if not settings.azure_ad_admin_group_id:
-        return 'user'
+    groups = groups or []
 
-    if settings.azure_ad_admin_group_id in (groups or []):
+    if settings.azure_ad_admin_group_id and settings.azure_ad_admin_group_id in groups:
         return 'admin'
+
+    if settings.azure_ad_manager_group_id and settings.azure_ad_manager_group_id in groups:
+        return 'manager'
 
     return 'user'
 

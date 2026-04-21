@@ -72,37 +72,51 @@ const Sidebar = ({ collapsed, onToggle }) => {
     }
   ];
 
-  // Add admin menu item if user is admin
-  const menuItems = user?.role === 'admin'
-    ? [
-        ...baseMenuItems.slice(0, 4),
-        {
-          id: 'admin-sync',
-          label: 'Admin: Sync',
-          icon: Shield,
-          path: '/admin/sync',
-          active: true,
-          isAdmin: true
-        },
-        {
-          id: 'admin-interventions',
-          label: 'Admin: Interventions',
-          icon: ClipboardList,
-          path: '/admin/interventions',
-          active: true,
-          isAdmin: true
-        },
-        {
-          id: 'admin-action-history',
-          label: 'Admin: Historique',
-          icon: History,
-          path: '/admin/action-history',
-          active: true,
-          isAdmin: true
-        },
-        ...baseMenuItems.slice(4)
-      ]
-    : baseMenuItems;
+  // Build privileged menu items based on role
+  const interventionsItem = {
+    id: 'interventions',
+    label: 'Interventions',
+    icon: ClipboardList,
+    path: '/interventions',
+    active: true,
+  };
+  const adminOnlyItems = [
+    {
+      id: 'admin-sync',
+      label: 'Admin: Sync',
+      icon: Shield,
+      path: '/admin/sync',
+      active: true,
+      isAdmin: true,
+    },
+    {
+      id: 'admin-action-history',
+      label: 'Admin: Historique',
+      icon: History,
+      path: '/admin/action-history',
+      active: true,
+      isAdmin: true,
+    },
+  ];
+
+  let menuItems;
+  if (user?.role === 'admin') {
+    menuItems = [
+      ...baseMenuItems.slice(0, 4),
+      adminOnlyItems[0],       // Admin: Sync
+      interventionsItem,        // Interventions (shared label)
+      adminOnlyItems[1],       // Admin: Historique
+      ...baseMenuItems.slice(4),
+    ];
+  } else if (user?.role === 'manager') {
+    menuItems = [
+      ...baseMenuItems.slice(0, 4),
+      interventionsItem,
+      ...baseMenuItems.slice(4),
+    ];
+  } else {
+    menuItems = baseMenuItems;
+  }
 
   const isActive = (path) => {
     if (path === '/') {
