@@ -41,8 +41,8 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Admin route wrapper
-const AdminRoute = ({ children }) => {
+// Role-gated route wrapper (defaults to admin-only)
+const RoleRoute = ({ children, allowedRoles = ['admin'], deniedMessage = 'Admin access required' }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -57,13 +57,23 @@ const AdminRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (user?.role !== 'admin') {
-    alert('Admin access required');
+  if (!allowedRoles.includes(user?.role)) {
+    alert(deniedMessage);
     return <Navigate to="/" replace />;
   }
 
   return children;
 };
+
+// Convenience wrappers
+const AdminRoute = ({ children }) => (
+  <RoleRoute allowedRoles={['admin']}>{children}</RoleRoute>
+);
+const ManagerOrAdminRoute = ({ children }) => (
+  <RoleRoute allowedRoles={['admin', 'manager']} deniedMessage="Manager or admin access required">
+    {children}
+  </RoleRoute>
+);
 
 // Main app content with routing
 const AppContent = () => {
@@ -101,13 +111,15 @@ const AppContent = () => {
                     }
                   />
                   <Route
-                    path="/admin/interventions"
+                    path="/interventions"
                     element={
-                      <AdminRoute>
+                      <ManagerOrAdminRoute>
                         <AdminInterventions />
-                      </AdminRoute>
+                      </ManagerOrAdminRoute>
                     }
                   />
+                  {/* Legacy path redirect so old bookmarks still work */}
+                  <Route path="/admin/interventions" element={<Navigate to="/interventions" replace />} />
                   <Route
                     path="/admin/action-history"
                     element={

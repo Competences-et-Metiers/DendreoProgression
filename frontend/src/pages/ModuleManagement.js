@@ -231,14 +231,16 @@ const ModuleManagement = () => {
   const { adfList, moduleList, categoryList } = useMemo(() => {
     if (!data?.items) return { adfList: [], moduleList: [], categoryList: [] };
     const adfs = new Map();
-    const mods = new Map();
+    const mods = new Set();
     const cats = new Map();
     for (const item of data.items) {
       if (!adfs.has(item.id_action_formation)) {
         adfs.set(item.id_action_formation, item.course_title);
       }
-      if (item.id_lam && !mods.has(item.id_lam)) {
-        mods.set(item.id_lam, item.module_intitule || `Module ${item.id_lam}`);
+      // Dedupe modules by title so the same module template appears once in the list,
+      // not once per ADF/id_lam. User filters ADF separately if needed.
+      if (item.module_intitule) {
+        mods.add(item.module_intitule);
       }
       if (item.category_name && !cats.has(item.category_name)) {
         cats.set(item.category_name, item.category_color || '');
@@ -246,7 +248,7 @@ const ModuleManagement = () => {
     }
     return {
       adfList: Array.from(adfs.entries()).map(([id, title]) => ({ id, title })).sort((a, b) => a.title.localeCompare(b.title)),
-      moduleList: Array.from(mods.entries()).map(([id, title]) => ({ id, title })).sort((a, b) => a.title.localeCompare(b.title)),
+      moduleList: Array.from(mods).map(title => ({ id: title, title })).sort((a, b) => a.title.localeCompare(b.title)),
       categoryList: Array.from(cats.entries()).map(([name, color]) => ({ name, color })).sort((a, b) => a.name.localeCompare(b.name)),
     };
   }, [data]);
@@ -264,7 +266,7 @@ const ModuleManagement = () => {
         if (completionFilter === 'completed' && !isComplete) return false;
       }
       if (selectedADFs.length > 0 && !selectedADFs.includes(item.id_action_formation)) return false;
-      if (selectedModules.length > 0 && !selectedModules.includes(item.id_lam)) return false;
+      if (selectedModules.length > 0 && !selectedModules.includes(item.module_intitule)) return false;
       if (selectedCategories.length > 0 && !selectedCategories.includes(item.category_name)) return false;
       if (selectedModuleType !== 'all' && item.mode_organisation !== selectedModuleType) return false;
       if (searchTerm) {
@@ -595,7 +597,7 @@ const ModuleManagement = () => {
                     </span>
                   )}
                 </div>
-                {showAdfDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {showAdfDropdown ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-300" /> : <ChevronRight size={16} className="text-gray-400 dark:text-gray-300" />}
               </button>
 
               {showAdfDropdown && (() => {
@@ -699,7 +701,7 @@ const ModuleManagement = () => {
                     </span>
                   )}
                 </div>
-                {showModuleDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {showModuleDropdown ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-300" /> : <ChevronRight size={16} className="text-gray-400 dark:text-gray-300" />}
               </button>
 
               {showModuleDropdown && (() => {
@@ -803,7 +805,7 @@ const ModuleManagement = () => {
                     </span>
                   )}
                 </div>
-                {showCategoryDropdown ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                {showCategoryDropdown ? <ChevronDown size={16} className="text-gray-400 dark:text-gray-300" /> : <ChevronRight size={16} className="text-gray-400 dark:text-gray-300" />}
               </button>
 
               {showCategoryDropdown && (() => {

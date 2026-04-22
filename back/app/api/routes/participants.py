@@ -294,7 +294,6 @@ async def get_participants_count(
 async def get_inactive_participants(
     group_by_course: bool = Query(False),
     course_id: Optional[int] = Query(None),
-    at_risk_threshold_days: int = Query(14, ge=1, le=365),
     inactivity_threshold_days: int = Query(30, ge=1, le=365),
     exclude_recent_enrollments_days: int = Query(0, ge=0, le=90),
     min_progression: Optional[float] = Query(None, ge=0, le=100),
@@ -304,8 +303,7 @@ async def get_inactive_participants(
     """Get participants classified by activity status.
 
     Statuses:
-    - active: Last activity within at_risk_threshold_days
-    - at_risk: Between at_risk_threshold_days and inactivity_threshold_days
+    - active: Last activity within inactivity_threshold_days
     - inactive: Beyond inactivity_threshold_days
     - never_started: No activity data at all
 
@@ -314,11 +312,17 @@ async def get_inactive_participants(
     - Participants with 100% completion
     """
     try:
-        logger.info(f"Fetching participants (group_by_course={group_by_course}, course_id={course_id})")
+        # Build cache key from query params
+        cache_key = f"{group_by_course}:{course_id}:{inactivity_threshold_days}:{exclude_recent_enrollments_days}:{min_progression}:{max_progression}"
+        cached = cache_service.get_inactivity_data(cache_key)
+        if cached:
+            logger.info("Inactivity data served from cache")
+            return cached
+
+        logger.info(f"Computing inactivity data (group_by_course={group_by_course}, course_id={course_id})")
 
         service = InactivityService(
             db=db,
-            at_risk_threshold_days=at_risk_threshold_days,
             inactivity_threshold_days=inactivity_threshold_days,
             exclude_recent_enrollments_days=exclude_recent_enrollments_days
         )
@@ -330,7 +334,10 @@ async def get_inactive_participants(
             max_progression=max_progression
         )
 
-        logger.info(f"Found {result.total_participants} participants ({result.active_count} active, {result.at_risk_count} at risk, {result.inactive_count} inactive, {result.never_started_count} never started)")
+        # Cache the result (serialize Pydantic model to dict)
+        cache_service.set_inactivity_data(cache_key, result.model_dump(mode='json'), ttl=180)
+
+        logger.info(f"Found {result.total_participants} participants ({result.active_count} active, {result.inactive_count} inactive, {result.never_started_count} never started)")
         return result
 
     except Exception as e:

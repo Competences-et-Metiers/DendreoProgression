@@ -410,7 +410,6 @@
     "stats": {
       "total": "Total participants",
       "active": "Active",
-      "atRisk": "At Risk",
       "inactive": "Inactive",
       "neverStarted": "Never Started",
       "snoozed": "Snoozed",
@@ -420,7 +419,6 @@
     },
     "status": {
       "active": "Active",
-      "atRisk": "At Risk",
       "inactive": "Inactive",
       "neverStarted": "Never Started",
       "snoozed": "Snoozed",
@@ -443,6 +441,15 @@
       "title": "Filter by status",
       "selectAll": "All",
       "deselectAll": "None"
+    },
+    "sorting": {
+      "title": "Sort",
+      "byInactivity": "Inactivity",
+      "byName": "Name",
+      "byProgression": "Progression",
+      "byStatus": "Status",
+      "byIntervention": "Intervention",
+      "byDateAdd": "Date added"
     },
     "searchPlaceholder": "Search by name, course or category...",
     "modifyThreshold": "Modify threshold",

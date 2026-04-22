@@ -25,7 +25,6 @@ RUN mkdir -p logs
 
 # Make scripts executable
 RUN chmod +x scripts/sync_dendreo.py
-RUN chmod +x scripts/check_database_empty.py
 
 # Create sync wrapper script
 RUN echo '#!/bin/bash\n\

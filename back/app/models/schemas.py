@@ -127,7 +127,7 @@ class InactiveParticipantDetail(BaseModel):
     upcoming_sessions_count: int = 0  # Number of future planned sessions
 
     # Inactivity classification
-    inactivity_status: str  # 'active', 'at_risk', 'inactive', 'never_started'
+    inactivity_status: str  # 'active', 'inactive', 'never_started'
     inactivity_reason: str  # Human-readable explanation
 
     # Formateurs (from course)
@@ -161,7 +161,6 @@ class InactiveParticipantsByCourse(BaseModel):
     # Aggregated stats
     total_participants: int = 0
     active_count: int = 0
-    at_risk_count: int = 0
     inactive_count: int = 0
     never_started_count: int = 0
 
@@ -178,7 +177,6 @@ class InactivitySummary(BaseModel):
 
     # Breakdown by status
     active_count: int = 0
-    at_risk_count: int = 0
     inactive_count: int = 0
     never_started_count: int = 0
     newly_enrolled_excluded: int = 0
@@ -190,7 +188,6 @@ class InactivitySummary(BaseModel):
     participants: Optional[List[InactiveParticipantDetail]] = None
 
     # Configuration used
-    at_risk_threshold_days: int = 14
     inactivity_threshold_days: int = 30
     exclude_recent_enrollments_days: int = 0
 

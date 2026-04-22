@@ -143,12 +143,17 @@ docker exec "${DEV_CONTAINER}" pg_restore \
   --no-privileges \
   /tmp/prod_restore.dump 2>&1 | grep -E "^pg_restore: (creating|processing)" | tail -5 || true
 
-echo "  [4f] Cleaning up and restarting services..."
+echo "  [4f] Disabling sync schedule on dev (prevents dev from burning through prod API quota)..."
+docker exec "${DEV_CONTAINER}" psql -U "${DEV_USER}" -d "${DEV_DB}" -c \
+  "UPDATE admin_sync_config SET cron_enabled = FALSE;" 2>&1 | grep -v NOTICE || true
+echo -e "${GREEN}    Cron disabled on dev (toggle back on in admin panel if you need it)${NC}"
+
+echo "  [4g] Cleaning up and restarting services..."
 docker exec "${DEV_CONTAINER}" rm /tmp/prod_restore.dump
 [ -n "${DEV_BACKEND}" ] && docker start "${DEV_BACKEND}" >/dev/null && echo "    Backend restarted"
 [ -n "${DEV_SYNC}" ] && docker start "${DEV_SYNC}" >/dev/null && echo "    Sync restarted"
 
-echo "  [4g] Verifying..."
+echo "  [4h] Verifying..."
 TABLES=$(docker exec "${DEV_CONTAINER}" psql -U "${DEV_USER}" -d "${DEV_DB}" -t -c "\dt" | grep -c "public" || echo "0")
 echo "    Tables found: ${TABLES}"
 docker exec "${DEV_CONTAINER}" psql -U "${DEV_USER}" -d "${DEV_DB}" -t -c \

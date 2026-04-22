@@ -6,7 +6,7 @@ import 'jspdf-autotable';
  *
  * @param {Object} params
  * @param {Array} params.participants - Already filtered and sorted participant array
- * @param {Object} params.stats - { total, active, at_risk, inactive }
+ * @param {Object} params.stats - { total, active, inactive, never_started }
  * @param {string[]} params.activeFilters - Descriptions of active filters
  * @param {Function} params.t - i18next translation function
  * @param {string} params.lang - Current language code ('fr' or 'en')
@@ -55,7 +55,6 @@ export const generateInactivityReport = ({ participants, stats, activeFilters, t
   const statsData = [
     { label: t('inactiveManagement.stats.total'), value: stats.total, bgColor: [243, 244, 246], textColor: [17, 24, 39] },
     { label: t('inactiveManagement.stats.active'), value: stats.active, bgColor: [220, 252, 231], textColor: [22, 163, 74] },
-    { label: t('inactiveManagement.stats.atRisk'), value: stats.at_risk, bgColor: [254, 249, 195], textColor: [202, 138, 4] },
     { label: t('inactiveManagement.stats.inactive'), value: stats.inactive, bgColor: [254, 226, 226], textColor: [220, 38, 38] },
     { label: t('inactiveManagement.stats.neverStarted'), value: stats.never_started, bgColor: [243, 232, 255], textColor: [147, 51, 234] },
   ];
@@ -99,14 +98,12 @@ export const generateInactivityReport = ({ participants, stats, activeFilters, t
   // --- TABLE ---
   const statusLabels = {
     active: t('inactiveManagement.status.active'),
-    at_risk: t('inactiveManagement.status.atRisk'),
     inactive: t('inactiveManagement.status.inactive'),
     never_started: t('inactiveManagement.status.neverStarted'),
   };
 
   const statusColors = {
     active: [22, 163, 74],
-    at_risk: [202, 138, 4],
     inactive: [220, 38, 38],
     never_started: [147, 51, 234],
   };

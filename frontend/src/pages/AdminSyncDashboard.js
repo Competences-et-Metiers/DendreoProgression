@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   X,
   ChevronRight,
+  ChevronLeft,
 } from 'lucide-react';
 
 // Confirmation Modal Component
@@ -73,6 +74,10 @@ const AdminSyncDashboard = () => {
   const [syncStatus, setSyncStatus] = useState(null);
   const [syncConfig, setSyncConfig] = useState(null);
   const [syncHistory, setSyncHistory] = useState([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(50);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [actionOutput, setActionOutput] = useState(null);
   const [adfId, setAdfId] = useState('');
@@ -170,7 +175,7 @@ const AdminSyncDashboard = () => {
         adminService.getApiUsage(),
         adminService.getSyncStatus(),
         adminService.getSyncConfig(),
-        adminService.getSyncHistory(10),
+        adminService.getSyncHistory(historyPage, historyPageSize),
       ]);
 
       setApiUsage(usage);
@@ -187,7 +192,9 @@ const AdminSyncDashboard = () => {
       setHubspotDailyLimit(config.hubspot_daily_limit || '');
       setHubspotWeeklyLimit(config.hubspot_weekly_limit || '');
       setHubspotMonthlyLimit(config.hubspot_monthly_limit || '');
-      setSyncHistory(history);
+      setSyncHistory(history.items || []);
+      setHistoryTotal(history.total || 0);
+      setHistoryTotalPages(history.total_pages || 1);
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
     } finally {
@@ -203,6 +210,21 @@ const AdminSyncDashboard = () => {
     const interval = setInterval(() => loadDashboardData(false), 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Refetch history when page or page size changes
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const history = await adminService.getSyncHistory(historyPage, historyPageSize);
+        setSyncHistory(history.items || []);
+        setHistoryTotal(history.total || 0);
+        setHistoryTotalPages(history.total_pages || 1);
+      } catch (e) {
+        console.error('Failed to load sync history:', e);
+      }
+    };
+    fetchHistory();
+  }, [historyPage, historyPageSize]);
 
   // Start polling if sync is already running on page load
   useEffect(() => {
@@ -638,7 +660,7 @@ const AdminSyncDashboard = () => {
                   type="time"
                   value={scheduleTime}
                   onChange={(e) => setScheduleTime(e.target.value)}
-                  className="w-32 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
+                  className="w-32 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white dark:[color-scheme:dark]"
                 />
               </div>
 
@@ -933,9 +955,50 @@ const AdminSyncDashboard = () => {
         {/* Sync History */}
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700">
-            <div className="flex items-center gap-2">
-              <History size={20} className="text-gray-600 dark:text-gray-400" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Sync History</h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History size={20} className="text-gray-600 dark:text-gray-400" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sync History</h2>
+                <span className="text-xs text-gray-500 dark:text-gray-400">({historyTotal})</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  {[25, 50, 100].map(size => (
+                    <button
+                      key={size}
+                      onClick={() => { setHistoryPageSize(size); setHistoryPage(1); }}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                        historyPageSize === size
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+                {historyTotalPages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                      disabled={historyPage <= 1}
+                      className="p-1.5 rounded border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors text-gray-600 dark:text-gray-400"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    <span className="text-xs text-gray-600 dark:text-gray-400 min-w-[50px] text-center">
+                      {historyPage} / {historyTotalPages}
+                    </span>
+                    <button
+                      onClick={() => setHistoryPage(p => Math.min(historyTotalPages, p + 1))}
+                      disabled={historyPage >= historyTotalPages}
+                      className="p-1.5 rounded border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-30 transition-colors text-gray-600 dark:text-gray-400"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -1144,7 +1207,7 @@ const AdminSyncDashboard = () => {
                       <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">HubSpot</h4>
                       <div className="grid grid-cols-3 gap-2 text-sm">
                         <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
-                          <div className="font-semibold">{selectedSync.stats.hubspot_updates_total || 0}</div>
+                          <div className="font-semibold text-gray-900 dark:text-white">{selectedSync.stats.hubspot_updates_total || 0}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">Total</div>
                         </div>
                         <div className="text-center p-2 bg-white dark:bg-slate-800 rounded border dark:border-slate-700">
