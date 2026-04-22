@@ -135,6 +135,20 @@ def create_tables():
                 logger.info("Ensured courses.date_debut and courses.date_fin columns exist")
             except Exception as e:
                 logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(
+                    "ALTER TABLE user_views "
+                    "ADD COLUMN IF NOT EXISTS page VARCHAR(50) NOT NULL DEFAULT 'inactive'"
+                ))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_user_views_page ON user_views (page)"
+                ))
+                conn.commit()
+                logger.info("Ensured user_views.page column exists")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
         
         # Verify tables were created using text() for SQLAlchemy 2.0+ compatibility
         with engine.connect() as conn:

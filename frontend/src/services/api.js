@@ -182,19 +182,19 @@ export const apiService = {
     return response.data;
   },
 
-  // Saved views
-  async getSavedViews() {
-    const response = await api.get('/views/');
+  // Saved views (scoped by page, e.g. "inactive" or "module")
+  async getSavedViews(page = 'inactive') {
+    const response = await api.get('/views/', { params: { page } });
     return response.data;
   },
 
-  async createSavedView(name, filterConfig) {
-    const response = await api.post('/views/', { name, filter_config: filterConfig });
+  async createSavedView(name, filterConfig, page = 'inactive') {
+    const response = await api.post('/views/', { name, filter_config: filterConfig, page });
     return response.data;
   },
 
-  async updateSavedView(viewId, name, filterConfig) {
-    const response = await api.put(`/views/${viewId}`, { name, filter_config: filterConfig });
+  async updateSavedView(viewId, name, filterConfig, page = 'inactive') {
+    const response = await api.put(`/views/${viewId}`, { name, filter_config: filterConfig, page });
     return response.data;
   },
 

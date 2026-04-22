@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.models.database import get_db
 from app.models.models import User, UserView
@@ -15,11 +15,13 @@ MAX_VIEWS_PER_USER = 20
 
 @router.get("/", response_model=List[UserViewResponse])
 async def list_views(
+    page: str = Query("inactive"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     views = db.query(UserView).filter(
-        UserView.user_id == current_user.id
+        UserView.user_id == current_user.id,
+        UserView.page == page,
     ).order_by(UserView.updated_at.desc()).all()
     return views
 
@@ -30,7 +32,10 @@ async def create_view(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    count = db.query(UserView).filter(UserView.user_id == current_user.id).count()
+    count = db.query(UserView).filter(
+        UserView.user_id == current_user.id,
+        UserView.page == payload.page,
+    ).count()
     if count >= MAX_VIEWS_PER_USER:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -39,13 +44,14 @@ async def create_view(
 
     view = UserView(
         user_id=current_user.id,
+        page=payload.page,
         name=payload.name.strip(),
         filter_config=payload.filter_config,
     )
     db.add(view)
     db.commit()
     db.refresh(view)
-    logger.info(f"User '{current_user.username}' created view '{view.name}' (id={view.id})")
+    logger.info(f"User '{current_user.username}' created view '{view.name}' on page '{view.page}' (id={view.id})")
     return view
 
 
@@ -64,9 +70,10 @@ async def update_view(
         raise HTTPException(status_code=404, detail="View not found")
     view.name = payload.name.strip()
     view.filter_config = payload.filter_config
+    view.page = payload.page
     db.commit()
     db.refresh(view)
-    logger.info(f"User '{current_user.username}' updated view '{view.name}' (id={view.id})")
+    logger.info(f"User '{current_user.username}' updated view '{view.name}' on page '{view.page}' (id={view.id})")
     return view
 
 

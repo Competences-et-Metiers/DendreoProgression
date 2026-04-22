@@ -33,6 +33,7 @@ import ProgressBar from '../components/ProgressBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import InterventionPanel from '../components/InterventionPanel';
 import ModulePdfExportModal from '../components/ModulePdfExportModal';
+import SavedViewsBar from '../components/SavedViewsBar';
 
 const MODE_LABELS = {
   elearning_async: 'E-Learning',
@@ -195,6 +196,42 @@ const ModuleManagement = () => {
   // When these filters are active, all rows share the same value — hide the redundant UI
   const hideTypeCol = selectedModuleType !== 'all';
   const hideCategoryPill = selectedCategories.length > 0;
+
+  const collectCurrentFilters = useCallback(() => ({
+    deadlineMode,
+    threshold,
+    selectedADFs,
+    selectedModules,
+    selectedCategories,
+    selectedModuleType,
+    completionFilter,
+    searchTerm,
+    viewMode,
+    sortBy,
+    sortDirection,
+    pageSize,
+  }), [deadlineMode, threshold, selectedADFs, selectedModules, selectedCategories, selectedModuleType, completionFilter, searchTerm, viewMode, sortBy, sortDirection, pageSize]);
+
+  const applyView = useCallback((config) => {
+    if (config.deadlineMode !== undefined) setDeadlineMode(config.deadlineMode);
+    if (config.threshold !== undefined) {
+      setThreshold(config.threshold);
+      sessionStorage.setItem('moduleManagement.threshold', config.threshold);
+    }
+    if (config.selectedADFs) setSelectedADFs(config.selectedADFs);
+    if (config.selectedModules) setSelectedModules(config.selectedModules);
+    if (config.selectedCategories) setSelectedCategories(config.selectedCategories);
+    if (config.selectedModuleType) setSelectedModuleType(config.selectedModuleType);
+    if (config.completionFilter) setCompletionFilter(config.completionFilter);
+    if (config.searchTerm !== undefined) setSearchTerm(config.searchTerm);
+    if (config.viewMode) {
+      setViewMode(config.viewMode);
+      sessionStorage.setItem('moduleManagement.viewMode', config.viewMode);
+    }
+    if (config.sortBy) setSortBy(config.sortBy);
+    if (config.sortDirection) setSortDirection(config.sortDirection);
+    if (config.pageSize !== undefined) setPageSize(config.pageSize);
+  }, []);
 
   const resetAllFilters = useCallback(() => {
     setSelectedADFs([]);
@@ -525,6 +562,13 @@ const ModuleManagement = () => {
         items={filteredItems}
         activeFilters={activeFilterDescriptions}
       />
+
+      {/* Saved views bar */}
+      <div className="bg-white dark:bg-slate-800 border-b border-gray-100 dark:border-slate-700">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <SavedViewsBar page="module" onLoadView={applyView} getCurrentFilters={collectCurrentFilters} />
+        </div>
+      </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
