@@ -25,12 +25,14 @@ import {
   MessageSquare,
   CheckCircle2,
   XCircle,
+  Download,
 } from 'lucide-react';
 import { apiService } from '../services/api';
 import { queryKeys } from '../queryClient';
 import ProgressBar from '../components/ProgressBar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import InterventionPanel from '../components/InterventionPanel';
+import ModulePdfExportModal from '../components/ModulePdfExportModal';
 
 const MODE_LABELS = {
   elearning_async: 'E-Learning',
@@ -134,6 +136,9 @@ const ModuleManagement = () => {
     return cached ? JSON.parse(cached) : 50;
   });
   const [currentPage, setCurrentPage] = useState(1);
+
+  // PDF export modal
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Expanded states
   const [expandedGroups, setExpandedGroups] = useState(new Set());
@@ -349,6 +354,39 @@ const ModuleManagement = () => {
     return filteredItems;
   }, [filteredItems, viewMode]);
 
+  // Human-readable descriptions of active filters for the PDF header
+  const activeFilterDescriptions = useMemo(() => {
+    const descriptions = [];
+    if (deadlineMode) {
+      descriptions.push(t('moduleManagement.pdf.filterDeadlineMode'));
+      descriptions.push(`${t('moduleManagement.pdf.filterThreshold')}: ${threshold}%`);
+      if (completionFilter !== 'all') {
+        const label = completionFilter === 'completed' ? t('moduleManagement.completed') : t('moduleManagement.incomplete');
+        descriptions.push(`${t('moduleManagement.pdf.filterCompletion')}: ${label}`);
+      }
+    }
+    if (selectedADFs.length > 0) {
+      const titles = selectedADFs
+        .map(id => adfList.find(a => a.id === id)?.title)
+        .filter(Boolean);
+      descriptions.push(`${t('moduleManagement.pdf.filterAdf')}: ${titles.join(', ')}`);
+    }
+    if (selectedModules.length > 0) {
+      descriptions.push(`${t('moduleManagement.pdf.filterModule')}: ${selectedModules.join(', ')}`);
+    }
+    if (selectedCategories.length > 0) {
+      descriptions.push(`${t('moduleManagement.pdf.filterCategory')}: ${selectedCategories.join(', ')}`);
+    }
+    if (selectedModuleType !== 'all') {
+      const typeLabel = MODE_LABELS[selectedModuleType] || selectedModuleType;
+      descriptions.push(`${t('moduleManagement.pdf.filterType')}: ${typeLabel}`);
+    }
+    if (searchTerm) {
+      descriptions.push(`${t('moduleManagement.pdf.filterSearch')}: "${searchTerm}"`);
+    }
+    return descriptions;
+  }, [deadlineMode, threshold, completionFilter, selectedADFs, selectedModules, selectedCategories, selectedModuleType, searchTerm, adfList, t]);
+
   // Pagination
   const totalItems = viewMode === 'course' ? groupEntries.length : flatItems.length;
   const effectivePageSize = pageSize === 0 ? totalItems : pageSize;
@@ -422,47 +460,67 @@ const ModuleManagement = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {hasActiveFilters && (
                 <button
                   onClick={resetAllFilters}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                  title={t('moduleManagement.resetFilters')}
+                  className="flex items-center justify-center h-10 w-10 rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
                 >
                   <X size={18} />
-                  <span className="font-medium">{t('moduleManagement.resetFilters')}</span>
                 </button>
               )}
 
-              {/* Deadline Mode Toggle */}
-              <button
-                onClick={() => setDeadlineMode(!deadlineMode)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                  deadlineMode
-                    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
-                    : 'bg-white dark:bg-slate-800 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
-                }`}
-              >
-                <AlertTriangle size={18} />
-                <span className="font-medium">{t('moduleManagement.deadlineMode')}</span>
-              </button>
+              <div className="flex items-center h-10 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 overflow-hidden">
+                <button
+                  onClick={() => setDeadlineMode(!deadlineMode)}
+                  title={t('moduleManagement.deadlineMode')}
+                  className={`flex items-center gap-2 h-full px-3 text-sm font-medium whitespace-nowrap transition-colors ${
+                    deadlineMode
+                      ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <AlertTriangle size={16} />
+                  <span>{t('moduleManagement.deadlineMode')}</span>
+                </button>
+                <div className="h-6 w-px bg-gray-200 dark:bg-slate-600" />
+                <button
+                  onClick={() => {
+                    const next = viewMode === 'course' ? 'participant' : 'course';
+                    setViewMode(next);
+                    sessionStorage.setItem('moduleManagement.viewMode', next);
+                  }}
+                  title={viewMode === 'course' ? t('moduleManagement.viewParticipant') : t('moduleManagement.viewCourse')}
+                  className="flex items-center gap-2 h-full px-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 whitespace-nowrap transition-colors"
+                >
+                  <BarChart3 size={16} />
+                  <span>
+                    {viewMode === 'course' ? t('moduleManagement.viewParticipant') : t('moduleManagement.viewCourse')}
+                  </span>
+                </button>
+              </div>
 
               <button
-                onClick={() => {
-                  const next = viewMode === 'course' ? 'participant' : 'course';
-                  setViewMode(next);
-                  sessionStorage.setItem('moduleManagement.viewMode', next);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                onClick={() => setShowExportModal(true)}
+                disabled={filteredItems.length === 0}
+                title={t('moduleManagement.exportPdf')}
+                className="flex items-center gap-2 h-10 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <BarChart3 size={18} />
-                <span className="font-medium">
-                  {viewMode === 'course' ? t('moduleManagement.viewParticipant') : t('moduleManagement.viewCourse')}
-                </span>
+                <Download size={16} />
+                <span>PDF</span>
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      <ModulePdfExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        items={filteredItems}
+        activeFilters={activeFilterDescriptions}
+      />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

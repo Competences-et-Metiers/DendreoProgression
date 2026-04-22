@@ -913,6 +913,7 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 "id_lam": module.id_lam,
                 "mode_organisation": mode,
                 "progression": round(progression, 2),
+                "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
                 "date_fin": course.date_fin.isoformat() if course.date_fin else None,
                 "date_debut": course.date_debut.isoformat() if course.date_debut else None,
                 "category_name": cat_info.get("name"),
