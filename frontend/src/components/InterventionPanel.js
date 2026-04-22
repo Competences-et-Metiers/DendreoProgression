@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Phone,
@@ -37,6 +37,48 @@ const FILTER_MATCHERS = {
   notes: (e) => e.source === 'hubspot_note' || (e.source === 'local' && e.intervention_type === 'note'),
   email: (e) => e.source === 'local' && e.intervention_type === 'email',
   dismiss: (e) => e.source === 'local' && e.intervention_type === 'dismiss',
+};
+
+const ExpandableText = ({ text, clampClass = 'line-clamp-3' }) => {
+  const { t } = useTranslation();
+  const ref = useRef(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    if (expanded) return;
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      setIsOverflowing(el.scrollHeight > el.clientHeight + 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [text, expanded]);
+
+  const showToggle = isOverflowing || expanded;
+
+  return (
+    <>
+      <p
+        ref={ref}
+        className={`text-xs text-gray-600 dark:text-gray-400 mt-0.5 whitespace-pre-line ${expanded ? '' : clampClass}`}
+      >
+        {text}
+      </p>
+      {showToggle && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+          className="mt-0.5 text-[10px] text-primary-600 dark:text-primary-400 hover:underline"
+        >
+          {expanded ? t('common.showLess') : t('common.showMore')}
+        </button>
+      )}
+    </>
+  );
 };
 
 const InterventionPanel = ({ participant }) => {
@@ -623,9 +665,7 @@ const InterventionPanel = ({ participant }) => {
 
                     {/* Body */}
                     {getEntryBody(entry) && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-3 whitespace-pre-line">
-                        {getEntryBody(entry)}
-                      </p>
+                      <ExpandableText text={getEntryBody(entry)} />
                     )}
 
                     {/* Call recording player */}
