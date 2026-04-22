@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const formatDate = (iso, lang, fallback = '-') => {
   if (!iso) return fallback;
@@ -9,13 +10,13 @@ const formatDate = (iso, lang, fallback = '-') => {
 };
 
 export const MODULE_EXPORT_COLUMNS = [
-  { key: 'name', weight: 1.6, default: true },
-  { key: 'email', weight: 2.2, default: false },
-  { key: 'course', weight: 2.0, default: false, collapsible: true },
-  { key: 'module', weight: 2.0, default: false, collapsible: true },
-  { key: 'deadline', weight: 1.0, default: false, align: 'center' },
-  { key: 'last_access', weight: 1.1, default: true, align: 'center' },
-  { key: 'progression', weight: 0.9, default: true, align: 'center' },
+  { key: 'name', weight: 1.6, excelWidth: 26, default: true },
+  { key: 'email', weight: 2.2, excelWidth: 30, default: false },
+  { key: 'course', weight: 2.0, excelWidth: 32, default: false, collapsible: true },
+  { key: 'module', weight: 2.0, excelWidth: 32, default: false, collapsible: true },
+  { key: 'deadline', weight: 1.0, excelWidth: 14, default: false, align: 'center' },
+  { key: 'last_access', weight: 1.1, excelWidth: 18, default: true, align: 'center' },
+  { key: 'progression', weight: 0.9, excelWidth: 14, default: true, align: 'center' },
 ];
 
 const getCellValue = (item, key, lang) => {
@@ -30,6 +31,35 @@ const getCellValue = (item, key, lang) => {
     case 'progression': return `${(item.progression || 0).toFixed(1)}%`;
     default: return '';
   }
+};
+
+// Excel-friendly values: Date objects and numbers stay typed so Excel can sort/filter properly
+const getExcelCellValue = (item, key, lang) => {
+  const neverLabel = lang === 'fr' ? 'Jamais' : 'Never';
+  switch (key) {
+    case 'deadline': return item.date_fin ? new Date(item.date_fin) : '';
+    case 'last_access': return item.last_access ? new Date(item.last_access) : neverLabel;
+    case 'progression': return Number((item.progression || 0).toFixed(1)) / 100;
+    default: return getCellValue(item, key, lang);
+  }
+};
+
+// Shared column resolution: drop collapsible columns whose values are all identical
+const resolveColumns = (columns, items, lang) => {
+  const requested = columns
+    .map((key) => MODULE_EXPORT_COLUMNS.find((c) => c.key === key))
+    .filter(Boolean);
+  const resolved = [];
+  for (const col of requested) {
+    if (col.collapsible && items.length >= 2) {
+      const firstValue = getCellValue(items[0], col.key, lang);
+      const allSame = firstValue && firstValue !== '-' &&
+        items.every((it) => getCellValue(it, col.key, lang) === firstValue);
+      if (allSame) continue;
+    }
+    resolved.push(col);
+  }
+  return resolved;
 };
 
 /**
@@ -87,21 +117,7 @@ export const generateModuleReport = ({ items, columns, activeFilters, t, lang })
   doc.text(String(items.length), margin + 30, yPos + 13, { align: 'center' });
   yPos += 22;
 
-  // Collapse columns where every row has the same value into the filter block
-  const requestedColumns = columns
-    .map((key) => MODULE_EXPORT_COLUMNS.find((c) => c.key === key))
-    .filter(Boolean);
-
-  const selectedColumns = [];
-  for (const col of requestedColumns) {
-    if (col.collapsible && items.length >= 2) {
-      const firstValue = getCellValue(items[0], col.key, lang);
-      const allSame = firstValue && firstValue !== '-' &&
-        items.every((it) => getCellValue(it, col.key, lang) === firstValue);
-      if (allSame) continue;
-    }
-    selectedColumns.push(col);
-  }
+  const selectedColumns = resolveColumns(columns, items, lang);
 
   // Active filters
   if (activeFilters && activeFilters.length > 0) {
@@ -172,4 +188,75 @@ export const generateModuleReport = ({ items, columns, activeFilters, t, lang })
     ? `rapport-modules-${today}.pdf`
     : `module-report-${today}.pdf`;
   doc.save(filename);
+};
+
+/**
+ * Generate an .xlsx Excel workbook from filtered data.
+ *
+ * @param {Object} params
+ * @param {Array}    params.items         Filtered module-participant rows
+ * @param {string[]} params.columns       Ordered column keys to include
+ * @param {string[]} params.activeFilters Human-readable descriptions of active filters
+ * @param {Function} params.t             i18next translation function
+ * @param {string}   params.lang          Current language code ('fr' or 'en')
+ */
+export const generateModuleExcel = ({ items, columns, activeFilters, t, lang }) => {
+  const selectedColumns = resolveColumns(columns, items, lang);
+  const headers = selectedColumns.map((c) => t(`moduleManagement.pdf.col_${c.key}`));
+
+  const generatedOn = `${t('moduleManagement.pdf.generatedOn')} ${new Date().toLocaleDateString(
+    lang === 'fr' ? 'fr-FR' : 'en-US',
+    { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+  )}`;
+
+  // Assemble sheet as array-of-arrays: title, date, blank, filters block, blank, headers, data
+  const aoa = [];
+  aoa.push([t('moduleManagement.pdf.title')]);
+  aoa.push([generatedOn]);
+  aoa.push([]);
+  if (activeFilters && activeFilters.length > 0) {
+    aoa.push([`${t('moduleManagement.pdf.appliedFilters')}:`]);
+    activeFilters.forEach((f) => aoa.push([`• ${f}`]));
+    aoa.push([]);
+  }
+  const headerRowIndex = aoa.length;
+  aoa.push(headers);
+  items.forEach((item) => {
+    aoa.push(selectedColumns.map((c) => getExcelCellValue(item, c.key, lang)));
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  // Column widths
+  ws['!cols'] = selectedColumns.map((c) => ({ wch: c.excelWidth || 18 }));
+
+  // Apply cell number formats for dates and percentages
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let R = headerRowIndex + 1; R <= range.e.r; R += 1) {
+    selectedColumns.forEach((col, colIdx) => {
+      const ref = XLSX.utils.encode_cell({ r: R, c: colIdx });
+      const cell = ws[ref];
+      if (!cell) return;
+      if ((col.key === 'deadline' || col.key === 'last_access') && cell.v instanceof Date) {
+        cell.t = 'd';
+        cell.z = 'dd/mm/yyyy';
+      } else if (col.key === 'progression' && typeof cell.v === 'number') {
+        cell.t = 'n';
+        cell.z = '0.0%';
+      }
+    });
+  }
+
+  // Freeze header row for easier scrolling
+  ws['!freeze'] = { xSplit: 0, ySplit: headerRowIndex + 1 };
+
+  const wb = XLSX.utils.book_new();
+  const sheetName = lang === 'fr' ? 'Modules' : 'Modules';
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+  const today = new Date().toISOString().split('T')[0];
+  const filename = lang === 'fr'
+    ? `rapport-modules-${today}.xlsx`
+    : `module-report-${today}.xlsx`;
+  XLSX.writeFile(wb, filename);
 };

@@ -192,6 +192,10 @@ const ModuleManagement = () => {
 
   const hasActiveFilters = selectedADFs.length > 0 || selectedModules.length > 0 || selectedCategories.length > 0 || selectedModuleType !== 'all' || searchTerm || completionFilter !== 'all';
 
+  // When these filters are active, all rows share the same value — hide the redundant UI
+  const hideTypeCol = selectedModuleType !== 'all';
+  const hideCategoryPill = selectedCategories.length > 0;
+
   const resetAllFilters = useCallback(() => {
     setSelectedADFs([]);
     setSelectedModules([]);
@@ -504,11 +508,11 @@ const ModuleManagement = () => {
               <button
                 onClick={() => setShowExportModal(true)}
                 disabled={filteredItems.length === 0}
-                title={t('moduleManagement.exportPdf')}
+                title={t('moduleManagement.export')}
                 className="flex items-center gap-2 h-10 px-3 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Download size={16} />
-                <span>PDF</span>
+                <span>{t('moduleManagement.export')}</span>
               </button>
             </div>
           </div>
@@ -1032,9 +1036,10 @@ const ModuleManagement = () => {
                         </h3>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {group.course_title} - {MODE_LABELS[group.mode_organisation] || group.mode_organisation}
+                            {group.course_title}
+                            {!hideTypeCol && ` - ${MODE_LABELS[group.mode_organisation] || group.mode_organisation}`}
                           </span>
-                          {group.category_name && (
+                          {!hideCategoryPill && group.category_name && (
                             <span
                               className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
                               style={{
@@ -1074,7 +1079,7 @@ const ModuleManagement = () => {
                         <thead>
                           <tr className="bg-gray-50 dark:bg-slate-700/50">
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.participant')}</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.type')}</th>
+                            {!hideTypeCol && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.type')}</th>}
                             {deadlineMode && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>}
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">{t('moduleManagement.progression')}</th>
                             <th className="w-10" />
@@ -1085,7 +1090,7 @@ const ModuleManagement = () => {
                             .sort((a, b) => a.progression - b.progression)
                             .map((item) => {
                               const pKey = `${item.participant_id}-${item.id_action_formation}`;
-                              const colSpan = 4 + (deadlineMode ? 1 : 0);
+                              const colSpan = (hideTypeCol ? 3 : 4) + (deadlineMode ? 1 : 0);
                               return (
                               <React.Fragment key={`${item.participant_id}-${item.id_lam}`}>
                               <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
@@ -1098,11 +1103,13 @@ const ModuleManagement = () => {
                                   </div>
                                   <p className="text-xs text-gray-500 dark:text-gray-400">{item.email}</p>
                                 </td>
-                                <td className="px-6 py-3">
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${MODE_COLORS[item.mode_organisation] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300'}`}>
-                                    {MODE_LABELS[item.mode_organisation] || item.mode_organisation}: {item.progression.toFixed(1)}%
-                                  </span>
-                                </td>
+                                {!hideTypeCol && (
+                                  <td className="px-6 py-3">
+                                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${MODE_COLORS[item.mode_organisation] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300'}`}>
+                                      {MODE_LABELS[item.mode_organisation] || item.mode_organisation}: {item.progression.toFixed(1)}%
+                                    </span>
+                                  </td>
+                                )}
                                 {deadlineMode && (
                                   <td className="px-6 py-3">
                                     <CompletionBadge progression={item.progression} />
@@ -1151,7 +1158,7 @@ const ModuleManagement = () => {
                 <tr className="bg-gray-50 dark:bg-slate-700/50">
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.participant')}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Formation</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.type')}</th>
+                  {!hideTypeCol && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{t('moduleManagement.type')}</th>}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Deadline</th>
                   {deadlineMode && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider w-48">{t('moduleManagement.progression')}</th>
@@ -1162,7 +1169,7 @@ const ModuleManagement = () => {
                 {paginatedFlat.map((item) => {
                   const daysOverdue = daysUntilDeadline(item.date_fin);
                   const pKey = `${item.participant_id}-${item.id_action_formation}`;
-                  const flatColSpan = 6 + (deadlineMode ? 1 : 0);
+                  const flatColSpan = (hideTypeCol ? 5 : 6) + (deadlineMode ? 1 : 0);
                   return (
                     <React.Fragment key={`${item.participant_id}-${item.id_lam}`}>
                     <tr className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
@@ -1179,7 +1186,7 @@ const ModuleManagement = () => {
                         <div className="text-sm text-gray-900 dark:text-white">{item.module_intitule}</div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-xs text-gray-500 dark:text-gray-400">{item.course_title}</span>
-                          {item.category_name && (
+                          {!hideCategoryPill && item.category_name && (
                             <span
                               className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full"
                               style={{
@@ -1195,11 +1202,13 @@ const ModuleManagement = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${MODE_COLORS[item.mode_organisation] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300'}`}>
-                          {MODE_LABELS[item.mode_organisation] || item.mode_organisation}: {item.progression.toFixed(1)}%
-                        </span>
-                      </td>
+                      {!hideTypeCol && (
+                        <td className="px-6 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${MODE_COLORS[item.mode_organisation] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300'}`}>
+                            {MODE_LABELS[item.mode_organisation] || item.mode_organisation}: {item.progression.toFixed(1)}%
+                          </span>
+                        </td>
+                      )}
                       <td className="px-6 py-3">
                         <span className="text-xs text-gray-500 dark:text-gray-400">{formatDate(item.date_fin)}</span>
                         <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${deadlineBadgeStyle(daysOverdue)}`}>

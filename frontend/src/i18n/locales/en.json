@@ -376,9 +376,11 @@
     "latestNote": "Latest note",
     "noNote": "No note",
     "exportPdf": "Export PDF",
+    "export": "Export",
     "pdf": {
-      "modalTitle": "Export to PDF",
+      "modalTitle": "Export data",
       "modalSubtitle": "{{count}} row(s) will be included in the report",
+      "format": "Format",
       "title": "Module Management Report",
       "subtitle": "Progression and deadlines per participant",
       "generatedOn": "Generated on",

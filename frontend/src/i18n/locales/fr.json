@@ -381,9 +381,11 @@
     "latestNote": "Derni\u00e8re note",
     "noNote": "Aucune note",
     "exportPdf": "Exporter PDF",
+    "export": "Exporter",
     "pdf": {
-      "modalTitle": "Exporter en PDF",
+      "modalTitle": "Exporter les données",
       "modalSubtitle": "{{count}} ligne(s) seront incluses dans le rapport",
+      "format": "Format",
       "title": "Rapport de gestion des modules",
       "subtitle": "Progression et échéances par participant",
       "generatedOn": "Généré le",

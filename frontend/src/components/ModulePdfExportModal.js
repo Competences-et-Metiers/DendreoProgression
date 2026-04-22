@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, X, Download, GripVertical, Filter as FilterIcon } from 'lucide-react';
-import { MODULE_EXPORT_COLUMNS, generateModuleReport } from '../utils/moduleExport';
+import { FileText, X, Download, GripVertical, Filter as FilterIcon, FileSpreadsheet } from 'lucide-react';
+import { MODULE_EXPORT_COLUMNS, generateModuleReport, generateModuleExcel } from '../utils/moduleExport';
 
 const STORAGE_KEY = 'moduleManagement.pdfColumns';
+const FORMAT_STORAGE_KEY = 'moduleManagement.exportFormat';
 
 const defaultColumns = () => MODULE_EXPORT_COLUMNS.filter(c => c.default).map(c => c.key);
 
@@ -23,6 +24,11 @@ const ModulePdfExportModal = ({ isOpen, onClose, items, activeFilters }) => {
   });
 
   const [dragKey, setDragKey] = useState(null);
+
+  const [format, setFormat] = useState(() => {
+    const cached = localStorage.getItem(FORMAT_STORAGE_KEY);
+    return cached === 'excel' ? 'excel' : 'pdf';
+  });
 
   const orderedAvailable = useMemo(() => {
     const inSelection = selectedKeys
@@ -58,14 +64,10 @@ const ModulePdfExportModal = ({ isOpen, onClose, items, activeFilters }) => {
   const handleExport = () => {
     if (selectedKeys.length === 0) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedKeys));
+    localStorage.setItem(FORMAT_STORAGE_KEY, format);
     const lang = i18n.language?.startsWith('fr') ? 'fr' : 'en';
-    generateModuleReport({
-      items,
-      columns: selectedKeys,
-      activeFilters,
-      t,
-      lang,
-    });
+    const generator = format === 'excel' ? generateModuleExcel : generateModuleReport;
+    generator({ items, columns: selectedKeys, activeFilters, t, lang });
     onClose();
   };
 
@@ -98,6 +100,39 @@ const ModulePdfExportModal = ({ isOpen, onClose, items, activeFilters }) => {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Format selector */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">
+              {t('moduleManagement.pdf.format')}
+            </h4>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setFormat('pdf')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  format === 'pdf'
+                    ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300'
+                    : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                <FileText size={16} />
+                PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormat('excel')}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  format === 'excel'
+                    ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800 text-primary-700 dark:text-primary-300'
+                    : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                <FileSpreadsheet size={16} />
+                Excel
+              </button>
+            </div>
+          </div>
+
           {/* Active filters preview */}
           <div>
             <h4 className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-2">
