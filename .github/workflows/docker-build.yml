@@ -113,6 +113,7 @@ jobs:
 
             docker compose -f docker-compose.prod.yml --env-file .env.prod pull
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+            docker image prune -f
             echo "Waiting for backend health..."
             sleep 10
             curl -sf http://localhost:8000/health || echo "WARNING: Health check failed"

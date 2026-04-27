@@ -95,12 +95,6 @@
     port: "443"
     proto: tcp
 
-- name: Allow Portainer HTTPS
-  ufw:
-    rule: allow
-    port: "9443"
-    proto: tcp
-
 - name: Allow Netdata
   ufw:
     rule: allow

@@ -65,13 +65,6 @@ resource "scaleway_instance_security_group" "app" {
     protocol = "TCP"
   }
 
-  # Portainer (optional, remove if you don't need remote access)
-  inbound_rule {
-    action   = "accept"
-    port     = 9443
-    protocol = "TCP"
-  }
-
   # Netdata monitoring (optional, remove in hardened setups)
   inbound_rule {
     action   = "accept"
