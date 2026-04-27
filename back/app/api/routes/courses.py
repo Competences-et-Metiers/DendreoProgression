@@ -834,7 +834,11 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
             else:
                 attended_set = set()
 
-            # Compute progression per (participant, adf, lam)
+            # Build creneau_id -> date_fin map (for last-access derivation)
+            creneau_date_fin = {c.id: c.date_fin for c in creneaux}
+
+            # Compute progression and latest attended creneau per (participant, adf, lam)
+            liveroom_last_access_map = {}
             for pid, adf_id, lam_id in liveroom_keys:
                 creneau_ids = creneaux_by_key.get((adf_id, lam_id), [])
                 total = len(creneau_ids)
@@ -842,6 +846,16 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                     continue
                 attended = sum(1 for cid in creneau_ids if (pid, cid) in attended_set)
                 liveroom_prog_map[(pid, adf_id, lam_id)] = round((attended / total) * 100, 2)
+
+                attended_dates = [
+                    creneau_date_fin[cid]
+                    for cid in creneau_ids
+                    if (pid, cid) in attended_set and creneau_date_fin.get(cid)
+                ]
+                if attended_dates:
+                    liveroom_last_access_map[(pid, adf_id, lam_id)] = max(attended_dates)
+        else:
+            liveroom_last_access_map = {}
 
         # Build latest note map: (participant_id, adf_id) -> {date, text}
         # First get the max date per (participant, adf)
@@ -901,6 +915,15 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
 
             note_info = latest_notes_map.get((participant.id, course.id_action_formation))
 
+            # Last connection: combine e-learning timestamp with liveroom attendance for sync/mixte modes
+            last_access = module.lms_last_access_at
+            if mode in ('elearning_sync', 'mixte'):
+                liveroom_last = liveroom_last_access_map.get(
+                    (participant.id, course.id_action_formation, course.id_lam)
+                )
+                if liveroom_last and (not last_access or liveroom_last > last_access):
+                    last_access = liveroom_last
+
             items.append({
                 "participant_id": participant.id,
                 "id_participant": participant.id_participant,
@@ -913,7 +936,7 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
                 "id_lam": module.id_lam,
                 "mode_organisation": mode,
                 "progression": round(progression, 2),
-                "last_access": module.lms_last_access_at.isoformat() if module.lms_last_access_at else None,
+                "last_access": last_access.isoformat() if last_access else None,
                 "date_fin": course.date_fin.isoformat() if course.date_fin else None,
                 "date_debut": course.date_debut.isoformat() if course.date_debut else None,
                 "category_name": cat_info.get("name"),
