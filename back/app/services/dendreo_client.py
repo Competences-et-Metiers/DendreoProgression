@@ -167,6 +167,18 @@ class DendreoClient:
         params = {"include": "modules,participant,etapeProcess,mode_organisation,formateurs"}
         return await self._make_request("actions_de_formation.php", params)
 
+    @staticmethod
+    def _as_list(response) -> List[Dict[str, Any]]:
+        """Normalize Dendreo responses: a single result is returned as a bare object,
+        multiple results as a list. Wrap singletons so callers always get a list."""
+        if not response:
+            return []
+        if isinstance(response, list):
+            return response
+        if isinstance(response, dict):
+            return [response]
+        return []
+
     async def get_laps(self, id_action_formation: str) -> List[Dict[str, Any]]:
         """Get all LAPS data for a specific ADF"""
         params = {
@@ -174,7 +186,7 @@ class DendreoClient:
         }
         try:
             response = await self._make_request("laps.php", params)
-            return response if response and isinstance(response, list) else []
+            return self._as_list(response)
         except DendreoAPIError:
             logger.warning(f"No LAPS data found for ADF {id_action_formation}")
             return []
@@ -187,7 +199,7 @@ class DendreoClient:
         }
         try:
             response = await self._make_request("creneaux.php", params)
-            return response if response and isinstance(response, list) else []
+            return self._as_list(response)
         except DendreoAPIError:
             logger.warning(f"No creneaux data found for ADF {id_action_formation}")
             return []
@@ -196,7 +208,7 @@ class DendreoClient:
         """Get all module categories from Dendreo"""
         try:
             response = await self._make_request("categories_module.php")
-            return response if response and isinstance(response, list) else []
+            return self._as_list(response)
         except DendreoAPIError:
             logger.warning("No module categories data found")
             return []
@@ -209,7 +221,7 @@ class DendreoClient:
         }
         try:
             response = await self._make_request("lmps.php", params)
-            return response if response and isinstance(response, list) else []
+            return self._as_list(response)
         except DendreoAPIError:
             logger.warning(f"No LMPs data found for LAP {id_lap}")
             return []

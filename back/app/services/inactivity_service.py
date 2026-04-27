@@ -212,15 +212,17 @@ class InactivityService:
                     enrollment_dates.append(date)
             enrollment_date = min(enrollment_dates) if enrollment_dates else None
 
-            elearning_duration = sum(e['course'].planned_duration_hours or 0.0 for e in enrollments)
+            # course.planned_duration_hours holds the full module duration in Dendreo
+            # (covers liveroom for elearning_sync, e-learning + liveroom for mixte, etc.).
+            module_planned_hours = sum(e['course'].planned_duration_hours or 0.0 for e in enrollments)
 
-            # Liveroom time tracking
+            # Liveroom time tracking (sum of Creneau.duration for attendance breakdowns)
             lr_total_seconds = liveroom_total_durations.get(adf_id, 0)
             lr_spent_seconds = liveroom_time_spent_map.get((participant_id, adf_id), 0)
             lr_planned_hours = lr_total_seconds / 3600.0
             lr_spent_hours = lr_spent_seconds / 3600.0
 
-            total_duration = elearning_duration + lr_planned_hours
+            total_duration = module_planned_hours
 
             # Query all LAMs for this ADF (same as course detail page)
             adf_lam_rows = self.db.query(Course.id_lam).filter(
