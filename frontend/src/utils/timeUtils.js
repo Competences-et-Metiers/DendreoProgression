@@ -94,6 +94,20 @@ export const calculateTotalTime = (timeValues) => {
 };
 
 /**
+ * Format seconds into a verbose "Xh Ymin" string suitable for hover tooltips.
+ * @param {number} seconds - Time in seconds
+ * @returns {string} e.g. "1h 30min", "12h", "30min", "0min"
+ */
+export const formatHoursMinutes = (seconds) => {
+  const total = Math.max(0, Math.round(seconds || 0));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (hours === 0) return `${minutes}min`;
+  if (minutes === 0) return `${hours}h`;
+  return `${hours}h ${minutes}min`;
+};
+
+/**
  * Format seconds into hours with decimal places
  * @param {number} seconds - Time in seconds
  * @returns {string} Formatted time string (e.g., "14.4h" or "2.5h")

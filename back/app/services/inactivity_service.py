@@ -69,11 +69,13 @@ class InactivityService:
             liveroom_pairs.add((pid, adf))
 
         # Pre-build liveroom duration maps for time tracking
-        # Map: adf_id -> total planned duration (seconds) from all creneaux
-        liveroom_total_durations: Dict[str, int] = {}
-        for creneau in self.db.query(Creneau.id_action_formation, Creneau.duration).all():
-            adf = creneau.id_action_formation
-            liveroom_total_durations[adf] = liveroom_total_durations.get(adf, 0) + (creneau.duration or 0)
+        # Map: (adf_id, id_lam) -> total scheduled duration (seconds) from creneaux
+        liveroom_total_per_lam: Dict[tuple, int] = {}
+        for adf, lam, dur in self.db.query(
+            Creneau.id_action_formation, Creneau.id_lam, Creneau.duration
+        ).all():
+            key = (adf, lam)
+            liveroom_total_per_lam[key] = liveroom_total_per_lam.get(key, 0) + (dur or 0)
 
         # Map: (participant_id, adf_id) -> time spent (seconds) from attended creneaux
         liveroom_time_spent_map: Dict[tuple, int] = {}
@@ -86,6 +88,12 @@ class InactivityService:
         for pid, adf, duration in attended_rows:
             key = (pid, adf)
             liveroom_time_spent_map[key] = liveroom_time_spent_map.get(key, 0) + (duration or 0)
+
+        # Map: id_lam -> mode_organisation (used to attribute planned hours correctly)
+        module_modes: Dict[str, str] = {}
+        for lam, mode in self.db.query(Module.id_lam, Module.mode_organisation).distinct().all():
+            if lam:
+                module_modes[lam] = mode or 'elearning_async'
 
         # Pre-build upcoming sessions map: (participant_id, adf_id) -> (count, earliest_date)
         upcoming_sessions_map: Dict[Tuple[int, str], Tuple[int, datetime]] = {}
@@ -216,10 +224,21 @@ class InactivityService:
             # (covers liveroom for elearning_sync, e-learning + liveroom for mixte, etc.).
             module_planned_hours = sum(e['course'].planned_duration_hours or 0.0 for e in enrollments)
 
-            # Liveroom time tracking (sum of Creneau.duration for attendance breakdowns)
-            lr_total_seconds = liveroom_total_durations.get(adf_id, 0)
+            # Attribute planned hours by mode: elearning_sync is fully liveroom,
+            # mixte uses scheduled creneau time, elearning_async is fully e-learning.
+            lr_planned_hours = 0.0
+            for e in enrollments:
+                course = e['course']
+                hours = course.planned_duration_hours or 0.0
+                mode = module_modes.get(course.id_lam, 'elearning_async')
+                if mode == 'elearning_sync':
+                    lr_planned_hours += hours
+                elif mode == 'mixte':
+                    scheduled = liveroom_total_per_lam.get((course.id_action_formation, course.id_lam), 0) / 3600.0
+                    lr_planned_hours += min(scheduled, hours)
+
+            # Liveroom time spent (sum of attended creneau durations across the ADF)
             lr_spent_seconds = liveroom_time_spent_map.get((participant_id, adf_id), 0)
-            lr_planned_hours = lr_total_seconds / 3600.0
             lr_spent_hours = lr_spent_seconds / 3600.0
 
             total_duration = module_planned_hours
