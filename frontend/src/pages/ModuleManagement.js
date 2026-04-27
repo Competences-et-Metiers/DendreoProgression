@@ -125,10 +125,10 @@ const ModuleManagement = () => {
   // Completion status filter (deadline mode): 'all', 'incomplete', 'completed'
   const [completionFilter, setCompletionFilter] = useState('all');
 
-  // Show latest notes (reads from settings page toggle)
+  // Show latest notes (reads from settings page toggle, defaults on for new users)
   const showLatestNotes = useMemo(() => {
     const cached = localStorage.getItem('inactiveManagement.showLatestNotes');
-    return cached ? JSON.parse(cached) : false;
+    return cached === null ? true : JSON.parse(cached);
   }, []);
 
   // Pagination

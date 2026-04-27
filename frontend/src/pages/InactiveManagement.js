@@ -143,10 +143,10 @@ const InactiveManagement = () => {
     return cached ? JSON.parse(cached) : false;
   }, []);
 
-  // Show latest notes on participant cards — toggled from Settings page
+  // Show latest notes on participant cards — toggled from Settings page (default on)
   const showLatestNotes = useMemo(() => {
     const cached = localStorage.getItem('inactiveManagement.showLatestNotes');
-    return cached ? JSON.parse(cached) : false;
+    return cached === null ? true : JSON.parse(cached);
   }, []);
 
   // Note filters: independent toggles that combine
