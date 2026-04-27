@@ -59,8 +59,8 @@ export const queryKeys = {
   // HubSpot deals
   hubspotDeals: (email) => ['hubspot', 'deals', email],
 
-  // Saved views
-  savedViews: ['savedViews'],
+  // Saved views (scoped by page)
+  savedViews: (page = 'inactive') => ['savedViews', page],
 
   // Module management
   moduleData: ['module', 'data'],

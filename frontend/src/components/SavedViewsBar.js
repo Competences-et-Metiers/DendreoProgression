@@ -5,7 +5,7 @@ import { apiService } from '../services/api';
 import { queryKeys } from '../queryClient';
 import { Bookmark, Plus, X, Check, Loader2, Save, Trash2 } from 'lucide-react';
 
-const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
+const SavedViewsBar = ({ page = 'inactive', onLoadView, getCurrentFilters }) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [showNameInput, setShowNameInput] = useState(false);
@@ -16,8 +16,8 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
   const savedFiltersRef = useRef(null);
 
   const { data: views = [], isLoading } = useQuery({
-    queryKey: queryKeys.savedViews,
-    queryFn: apiService.getSavedViews,
+    queryKey: queryKeys.savedViews(page),
+    queryFn: () => apiService.getSavedViews(page),
     staleTime: 10 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -32,9 +32,9 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
   });
 
   const createMutation = useMutation({
-    mutationFn: ({ name, filterConfig }) => apiService.createSavedView(name, filterConfig),
+    mutationFn: ({ name, filterConfig }) => apiService.createSavedView(name, filterConfig, page),
     onSuccess: (newView) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.savedViews });
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedViews(page) });
       setShowNameInput(false);
       setViewName('');
       setActiveViewId(newView.id);
@@ -44,9 +44,9 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ viewId, name, filterConfig }) => apiService.updateSavedView(viewId, name, filterConfig),
+    mutationFn: ({ viewId, name, filterConfig }) => apiService.updateSavedView(viewId, name, filterConfig, page),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.savedViews });
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedViews(page) });
       savedFiltersRef.current = getCurrentFilters();
       setIsDirty(false);
     },
@@ -55,7 +55,7 @@ const SavedViewsBar = ({ onLoadView, getCurrentFilters }) => {
   const deleteMutation = useMutation({
     mutationFn: (viewId) => apiService.deleteSavedView(viewId),
     onSuccess: (_, deletedId) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.savedViews });
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedViews(page) });
       if (activeViewId === deletedId) {
         setActiveViewId(null);
         savedFiltersRef.current = null;

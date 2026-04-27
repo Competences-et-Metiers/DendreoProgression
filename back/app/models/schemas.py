@@ -247,12 +247,14 @@ class MicrosoftLoginRequest(BaseModel):
 class UserViewCreate(BaseModel):
     name: str
     filter_config: dict
+    page: str = "inactive"
 
 
 class UserViewResponse(BaseModel):
     id: int
     name: str
     filter_config: dict
+    page: str = "inactive"
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

@@ -23,7 +23,7 @@ const Settings = () => {
 
   const [showLatestNotes, setShowLatestNotes] = useState(() => {
     const cached = localStorage.getItem('inactiveManagement.showLatestNotes');
-    return cached ? JSON.parse(cached) : false;
+    return cached === null ? true : JSON.parse(cached);
   });
 
   const handleLatestNotesToggle = () => {
