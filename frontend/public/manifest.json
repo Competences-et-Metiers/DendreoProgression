@@ -1,6 +1,6 @@
 {
-  "short_name": "Dendreo Dashboard",
-  "name": "Dendreo Course Progression Dashboard",
+  "short_name": "MPM",
+  "name": "MPM – Multipurpose Participant Manager",
   "description": "Track course progress and participant engagement",
   "icons": [
     {
@@ -13,4 +13,4 @@
   "display": "standalone",
   "theme_color": "#3b82f6",
   "background_color": "#ffffff"
-} 
+}

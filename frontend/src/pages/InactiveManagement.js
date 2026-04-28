@@ -1403,19 +1403,7 @@ const InactiveManagement = () => {
         {/* Statistics Cards */}
         {data && !isLoading && (
           <>
-            <div className={showInterventionCounters ? "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6" : "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6"}>
-              <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{t('inactiveManagement.stats.total')}</p>
-                    <p className="text-3xl font-bold text-gray-900 dark:text-white mt-2">{filteredStats.total}</p>
-                  </div>
-                  <div className="p-3 bg-gray-100 dark:bg-slate-700 rounded-lg">
-                    <User size={24} className="text-gray-600 dark:text-gray-400" />
-                  </div>
-                </div>
-              </div>
-
+            <div className={showInterventionCounters ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6" : "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 mb-6"}>
               <div className="bg-white dark:bg-slate-800 rounded-lg border border-green-200 dark:border-green-800 p-6">
                 <div className="flex items-center justify-between">
                   <div>

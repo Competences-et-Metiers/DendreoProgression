@@ -145,7 +145,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 dark:border-slate-700">
         {!collapsed && (
-          <span className="font-semibold text-gray-900 dark:text-white text-lg">Dendreo</span>
+          <span className="font-semibold text-gray-900 dark:text-white text-lg">MPM</span>
         )}
         <button
           onClick={onToggle}

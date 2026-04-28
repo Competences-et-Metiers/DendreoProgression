@@ -109,7 +109,8 @@ const Login = () => {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dendreo</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">MPM</h1>
+          <p className="mt-1 text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400">Multipurpose Participant Manager</p>
           <h2 className="mt-2 text-xl text-gray-600 dark:text-gray-300">{t('login.title')}</h2>
           <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{t('login.subtitle')}</p>
         </div>
