@@ -1,7 +1,18 @@
 services:
-  # Production Nginx (Load Balancer & Reverse Proxy)
+  # Production Nginx + Frontend (single image: nginx serves the baked-in React build)
   nginx:
-    image: nginx:alpine
+    image: ghcr.io/competences-et-metiers/dendreoprogression-frontend:main
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.frontend.prod
+      args:
+        BRANCH: ${PROD_BRANCH:-main}
+        REACT_APP_API_URL: /api
+        REACT_APP_AZURE_AD_CLIENT_ID: ${AZURE_AD_CLIENT_ID:-}
+        REACT_APP_AZURE_AD_TENANT_ID: ${AZURE_AD_TENANT_ID:-}
+        REACT_APP_AZURE_AD_REDIRECT_URI: ${AZURE_AD_REDIRECT_URI:-}
+        BUILD_DATE: ${BUILD_DATE:-$(date)}
+        BUILD_VERSION: ${BUILD_VERSION:-$(git rev-parse HEAD 2>/dev/null || echo 'no-git')}
     container_name: dendreo_nginx_prod
     mem_limit: 256m
     ports:
@@ -10,7 +21,6 @@ services:
     volumes:
       - ./nginx/prod.active.conf:/etc/nginx/nginx.conf:ro
       - ./logs/nginx:/var/log/nginx
-      - frontend_build:/usr/share/nginx/html
       # SSL certificates
       - ./ssl:/etc/nginx/ssl:ro
       # Timezone mapping
@@ -21,8 +31,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-      frontend:
-        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "nginx", "-t"]
@@ -151,38 +159,6 @@ services:
       - "dendreo.service=sync-prod"
       - "dendreo.description=Production sync service for automated data synchronization"
 
-  # Production Frontend (Build Only)
-  frontend:
-    image: ghcr.io/competences-et-metiers/dendreoprogression-frontend:main
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.frontend.prod
-      args:
-        BRANCH: ${PROD_BRANCH:-main}
-        REACT_APP_API_URL: /api
-        REACT_APP_AZURE_AD_CLIENT_ID: ${AZURE_AD_CLIENT_ID:-}
-        REACT_APP_AZURE_AD_TENANT_ID: ${AZURE_AD_TENANT_ID:-}
-        REACT_APP_AZURE_AD_REDIRECT_URI: ${AZURE_AD_REDIRECT_URI:-}
-        BUILD_DATE: ${BUILD_DATE:-$(date)}
-        BUILD_VERSION: ${BUILD_VERSION:-$(git rev-parse HEAD 2>/dev/null || echo 'no-git')}
-    env_file:
-      - .env.prod
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      GENERATE_SOURCEMAP: ${GENERATE_SOURCEMAP:-false}
-      SKIP_PREFLIGHT_CHECK: ${SKIP_PREFLIGHT_CHECK:-true}
-    volumes:
-      - frontend_build:/app/build
-      # Timezone mapping
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
-    networks:
-      - dendreo_network
-    depends_on:
-      - backend
-    restart: "no"
-    command: ["sh", "-c", "cp -r /usr/share/nginx/html/* /app/build/ && sleep infinity"]
-
   # Production Database
   postgres:
     image: postgres:15
@@ -266,8 +242,6 @@ services:
 
 volumes:
   postgres_prod_data:
-    driver: local
-  frontend_build:
     driver: local
   sync_logs:
     driver: local
