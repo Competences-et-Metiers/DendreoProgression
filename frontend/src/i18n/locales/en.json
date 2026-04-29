@@ -442,6 +442,8 @@
     "title": "Inactive Management",
     "subtitle": "Track and manage inactive participants",
     "lastSync": "Last sync",
+    "lastSyncInProgress": "in progress…",
+    "nextSync": "Next sync",
     "placeholder": "Inactive participant management will be available soon. You will be able to identify and re-engage participants who have been inactive.",
     "stats": {
       "total": "Total participants",

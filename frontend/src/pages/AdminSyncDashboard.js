@@ -104,13 +104,24 @@ const AdminSyncDashboard = () => {
   const [isPollingLog, setIsPollingLog] = useState(false);
   const [apiCounters, setApiCounters] = useState({ dendreo: 0, hubspot: 0 });
   const pollingRef = useRef(null);
-  const logEndRef = useRef(null);
+  const logContainerRef = useRef(null);
   const logOffsetRef = useRef(0);
+  // Tracks whether the user is pinned to the bottom of the log; we only auto-scroll then.
+  const stickToBottomRef = useRef(true);
+
+  const handleLogScroll = () => {
+    const el = logContainerRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distance < 32;
+  };
 
   const scrollToLogBottom = () => {
-    if (logEndRef.current) {
-      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
+    const el = logContainerRef.current;
+    if (!el) return;
+    if (!stickToBottomRef.current) return;
+    // Scroll only the inner container (no window jump, no smooth animation that fights new lines)
+    el.scrollTop = el.scrollHeight;
   };
 
   const stopPolling = useCallback(() => {
@@ -299,6 +310,27 @@ const AdminSyncDashboard = () => {
     });
   };
 
+  const handleCancelResume = () => {
+    showConfirm(
+      'Cancel Resume',
+      `Discard the ${syncStatus?.skipped_adf_count || 0} ADF(s) waiting to resume? This dismisses the resume prompt without running any new sync.`,
+      'danger',
+      'Cancel',
+      async () => {
+        closeConfirm();
+        setActionOutput(null);
+        try {
+          const result = await adminService.cancelResume();
+          setActionOutput(result);
+          await loadDashboardData();
+        } catch (error) {
+          const msg = error.response?.data?.detail || error.message;
+          setActionOutput({ status: 'error', message: msg });
+        }
+      }
+    );
+  };
+
   const handleSyncCategories = () => {
     showConfirm('Sync Categories', 'Sync module categories from Dendreo?\n\nThis is a lightweight operation (1 API call).', 'teal', 'Sync Categories', async () => {
       closeConfirm();
@@ -359,6 +391,16 @@ const AdminSyncDashboard = () => {
     }
   };
 
+  const resetConfigToDefaults = () => {
+    // Populates form fields with the recommended defaults; user must still click Save to persist.
+    setScheduleTime('08:00');
+    setCooldownHours(12);
+    setDendreoApiLimit('5000');
+    setDendreoDailyLimit('10000');
+    setDendreoWeeklyLimit('50000');
+    setDendreoMonthlyLimit('100000');
+  };
+
   const handleSaveSchedule = async () => {
     if (cooldownHours < 0) return;
     try {
@@ -390,6 +432,15 @@ const AdminSyncDashboard = () => {
     if (!seconds) return 'N/A';
     if (seconds < 60) return `${seconds.toFixed(1)}s`;
     return `${(seconds / 60).toFixed(1)}min`;
+  };
+
+  // Render an "DD/MM → DD/MM" style range so users see when each counter resets
+  const formatPeriodRange = (startIso, endIso) => {
+    if (!startIso) return '';
+    const fmt = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short' });
+    const start = fmt.format(new Date(startIso));
+    const end = endIso ? fmt.format(new Date(endIso)) : fmt.format(new Date());
+    return `${start} → ${end}`;
   };
 
   const getStatusStyle = (status) => {
@@ -525,6 +576,9 @@ const AdminSyncDashboard = () => {
                     {' '} H: {apiUsage?.this_week?.hubspot_calls || 0}{apiUsage?.this_week?.hubspot_limit ? ` / ${apiUsage.this_week.hubspot_limit}` : ''}
                   </p>
                   <p className="text-purple-500">{apiUsage?.this_week?.sync_count || 0} syncs</p>
+                  {apiUsage?.this_week?.period_start && (
+                    <p className="text-purple-400/80">{formatPeriodRange(apiUsage.this_week.period_start, apiUsage.this_week.period_end)}</p>
+                  )}
                 </div>
               </div>
               <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
@@ -544,6 +598,9 @@ const AdminSyncDashboard = () => {
                     {' '} H: {apiUsage?.this_month?.hubspot_calls || 0}{apiUsage?.this_month?.hubspot_limit ? ` / ${apiUsage.this_month.hubspot_limit}` : ''}
                   </p>
                   <p className="text-indigo-500">{apiUsage?.this_month?.sync_count || 0} syncs</p>
+                  {apiUsage?.this_month?.period_start && (
+                    <p className="text-indigo-400/80">{formatPeriodRange(apiUsage.this_month.period_start, apiUsage.this_month.period_end)}</p>
+                  )}
                 </div>
               </div>
               <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
@@ -601,9 +658,19 @@ const AdminSyncDashboard = () => {
 
           {/* Configuration */}
           <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Settings size={20} className="text-gray-600 dark:text-gray-400" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Configuration</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Settings size={20} className="text-gray-600 dark:text-gray-400" />
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Configuration</h2>
+              </div>
+              <button
+                type="button"
+                onClick={resetConfigToDefaults}
+                className="text-xs px-3 py-1.5 rounded-md border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
+                title="Restore the recommended defaults (does not save until you click Save)"
+              >
+                Reset to default
+              </button>
             </div>
             <div className="space-y-5">
               {/* Enable/Disable Toggle */}
@@ -821,72 +888,121 @@ const AdminSyncDashboard = () => {
 
         {/* Sync Actions */}
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 p-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-5">
             <Play size={20} className="text-gray-600 dark:text-gray-400" />
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sync Actions</h2>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={handleDryRun}
-              disabled={isPollingLog}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FlaskConical size={18} />
-              Dry Run
-            </button>
-            <button
-              onClick={handleForceSync}
-              disabled={isPollingLog}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Zap size={18} />
-              Force Sync
-            </button>
-            {isPollingLog && (
-              <button
-                onClick={handleStopSync}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-              >
-                <StopCircle size={18} />
-                Stop Sync
-              </button>
-            )}
-            {syncStatus?.skipped_adf_count > 0 && (
-              <button
-                onClick={handleResumeSync}
-                disabled={isPollingLog}
-                className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <FastForward size={18} />
-                Resume ({syncStatus.skipped_adf_count} ADFs)
-              </button>
-            )}
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="ADF ID"
-                value={adfId}
-                onChange={(e) => setAdfId(e.target.value)}
-                disabled={isPollingLog}
-                className="w-28 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
-              />
-              <button
-                onClick={handleSyncAdf}
-                disabled={isPollingLog || !adfId.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Target size={18} />
-                Sync ADF
-              </button>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Full sync: dry run, force, stop, resume */}
+            <div className="space-y-3">
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Full sync</h3>
+                {isPollingLog && (
+                  <span className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
+                    <Loader2 size={12} className="animate-spin" />
+                    Running…
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Pulls every active ADF and refreshes participant progression. Heavy operation — may consume the API quota.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={handleDryRun}
+                  disabled={isPollingLog}
+                  className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-700 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FlaskConical size={18} />
+                  Dry Run
+                </button>
+                <button
+                  onClick={handleForceSync}
+                  disabled={isPollingLog}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Zap size={18} />
+                  Force Sync
+                </button>
+                {isPollingLog && (
+                  <button
+                    onClick={handleStopSync}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                  >
+                    <StopCircle size={18} />
+                    Stop
+                  </button>
+                )}
+              </div>
+
+              {/* Halted-by-API-limit banner with Resume + Cancel */}
+              {syncStatus?.skipped_adf_count > 0 && (
+                <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300 min-w-0">
+                    <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
+                    <span>
+                      Last sync stopped at the API limit with{' '}
+                      <span className="font-semibold">{syncStatus.skipped_adf_count}</span> ADF(s) still queued.
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={handleResumeSync}
+                      disabled={isPollingLog}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FastForward size={14} />
+                      Resume
+                    </button>
+                    <button
+                      onClick={handleCancelResume}
+                      disabled={isPollingLog}
+                      className="flex items-center justify-center p-1.5 text-amber-700 dark:text-amber-300 hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Discard the skipped ADF queue"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            <button
-              onClick={handleSyncCategories}
-              disabled={isPollingLog}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <FolderSync size={18} />
-              Sync Categories
-            </button>
+
+            {/* Targeted actions: single ADF, categories */}
+            <div className="space-y-3 lg:border-l lg:border-gray-200 lg:dark:border-slate-700 lg:pl-6">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Targeted sync</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Lightweight operations — useful to refresh a single ADF or just the category list.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    placeholder="ADF ID"
+                    value={adfId}
+                    onChange={(e) => setAdfId(e.target.value)}
+                    disabled={isPollingLog}
+                    className="w-24 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm dark:bg-slate-700 dark:text-white"
+                  />
+                  <button
+                    onClick={handleSyncAdf}
+                    disabled={isPollingLog || !adfId.trim()}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Target size={18} />
+                    Sync ADF
+                  </button>
+                </div>
+                <button
+                  onClick={handleSyncCategories}
+                  disabled={isPollingLog}
+                  className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FolderSync size={18} />
+                  Sync Categories
+                </button>
+              </div>
+            </div>
           </div>
 
           {actionOutput && (
@@ -945,9 +1061,12 @@ const AdminSyncDashboard = () => {
                 </button>
               )}
             </div>
-            <pre className="p-4 text-xs text-gray-300 overflow-x-auto max-h-96 overflow-y-auto leading-relaxed font-mono whitespace-pre-wrap">
+            <pre
+              ref={logContainerRef}
+              onScroll={handleLogScroll}
+              className="p-4 text-xs text-gray-300 overflow-x-auto max-h-96 overflow-y-auto leading-relaxed font-mono whitespace-pre-wrap"
+            >
               {liveLog || 'Waiting for output...'}
-              <div ref={logEndRef} />
             </pre>
           </div>
         )}

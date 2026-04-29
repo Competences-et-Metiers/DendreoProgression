@@ -34,6 +34,39 @@ import { formatTimeSpentInHours, formatHoursMinutes } from '../utils/timeUtils';
 import InterventionPanel from '../components/InterventionPanel';
 import SavedViewsBar from '../components/SavedViewsBar';
 
+// Countdown to the next scheduled sync. Ticks every second; the parent re-fetches
+// `next_sync_at` from the backend on its own cadence.
+const NextSyncCountdown = ({ nextSyncAt, label }) => {
+  const targetMs = nextSyncAt ? new Date(nextSyncAt).getTime() : null;
+  const [remaining, setRemaining] = useState(() => (targetMs ? Math.max(0, targetMs - Date.now()) : 0));
+
+  useEffect(() => {
+    if (!targetMs) return;
+    setRemaining(Math.max(0, targetMs - Date.now()));
+    const id = setInterval(() => {
+      setRemaining(Math.max(0, targetMs - Date.now()));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [targetMs]);
+
+  if (!targetMs) return null;
+
+  const totalSeconds = Math.floor(remaining / 1000);
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const hms = [hours, minutes, seconds].map((n) => String(n).padStart(2, '0')).join(':');
+  const formatted = days > 0 ? `${days}j ${hms}` : hms;
+
+  return (
+    <div className="flex items-center mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+      <Clock size={12} className="mr-1" />
+      {label}: {formatted}
+    </div>
+  );
+};
+
 const InactiveManagement = () => {
   const { t, i18n } = useTranslation();
   const { data: lastSync } = useLastSync();
@@ -729,7 +762,12 @@ const InactiveManagement = () => {
                 <p className="text-gray-600 dark:text-gray-400 mt-1">
                   {t('inactiveManagement.subtitle')}
                 </p>
-                {lastSync && lastSync.last_sync_at && (
+                {lastSync?.in_progress ? (
+                  <div className="flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    <Loader2 size={12} className="mr-1 animate-spin text-primary-600 dark:text-primary-400" />
+                    {t('inactiveManagement.lastSync')}: {t('inactiveManagement.lastSyncInProgress')}
+                  </div>
+                ) : lastSync && lastSync.last_sync_at && (
                   <div className="flex items-center mt-1 text-xs text-gray-500 dark:text-gray-400">
                     <Calendar size={12} className="mr-1" />
                     {t('inactiveManagement.lastSync')}: {new Date(lastSync.last_sync_at).toLocaleString()}
@@ -743,6 +781,12 @@ const InactiveManagement = () => {
                       </span>
                     )}
                   </div>
+                )}
+                {!lastSync?.in_progress && lastSync?.next_sync_at && (
+                  <NextSyncCountdown
+                    nextSyncAt={lastSync.next_sync_at}
+                    label={t('inactiveManagement.nextSync')}
+                  />
                 )}
               </div>
             </div>

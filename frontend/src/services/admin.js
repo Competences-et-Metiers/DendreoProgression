@@ -78,6 +78,15 @@ export const adminService = {
   },
 
   /**
+   * Cancel/discard the pending list of ADFs skipped due to API limit.
+   * After this call the Resume prompt disappears.
+   */
+  cancelResume: async () => {
+    const response = await api.post('/admin/sync/resume/cancel');
+    return response.data;
+  },
+
+  /**
    * Get live sync log (incremental, byte-offset based)
    */
   getLiveLog: async (offset = 0) => {
