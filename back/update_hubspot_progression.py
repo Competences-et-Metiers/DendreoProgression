@@ -55,16 +55,18 @@ class HubSpotProgressionUpdater:
             bool: True if successful, False otherwise
         """
         url = f"{self.base_url}/crm/v3/objects/deals/{deal_id}"
-        
-        # Prepare the data payload
-        # Convert percentage (0-100) to decimal (0-1) for HubSpot
-        progression_decimal = round(progression / 100, 4)
+
+        # HubSpot's progression_e_learning is a percentage property: send as decimal (0-1).
+        # The percentage display allows max 1 decimal (e.g. 66.1%), so the underlying value
+        # must fit in 3 fractional digits (0.001 step = 0.1% step). Anything finer (e.g. 0.6611)
+        # is rejected by the API with INVALID_DECIMAL_PRECISION.
+        progression_decimal = round(progression / 100, 3)
         data = {
             "properties": {
                 "progression_e_learning": str(progression_decimal)
             }
         }
-        
+
         # Debug logging to see exactly what we're sending
         logger.debug(f"Sending to HubSpot deal {deal_id}: progression_e_learning = {progression_decimal} (original percentage: {progression}%)")
         
