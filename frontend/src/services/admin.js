@@ -87,6 +87,28 @@ export const adminService = {
   },
 
   /**
+   * URL of the per-sync archived log file. Anchor href can target this directly so the
+   * browser handles the download with auth headers from the existing axios session.
+   */
+  getSyncLogUrl: (syncId) => `/api/admin/sync/${syncId}/log`,
+
+  /**
+   * Trigger a download of the per-sync archived log via axios so the auth header is sent.
+   */
+  downloadSyncLog: async (syncId) => {
+    const response = await api.get(`/admin/sync/${syncId}/log`, { responseType: 'blob' });
+    const blob = new Blob([response.data], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sync_${syncId}.log`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
+  /**
    * Get live sync log (incremental, byte-offset based)
    */
   getLiveLog: async (offset = 0) => {

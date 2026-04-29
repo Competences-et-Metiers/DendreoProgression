@@ -149,6 +149,14 @@ def create_tables():
                 logger.info("Ensured user_views.page column exists")
             except Exception as e:
                 logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
+                conn.execute(text("ALTER TABLE sync_metadata ADD COLUMN IF NOT EXISTS log_path VARCHAR"))
+                conn.commit()
+                logger.info("Ensured sync_metadata.log_path column exists")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
         
         # Verify tables were created using text() for SQLAlchemy 2.0+ compatibility
         with engine.connect() as conn:

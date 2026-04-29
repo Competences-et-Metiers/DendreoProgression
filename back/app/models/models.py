@@ -136,6 +136,7 @@ class SyncMetadata(Base):
     api_calls_count = Column(Integer, default=0, nullable=False)  # Total Dendreo API calls during this sync
     hubspot_api_calls_count = Column(Integer, default=0, nullable=False)  # Total HubSpot API calls during this sync
     duration_seconds = Column(Float, nullable=True)  # How long the sync took
+    log_path = Column(String, nullable=True)  # Relative path under logs/ for this sync's archived log (sync_runs/sync_<id>.log)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

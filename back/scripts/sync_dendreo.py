@@ -18,13 +18,25 @@ from app.models.database import get_db_session
 from app.models.models import SyncMetadata
 from app.services.dendreo_sync import DendreoSync
 from app.services.dendreo_client import DendreoClient
+from app.services.sync_logs import attach_per_sync_handler, detach_per_sync_handler
 from app.config.settings import settings
+from logging.handlers import TimedRotatingFileHandler
 
 def setup_logging(log_level: str = "INFO"):
-    """Setup logging configuration"""
+    """Setup logging configuration. The shared sync.log rotates daily and keeps
+    30 days of history; individual sync runs additionally archive to
+    logs/sync_runs/sync_<id>.log via attach_per_sync_handler()."""
     handlers = [logging.StreamHandler()]
     try:
-        handlers.append(logging.FileHandler('logs/sync.log'))
+        handler = TimedRotatingFileHandler(
+            'logs/sync.log',
+            when='midnight',
+            interval=1,
+            backupCount=30,
+            encoding='utf-8',
+        )
+        handler.suffix = '%Y-%m-%d'
+        handlers.append(handler)
     except (PermissionError, OSError):
         pass
     logging.basicConfig(
@@ -150,6 +162,7 @@ async def run_sync_single_adf(id_action_formation: str) -> dict:
 
     sync_start_time = datetime.now(timezone.utc)
     sync_metadata_id = None
+    per_sync_handler = None
 
     try:
         logger.info(f"🎯 Starting single-ADF sync for ADF {id_action_formation}...")
@@ -166,6 +179,7 @@ async def run_sync_single_adf(id_action_formation: str) -> dict:
             db.commit()
             sync_metadata_id = sync_metadata.id
             logger.info(f"📝 Created sync metadata record (ID: {sync_metadata_id}) for ADF {id_action_formation}")
+            per_sync_handler = attach_per_sync_handler(db, sync_metadata_id)
 
         with get_db_session() as db:
             client = DendreoClient()
@@ -215,6 +229,8 @@ async def run_sync_single_adf(id_action_formation: str) -> dict:
                 logger.error(f"Failed to update sync metadata: {metadata_error}")
 
         return {"status": "error", "message": f"Single-ADF sync failed: {str(e)}"}
+    finally:
+        detach_per_sync_handler(per_sync_handler)
 
 
 async def run_sync(force: bool = False, dry_run: bool = False, only_adf_ids: list = None) -> dict:
@@ -230,7 +246,8 @@ async def run_sync(force: bool = False, dry_run: bool = False, only_adf_ids: lis
         Dictionary with sync results
     """
     logger = logging.getLogger(__name__)
-    
+    per_sync_handler = None
+
     try:
         # Always clean up stuck sync metadata before starting
         logger.info("🧹 Checking for stuck sync records...")
@@ -324,7 +341,8 @@ async def run_sync(force: bool = False, dry_run: bool = False, only_adf_ids: lis
                 db.commit()
                 sync_metadata_id = sync_metadata.id
                 logger.info(f"📝 Created sync metadata record (ID: {sync_metadata_id})")
-        
+                per_sync_handler = attach_per_sync_handler(db, sync_metadata_id)
+
         # Run the sync
         if not dry_run:
             with get_db_session() as db:
@@ -403,6 +421,9 @@ async def run_sync(force: bool = False, dry_run: bool = False, only_adf_ids: lis
             "status": "error",
             "message": f"Sync failed: {str(e)}"
         }
+    finally:
+        detach_per_sync_handler(per_sync_handler)
+
 
 def main():
     """Main function with CLI argument parsing"""
