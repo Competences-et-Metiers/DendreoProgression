@@ -127,10 +127,14 @@ if [ "${DISABLE_CRON_SCHEDULE}" = "true" ]; then\n\
     echo "⏭️  DISABLE_CRON_SCHEDULE=true - skipping cron setup"\n\
     echo "ℹ️  Sync will NOT run on schedule. Use manual sync commands only."\n\
 else\n\
-    # Set up cron job\n\
+    # Set up cron jobs (sync + nightly per-sync log cleanup)\n\
     SYNC_SCHEDULE="${SYNC_SCHEDULE:-0 * * * *}"\n\
+    LOG_CLEANUP_SCHEDULE="${LOG_CLEANUP_SCHEDULE:-15 3 * * *}"\n\
+    LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-90}"\n\
     echo "Setting up sync cron job: $SYNC_SCHEDULE"\n\
-    echo "$SYNC_SCHEDULE /app/sync_wrapper_cron.sh >> /app/logs/cron.log 2>&1" | crontab -\n\
+    echo "Setting up log cleanup cron job: $LOG_CLEANUP_SCHEDULE (retention: ${LOG_RETENTION_DAYS}d)"\n\
+    (echo "$SYNC_SCHEDULE /app/sync_wrapper_cron.sh >> /app/logs/cron.log 2>&1"; \\\n\
+     echo "$LOG_CLEANUP_SCHEDULE . /app/cron_env.sh && python3 /app/scripts/cleanup_sync_logs.py --days $LOG_RETENTION_DAYS >> /app/logs/cron.log 2>&1") | crontab -\n\
     \n\
     # Verify cron job\n\
     echo "📋 Configured cron jobs:"\n\

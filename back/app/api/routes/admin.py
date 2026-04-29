@@ -115,7 +115,8 @@ def check_period_limits(db: Session) -> Optional[str]:
     config = get_or_create_sync_config(db)
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start = now - timedelta(days=7)
+    # Calendar-week boundary so display ranges and enforcement match
+    week_start = today_start - timedelta(days=today_start.weekday())
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     sync_types = ['sync_all', 'sync_adf']
 
@@ -225,8 +226,17 @@ async def get_api_usage(
     """
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start = now - timedelta(days=7)
+    today_end = today_start + timedelta(days=1)
+
+    # Calendar-week boundaries (Mon 00:00 → next Mon 00:00) so the counter has a real reset moment
+    week_start = today_start - timedelta(days=today_start.weekday())
+    week_end = week_start + timedelta(days=7)
+
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if month_start.month == 12:
+        month_end = month_start.replace(year=month_start.year + 1, month=1)
+    else:
+        month_end = month_start.replace(month=month_start.month + 1)
 
     # Last sync
     last_sync = db.query(SyncMetadata).filter(
@@ -293,7 +303,7 @@ async def get_api_usage(
             "dendreo_limit": config.dendreo_daily_limit,
             "hubspot_limit": config.hubspot_daily_limit,
             "period_start": today_start.isoformat(),
-            "period_end": now.isoformat(),
+            "period_end": today_end.isoformat(),
         },
         this_week={
             "api_calls": week_dendreo + week_hubspot,
@@ -303,7 +313,7 @@ async def get_api_usage(
             "dendreo_limit": config.dendreo_weekly_limit,
             "hubspot_limit": config.hubspot_weekly_limit,
             "period_start": week_start.isoformat(),
-            "period_end": now.isoformat(),
+            "period_end": week_end.isoformat(),
         },
         this_month={
             "api_calls": month_dendreo + month_hubspot,
@@ -313,7 +323,7 @@ async def get_api_usage(
             "dendreo_limit": config.dendreo_monthly_limit,
             "hubspot_limit": config.hubspot_monthly_limit,
             "period_start": month_start.isoformat(),
-            "period_end": now.isoformat(),
+            "period_end": month_end.isoformat(),
         }
     )
 
@@ -616,6 +626,7 @@ async def get_sync_history(
             "duration_seconds": sync.duration_seconds,
             "error_message": sync.error_message,
             "stats": parsed_stats,
+            "log_path": sync.log_path,
         })
 
     return {
@@ -854,6 +865,45 @@ async def sync_categories(
     except Exception as e:
         logger.error(f"Category sync failed: {e}")
         return SyncCommandResponse(status="error", message=f"Category sync failed: {str(e)}")
+
+
+@router.get("/sync/{sync_id}/log")
+async def get_sync_log(
+    sync_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Stream the archived per-sync log file as a downloadable text/plain attachment.
+    The path is derived from SyncMetadata.log_path (relative to LOGS_DIR) so older
+    runs without an attached log return a 404 cleanly.
+    """
+    from fastapi.responses import FileResponse
+    from app.services.sync_logs import LOGS_DIR
+
+    record = db.query(SyncMetadata).get(sync_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Sync not found")
+
+    if not record.log_path:
+        raise HTTPException(status_code=404, detail="No log archived for this sync")
+
+    abs_path = os.path.join(LOGS_DIR, record.log_path)
+    # Guard against path traversal: log_path must remain inside LOGS_DIR
+    real_logs_dir = os.path.realpath(LOGS_DIR)
+    real_path = os.path.realpath(abs_path)
+    if not real_path.startswith(real_logs_dir + os.sep) and real_path != real_logs_dir:
+        raise HTTPException(status_code=400, detail="Invalid log path")
+
+    if not os.path.isfile(real_path):
+        raise HTTPException(status_code=404, detail="Log file no longer on disk")
+
+    filename = f"sync_{sync_id}.log"
+    return FileResponse(
+        real_path,
+        media_type="text/plain; charset=utf-8",
+        filename=filename,
+    )
 
 
 @router.get("/sync/live-log")

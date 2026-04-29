@@ -24,6 +24,7 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
+  Download,
 } from 'lucide-react';
 
 // Confirmation Modal Component
@@ -434,13 +435,17 @@ const AdminSyncDashboard = () => {
     return `${(seconds / 60).toFixed(1)}min`;
   };
 
-  // Render an "DD/MM → DD/MM" style range so users see when each counter resets
+  // Render a "DD MMM → DD MMM" range. period_end from the API is the reset boundary
+  // (start of the next period), so subtract a millisecond to get the inclusive last day.
   const formatPeriodRange = (startIso, endIso) => {
     if (!startIso) return '';
     const fmt = new Intl.DateTimeFormat(undefined, { day: '2-digit', month: 'short' });
     const start = fmt.format(new Date(startIso));
-    const end = endIso ? fmt.format(new Date(endIso)) : fmt.format(new Date());
-    return `${start} → ${end}`;
+    const endDate = endIso
+      ? new Date(new Date(endIso).getTime() - 1)
+      : new Date();
+    const end = fmt.format(endDate);
+    return start === end ? start : `${start} → ${end}`;
   };
 
   const getStatusStyle = (status) => {
@@ -1200,12 +1205,26 @@ const AdminSyncDashboard = () => {
             </div>
             <div className="px-6 py-4 space-y-4">
               {/* Status & Duration */}
-              <div className="flex items-center gap-4">
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusStyle(selectedSync.status)}`}>
-                  {getStatusIcon(selectedSync.status)}
-                  {selectedSync.status}
-                </span>
-                <span className="text-sm text-gray-600 dark:text-gray-400">Duration: <span className="font-medium text-gray-900 dark:text-white">{formatDuration(selectedSync.duration_seconds)}</span></span>
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-4">
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusStyle(selectedSync.status)}`}>
+                    {getStatusIcon(selectedSync.status)}
+                    {selectedSync.status}
+                  </span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Duration: <span className="font-medium text-gray-900 dark:text-white">{formatDuration(selectedSync.duration_seconds)}</span></span>
+                </div>
+                {selectedSync.log_path ? (
+                  <button
+                    onClick={() => adminService.downloadSyncLog(selectedSync.id)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary-700 dark:text-primary-300 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-md hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors"
+                    title="Download full log of this sync"
+                  >
+                    <Download size={14} />
+                    Download log
+                  </button>
+                ) : (
+                  <span className="text-xs text-gray-400 dark:text-gray-500" title="No log archived for this run">No log available</span>
+                )}
               </div>
 
               {/* Error message */}
