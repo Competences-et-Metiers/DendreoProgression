@@ -446,6 +446,8 @@
     "title": "Gestion des participants",
     "subtitle": "Suivre et gérer l'activité des participants",
     "lastSync": "Dernière synchro",
+    "lastSyncInProgress": "en cours…",
+    "nextSync": "Prochaine synchro",
     "viewFlat": "Vue liste",
     "viewGrouped": "Grouper par cours",
     "showing": "Affichage",

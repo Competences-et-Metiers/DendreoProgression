@@ -95,10 +95,12 @@ export const useLastSync = () => {
     retry: 2,
     refetchOnWindowFocus: true, // Refetch when window gets focus
     refetchOnMount: true, // Always refresh sync info
-    // Poll every 5 seconds while sync is in progress
+    // Poll every 5 seconds while a sync is in progress, otherwise refresh once a minute
+    // so the next-sync countdown / cooldown calculation stays current.
     refetchInterval: (query) => {
-      const syncStatus = query.state.data?.sync_status;
-      return syncStatus === 'in_progress' ? 5000 : false;
+      const data = query.state.data;
+      if (data?.in_progress || data?.sync_status === 'in_progress') return 5000;
+      return 60000;
     },
   });
   return query;

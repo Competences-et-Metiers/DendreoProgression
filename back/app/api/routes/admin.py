@@ -292,6 +292,8 @@ async def get_api_usage(
             "sync_count": today_syncs,
             "dendreo_limit": config.dendreo_daily_limit,
             "hubspot_limit": config.hubspot_daily_limit,
+            "period_start": today_start.isoformat(),
+            "period_end": now.isoformat(),
         },
         this_week={
             "api_calls": week_dendreo + week_hubspot,
@@ -300,6 +302,8 @@ async def get_api_usage(
             "sync_count": week_syncs,
             "dendreo_limit": config.dendreo_weekly_limit,
             "hubspot_limit": config.hubspot_weekly_limit,
+            "period_start": week_start.isoformat(),
+            "period_end": now.isoformat(),
         },
         this_month={
             "api_calls": month_dendreo + month_hubspot,
@@ -308,6 +312,8 @@ async def get_api_usage(
             "sync_count": month_syncs,
             "dendreo_limit": config.dendreo_monthly_limit,
             "hubspot_limit": config.hubspot_monthly_limit,
+            "period_start": month_start.isoformat(),
+            "period_end": now.isoformat(),
         }
     )
 
@@ -685,6 +691,46 @@ async def resume_sync(
     )
 
     return SyncCommandResponse(**result)
+
+
+@router.post("/sync/resume/cancel", response_model=SyncCommandResponse)
+async def cancel_resume(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Discard the pending "skipped ADFs" list from the last sync, so the resume button goes away.
+    Used when the admin wants to acknowledge that the API-limit-truncated sync is final.
+    """
+    last_sync = db.query(SyncMetadata).filter(
+        SyncMetadata.sync_type == 'sync_all',
+        SyncMetadata.status == 'success'
+    ).order_by(SyncMetadata.last_sync_at.desc()).first()
+
+    if not last_sync or not last_sync.stats:
+        return SyncCommandResponse(status='success', message='Nothing to cancel')
+
+    import ast
+    try:
+        stats_dict = ast.literal_eval(last_sync.stats) if isinstance(last_sync.stats, str) else last_sync.stats
+    except (ValueError, SyntaxError):
+        return SyncCommandResponse(status='success', message='Could not parse stats; nothing changed')
+
+    if not stats_dict.get('skipped_adf_ids'):
+        return SyncCommandResponse(status='success', message='No skipped ADFs to cancel')
+
+    cleared_count = len(stats_dict.get('skipped_adf_ids') or [])
+    stats_dict['skipped_adf_ids'] = []
+    stats_dict['adfs_skipped_api_limit'] = 0
+    last_sync.stats = str(stats_dict)
+    last_sync.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    logger.info(f"Admin user '{current_user.username}' cancelled resume for {cleared_count} skipped ADFs")
+    return SyncCommandResponse(
+        status='success',
+        message=f'Cleared {cleared_count} skipped ADF(s) from resume queue'
+    )
 
 
 @router.post("/sync/stop", response_model=SyncCommandResponse)
