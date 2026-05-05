@@ -121,6 +121,9 @@ backups/
 # SSL certificates
 ssl/
 
+# Basic-auth credentials for netdata subdomain (generated on VPS)
+nginx/.htpasswd
+
 # Generated nginx config (created by deploy-prod.sh)
 nginx/prod.active.conf
 

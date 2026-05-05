@@ -23,6 +23,8 @@ services:
       - ./logs/nginx:/var/log/nginx
       # SSL certificates
       - ./ssl:/etc/nginx/ssl:ro
+      # Basic-auth credentials for netdata subdomain (created on VPS, not committed)
+      - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
       # Timezone mapping
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
@@ -200,8 +202,10 @@ services:
       - SYS_ADMIN
     security_opt:
       - apparmor:unconfined
-    ports:
-      - "${NETDATA_PORT:-19999}:19999"
+    # Reachable only via the internal docker network; nginx reverse-proxies
+    # https://netdata.dendreo.competences-et-metiers.com -> http://netdata:19999
+    expose:
+      - "19999"
     volumes:
       - netdata_lib:/var/lib/netdata
       - netdata_cache:/var/cache/netdata
