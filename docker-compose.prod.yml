@@ -152,8 +152,12 @@ services:
       - dendreo_network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python3", "scripts/sync_health_check.py", "--nagios", "--exit-code"]
-      interval: 1h
+      # Liveness only: DB reachable + metadata table present.
+      # Sync-success monitoring lives in the sync dashboard, not in Docker's
+      # healthcheck — otherwise transient sync errors persistently mark the
+      # container unhealthy even when the process itself is fine.
+      test: ["CMD", "python3", "scripts/sync_health_check.py", "--liveness", "--exit-code", "--quiet"]
+      interval: 5m
       timeout: 30s
       retries: 3
       start_period: 5m

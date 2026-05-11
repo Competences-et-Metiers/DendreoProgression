@@ -149,15 +149,28 @@ def check_recent_activity():
     except Exception as e:
         return False, f"Error checking recent activity: {str(e)}"
 
-def run_health_checks():
-    """Run all health checks and return results"""
-    checks = [
-        ("Database Connection", check_database_connection),
-        ("Sync Metadata Table", check_sync_metadata_table),
-        ("Sync Status", check_sync_status),
-        ("Stuck Records", check_stuck_records),
-        ("Recent Activity", check_recent_activity),
-    ]
+def run_health_checks(liveness_only=False):
+    """Run health checks and return results.
+
+    liveness_only=True runs only the minimum needed to verify the container
+    process can do its job (DB reachable, metadata table present). Use for
+    Docker HEALTHCHECK so transient sync failures don't mark the container
+    unhealthy — those are business-level concerns surfaced via the sync
+    dashboard, not container liveness.
+    """
+    if liveness_only:
+        checks = [
+            ("Database Connection", check_database_connection),
+            ("Sync Metadata Table", check_sync_metadata_table),
+        ]
+    else:
+        checks = [
+            ("Database Connection", check_database_connection),
+            ("Sync Metadata Table", check_sync_metadata_table),
+            ("Sync Status", check_sync_status),
+            ("Stuck Records", check_stuck_records),
+            ("Recent Activity", check_recent_activity),
+        ]
     
     results = {}
     overall_healthy = True
@@ -229,15 +242,23 @@ Examples:
     )
     
     parser.add_argument(
-        '--quiet', 
+        '--quiet',
         action='store_true',
         help='Suppress output (useful with --exit-code)'
     )
-    
+
+    parser.add_argument(
+        '--liveness',
+        action='store_true',
+        help='Run only liveness checks (DB reachable, metadata table present). '
+             'Use for Docker HEALTHCHECK — skips sync-success checks that '
+             'would flag a healthy idle container as unhealthy.'
+    )
+
     args = parser.parse_args()
-    
+
     try:
-        overall_healthy, results = run_health_checks()
+        overall_healthy, results = run_health_checks(liveness_only=args.liveness)
         
         if args.json:
             output = {
