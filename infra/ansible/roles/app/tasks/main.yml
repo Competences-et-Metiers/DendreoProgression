@@ -32,6 +32,7 @@
     - nginx
     - backups
     - back/scripts
+    - netdata/health.d
 
 # --- Copy Docker Compose and nginx config ---
 # These files define the stack. They're copied from the repo so the server
@@ -76,6 +77,14 @@
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
     mode: "0755"
+
+- name: Copy netdata custom health alerts
+  copy:
+    src: "{{ playbook_dir }}/../../../netdata/"
+    dest: "{{ app_dir }}/netdata/"
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0644"
 
 # --- Secrets decryption (SOPS + age) ---
 # The project stores encrypted secrets in secrets/*.enc files.
