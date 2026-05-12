@@ -213,6 +213,8 @@ services:
     volumes:
       - netdata_lib:/var/lib/netdata
       - netdata_cache:/var/cache/netdata
+      # Custom health alerts shipped via the repo (e.g. ram_available_low)
+      - ./netdata/health.d:/etc/netdata/health.d:ro
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /etc/os-release:/host/etc/os-release:ro
