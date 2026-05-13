@@ -8,9 +8,13 @@ from app.config.settings import settings  # Remove 'back.' prefix
 logger = logging.getLogger(__name__)
 
 class HubSpotClient:
+    _OWNERS_CACHE_TTL_SEC = 600
+
     def __init__(self):
         self.base_url = settings.hubspot_base_url
         self.api_key = settings.hubspot_api_key
+        self._owners_cache: Optional[Dict[str, str]] = None
+        self._owners_cache_ts: Optional[datetime] = None
 
     async def get_contact_by_email(self, email: str) -> Optional[Dict[str, Any]]:
         """Look up a HubSpot contact by email, including deal associations."""
@@ -132,7 +136,8 @@ class HubSpotClient:
                 batch_body = {
                     "properties": [
                         "hs_call_body", "hs_call_duration", "hs_call_direction",
-                        "hs_call_disposition", "hs_call_recording_url", "hs_timestamp"
+                        "hs_call_disposition", "hs_call_recording_url", "hs_timestamp",
+                        "hubspot_owner_id",
                     ],
                     "inputs": [{"id": cid} for cid in call_ids[:100]]  # Limit to 100
                 }
@@ -151,6 +156,7 @@ class HubSpotClient:
                         'hs_call_disposition': props.get('hs_call_disposition'),
                         'hs_call_recording_url': props.get('hs_call_recording_url'),
                         'hs_timestamp': props.get('hs_timestamp'),
+                        'hubspot_owner_id': props.get('hubspot_owner_id'),
                     })
                 return calls
 
@@ -307,16 +313,75 @@ class HubSpotClient:
             logger.error(f"Failed to delete HubSpot note {note_id}: {e}")
             return False
 
+    async def get_owners_map(self) -> Dict[str, str]:
+        """Return {owner_id: display_name} for all HubSpot owners. Cached in-process for 10min.
+        Falls back to empty dict on auth failure (e.g. missing crm.objects.owners.read scope)."""
+        now = datetime.now(timezone.utc)
+        if (
+            self._owners_cache is not None
+            and self._owners_cache_ts
+            and (now - self._owners_cache_ts).total_seconds() < self._OWNERS_CACHE_TTL_SEC
+        ):
+            return self._owners_cache
+
+        if not self.api_key:
+            return {}
+
+        headers = self._get_headers()
+        owners: Dict[str, str] = {}
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                url = f"{self.base_url}/crm/v3/owners"
+                after = None
+                while True:
+                    params = {"limit": 100}
+                    if after:
+                        params["after"] = after
+                    response = await client.get(url, params=params, headers=headers)
+                    response.raise_for_status()
+                    data = response.json()
+                    for owner in data.get('results', []):
+                        oid = owner.get('id')
+                        if not oid:
+                            continue
+                        first = (owner.get('firstName') or '').strip()
+                        last = (owner.get('lastName') or '').strip()
+                        full = f"{first} {last}".strip()
+                        owners[oid] = full or owner.get('email') or oid
+                    paging = data.get('paging', {}).get('next', {})
+                    after = paging.get('after')
+                    if not after:
+                        break
+            self._owners_cache = owners
+            self._owners_cache_ts = now
+            return owners
+        except httpx.HTTPStatusError as e:
+            logger.warning(f"HubSpot owners list failed ({e.response.status_code}); owner names unavailable")
+            return self._owners_cache or {}
+        except Exception as e:
+            logger.warning(f"Failed to fetch HubSpot owners: {e}")
+            return self._owners_cache or {}
+
     async def get_contact_engagements(self, email: str) -> Dict[str, Any]:
         """Get all notes and calls for a contact by email. Uses parallel fetching."""
         contact_id = await self.get_contact_id_by_email(email)
         if not contact_id:
             return {'contact_id': None, 'notes': [], 'calls': []}
 
-        notes, calls = await asyncio.gather(
+        notes, calls, owners_map = await asyncio.gather(
             self.get_contact_notes(contact_id),
             self.get_contact_calls(contact_id),
+            self.get_owners_map(),
         )
+        if owners_map:
+            for n in notes:
+                oid = n.get('hubspot_owner_id')
+                if oid:
+                    n['hubspot_owner_name'] = owners_map.get(oid)
+            for c in calls:
+                oid = c.get('hubspot_owner_id')
+                if oid:
+                    c['hubspot_owner_name'] = owners_map.get(oid)
         return {'contact_id': contact_id, 'notes': notes, 'calls': calls}
 
 

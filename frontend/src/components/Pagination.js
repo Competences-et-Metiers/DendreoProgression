@@ -32,28 +32,28 @@ const Pagination = ({
   }
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 bg-gray-50">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
       {/* Page size selector */}
       <div className="flex items-center space-x-2">
-        <label className="text-sm text-gray-700">{t('pagination.show')}</label>
+        <label className="text-sm text-gray-700 dark:text-gray-300">{t('pagination.show')}</label>
         <select
           value={pageSize}
           onChange={handlePageSizeChange}
-          className="border border-gray-300 rounded-md px-2 py-1 text-sm"
+          className="border border-gray-300 dark:border-slate-600 rounded-md px-2 py-1 text-sm dark:bg-slate-700 dark:text-white"
         >
           {pageSizeOptions.map(size => (
             <option key={size} value={size}>{size}</option>
           ))}
         </select>
-        <span className="text-sm text-gray-700">{t('pagination.perPage')}</span>
+        <span className="text-sm text-gray-700 dark:text-gray-300">{t('pagination.perPage')}</span>
       </div>
 
       {/* Results info */}
-      <div className="text-sm text-gray-700">
-        {t('pagination.showing', { 
-          start: startItem, 
-          end: endItem, 
-          total: totalItems 
+      <div className="text-sm text-gray-700 dark:text-gray-300">
+        {t('pagination.showing', {
+          start: startItem,
+          end: endItem,
+          total: totalItems
         })}
       </div>
 
@@ -63,7 +63,7 @@ const Pagination = ({
         <button
           onClick={() => handlePageChange(1)}
           disabled={currentPage === 1}
-          className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           title={t('pagination.firstPage')}
         >
           <ChevronsLeft size={16} />
@@ -73,7 +73,7 @@ const Pagination = ({
         <button
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           title={t('pagination.previousPage')}
         >
           <ChevronLeft size={16} />
@@ -100,7 +100,7 @@ const Pagination = ({
                 className={`px-3 py-1 text-sm rounded-md ${
                   currentPage === pageNum
                     ? 'bg-primary-500 text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                 }`}
               >
                 {pageNum}
@@ -113,7 +113,7 @@ const Pagination = ({
         <button
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           title={t('pagination.nextPage')}
         >
           <ChevronRight size={16} />
@@ -123,7 +123,7 @@ const Pagination = ({
         <button
           onClick={() => handlePageChange(totalPages)}
           disabled={currentPage === totalPages}
-          className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
           title={t('pagination.lastPage')}
         >
           <ChevronsRight size={16} />
