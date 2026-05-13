@@ -20,6 +20,7 @@ import {
 import { useParticipantTimeline, useCreateIntervention, useCancelIntervention, useDeleteIntervention, useDeleteHubspotNote } from '../hooks/useQuery';
 import { apiService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import NoteDetailModal from './NoteDetailModal';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
@@ -43,10 +44,9 @@ const ExpandableText = ({ text, clampClass = 'line-clamp-3' }) => {
   const { t } = useTranslation();
   const ref = useRef(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    if (expanded) return;
     const el = ref.current;
     if (!el) return;
     const measure = () => {
@@ -56,26 +56,33 @@ const ExpandableText = ({ text, clampClass = 'line-clamp-3' }) => {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [text, expanded]);
+  }, [text]);
 
-  const showToggle = isOverflowing || expanded;
+  const openModal = (e) => {
+    e.stopPropagation();
+    setShowModal(true);
+  };
 
   return (
     <>
       <p
         ref={ref}
-        className={`text-xs text-gray-600 dark:text-gray-400 mt-0.5 whitespace-pre-line ${expanded ? '' : clampClass}`}
+        onClick={isOverflowing ? openModal : undefined}
+        className={`text-xs text-gray-600 dark:text-gray-400 mt-0.5 whitespace-pre-line ${clampClass} ${isOverflowing ? 'cursor-pointer' : ''}`}
       >
         {text}
       </p>
-      {showToggle && (
+      {isOverflowing && (
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
+          onClick={openModal}
           className="mt-0.5 text-[10px] text-primary-600 dark:text-primary-400 hover:underline"
         >
-          {expanded ? t('common.showLess') : t('common.showMore')}
+          {t('common.showMore')}
         </button>
+      )}
+      {showModal && (
+        <NoteDetailModal text={text} onClose={() => setShowModal(false)} />
       )}
     </>
   );

@@ -158,6 +158,7 @@ async def get_participant_timeline(
             hubspot_id=note.get('id'),
             body=note.get('hs_note_body', ''),
             hubspot_owner_id=note.get('hubspot_owner_id'),
+            hubspot_owner_name=note.get('hubspot_owner_name'),
         ))
 
     for call in hs_calls:
@@ -177,6 +178,8 @@ async def get_participant_timeline(
             call_duration=int(duration) if duration else None,
             call_direction=call.get('hs_call_direction'),
             call_recording_url=call.get('hs_call_recording_url'),
+            hubspot_owner_id=call.get('hubspot_owner_id'),
+            hubspot_owner_name=call.get('hubspot_owner_name'),
         ))
 
     # Sort by timestamp descending (newest first)

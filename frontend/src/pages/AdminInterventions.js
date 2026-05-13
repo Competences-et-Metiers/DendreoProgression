@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { adminService } from '../services/admin';
 import { queryKeys } from '../queryClient';
+import NoteDetailModal from '../components/NoteDetailModal';
 
 const TYPE_CONFIG = {
   call:    { icon: Phone,         label: 'Appels',  iconClass: 'text-blue-600',   pillClass: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800',     selectedCard: 'border-blue-300 ring-1 ring-blue-200',   filterPill: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400' },
@@ -49,6 +50,7 @@ const AdminInterventions = () => {
   const [searchInput, setSearchInput] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [detailModal, setDetailModal] = useState(null);
 
   // Build query params
   const queryParams = useMemo(() => ({
@@ -492,8 +494,21 @@ const AdminInterventions = () => {
                             </div>
                           )}
                         </td>
-                        <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 max-w-xs truncate">
-                          {getDetailText(iv)}
+                        <td className="px-5 py-3.5 text-gray-500 dark:text-gray-400 max-w-xs">
+                          {(() => {
+                            const detail = getDetailText(iv);
+                            if (!detail) return null;
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setDetailModal({ text: detail, title: cfg.label || iv.intervention_type })}
+                                className="text-left truncate block w-full hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                                title={t('common.showMore')}
+                              >
+                                {detail}
+                              </button>
+                            );
+                          })()}
                         </td>
                       </tr>
                     );
@@ -504,6 +519,14 @@ const AdminInterventions = () => {
           )}
         </div>
       </div>
+
+      {detailModal && (
+        <NoteDetailModal
+          text={detailModal.text}
+          title={detailModal.title}
+          onClose={() => setDetailModal(null)}
+        />
+      )}
     </>
   );
 };
