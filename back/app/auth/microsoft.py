@@ -6,7 +6,9 @@ Handles:
 - User provisioning and role mapping from security groups
 """
 
+import asyncio
 import logging
+import time
 from typing import Optional
 
 import httpx
@@ -18,9 +20,14 @@ from app.models.models import User
 
 logger = logging.getLogger(__name__)
 
-# Cache JWKS keys (they rotate infrequently)
 _jwks_cache = None
 _openid_config_cache = None
+_jwks_refresh_lock = asyncio.Lock()
+_jwks_last_refreshed_at = 0.0
+
+# Cap how often we refetch JWKS so a stream of tokens with unknown kids can't
+# hammer Microsoft's endpoint. Microsoft rotates keys on the order of weeks.
+_JWKS_MIN_REFRESH_INTERVAL_SECONDS = 60
 
 
 def _get_openid_config_url() -> str:
@@ -40,19 +47,35 @@ async def get_openid_config() -> dict:
     return _openid_config_cache
 
 
-async def get_jwks() -> dict:
-    """Fetch and cache Microsoft's JSON Web Key Set for token validation."""
-    global _jwks_cache
-    if _jwks_cache:
+async def get_jwks(force_refresh: bool = False) -> dict:
+    """
+    Fetch and cache Microsoft's JSON Web Key Set for token validation.
+
+    Pass force_refresh=True after a decode failure to pick up rotated keys.
+    """
+    global _jwks_cache, _jwks_last_refreshed_at
+
+    if _jwks_cache and not force_refresh:
         return _jwks_cache
 
-    config = await get_openid_config()
-    jwks_uri = config["jwks_uri"]
+    async with _jwks_refresh_lock:
+        now = time.monotonic()
+        # Another coroutine may have refreshed while we waited for the lock,
+        # or a recent refresh may already have happened — don't refetch within
+        # the rate-limit window even if asked.
+        if _jwks_cache and force_refresh and (now - _jwks_last_refreshed_at) < _JWKS_MIN_REFRESH_INTERVAL_SECONDS:
+            return _jwks_cache
+        if _jwks_cache and not force_refresh:
+            return _jwks_cache
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(jwks_uri)
-        resp.raise_for_status()
-        _jwks_cache = resp.json()
+        config = await get_openid_config()
+        jwks_uri = config["jwks_uri"]
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(jwks_uri)
+            resp.raise_for_status()
+            _jwks_cache = resp.json()
+        _jwks_last_refreshed_at = now
+        logger.info("Refreshed Microsoft JWKS cache")
     return _jwks_cache
 
 
@@ -63,10 +86,13 @@ async def validate_id_token(id_token: str) -> dict:
     """
     jwks = await get_jwks()
 
-    claims = authlib_jwt.decode(
-        id_token,
-        JsonWebKey.import_key_set(jwks),
-    )
+    try:
+        claims = authlib_jwt.decode(id_token, JsonWebKey.import_key_set(jwks))
+    except Exception:
+        # Signature or kid mismatch is the symptom of a Microsoft key rotation.
+        # Refetch JWKS once and retry; if it still fails, the error propagates.
+        jwks = await get_jwks(force_refresh=True)
+        claims = authlib_jwt.decode(id_token, JsonWebKey.import_key_set(jwks))
 
     # Validate standard claims (exp, iat, nbf)
     claims.validate()
