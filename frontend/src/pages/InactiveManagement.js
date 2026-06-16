@@ -24,6 +24,7 @@ import {
   Download,
   Search,
   AlarmClock,
+  AlertTriangle,
   Ban,
   MessageSquare,
 } from 'lucide-react';
@@ -208,7 +209,15 @@ const InactiveManagement = () => {
   const [edofFilterEndingSoon, setEdofFilterEndingSoon] = useState(false); // ends within N days
   const [edofEndingSoonDays, setEdofEndingSoonDays] = useState(30);
   const [edofEndingSoonInput, setEdofEndingSoonInput] = useState('30');
-  const [edofFilterEnded, setEdofFilterEnded] = useState(false);      // session window already closed
+  const [edofFilterEnded, setEdofFilterEnded] = useState(false);      // session window already closed (fin < today)
+  const [edofFilterActive, setEdofFilterActive] = useState(false);    // session not yet ended (fin >= today) — hides passed
+  // Absolute date-range filters (ISO 'YYYY-MM-DD' strings; empty = inactive)
+  const [edofStartAfter, setEdofStartAfter] = useState('');           // edof_date_debut >= this date
+  const [edofEndBefore, setEdofEndBefore] = useState('');             // edof_date_fin <= this date
+  // Alert: EDOF started >= X days ago but still 0% progression + no attended/planned CV
+  const [edofFilterNoActivityAfterStart, setEdofFilterNoActivityAfterStart] = useState(false);
+  const [edofNoActivityDays, setEdofNoActivityDays] = useState(3);
+  const [edofNoActivityInput, setEdofNoActivityInput] = useState('3');
 
   // EDOF pill metadata: parse dates + derive an urgency tone (ended/ending-soon/ok).
   const getEdofMeta = useCallback((p) => {
@@ -498,7 +507,7 @@ const InactiveManagement = () => {
           if (edofFilterWith) {
             filtered = filtered.filter(hasEdof);
           }
-          if (edofFilterEndingSoon || edofFilterEnded) {
+          if (edofFilterEndingSoon || edofFilterEnded || edofFilterActive) {
             const today = new Date(); today.setHours(0, 0, 0, 0);
             filtered = filtered.filter(p => {
               if (!p.edof_date_fin) return false;
@@ -506,9 +515,33 @@ const InactiveManagement = () => {
               const daysToEnd = Math.round((fin - today) / 86400000);
               return (
                 (edofFilterEndingSoon && daysToEnd >= 0 && daysToEnd <= edofEndingSoonDays) ||
-                (edofFilterEnded && daysToEnd < 0)
+                (edofFilterEnded && daysToEnd < 0) ||
+                (edofFilterActive && daysToEnd >= 0)
               );
             });
+          }
+          // Alert: X days past EDOF start with no real activity (0% progression,
+          // no attended CV, no planned CV) — the funding clock is running but nothing has started.
+          if (edofFilterNoActivityAfterStart) {
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            filtered = filtered.filter(p => {
+              if (!p.edof_date_debut) return false;
+              const start = new Date(p.edof_date_debut); start.setHours(0, 0, 0, 0);
+              const daysSinceStart = Math.round((today - start) / 86400000);
+              if (daysSinceStart < edofNoActivityDays) return false;
+              const prog = p.current_progression ?? p.overall_progression ?? 0;
+              const hasProgress = prog >= 0.01;
+              const attendedCV = (p.liveroom_time_spent_hours || 0) > 0;
+              const plannedCV = (p.upcoming_sessions_count || 0) > 0;
+              return !hasProgress && !attendedCV && !plannedCV;
+            });
+          }
+          // Absolute date-range filters (ISO strings compare lexicographically)
+          if (edofStartAfter) {
+            filtered = filtered.filter(p => p.edof_date_debut && p.edof_date_debut >= edofStartAfter);
+          }
+          if (edofEndBefore) {
+            filtered = filtered.filter(p => p.edof_date_fin && p.edof_date_fin <= edofEndBefore);
           }
         }
       }
@@ -635,7 +668,7 @@ const InactiveManagement = () => {
       : [];
 
     return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showLatestNotes, noteFilterWithNote, noteFilterWithoutNote, noteFilterOlderThan, noteOlderThanDays, showEdofDates, edofFilterWith, edofFilterWithout, edofFilterEndingSoon, edofFilterEnded, edofEndingSoonDays]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showLatestNotes, noteFilterWithNote, noteFilterWithoutNote, noteFilterOlderThan, noteOlderThanDays, showEdofDates, edofFilterWith, edofFilterWithout, edofFilterEndingSoon, edofFilterEnded, edofFilterActive, edofEndingSoonDays, edofFilterNoActivityAfterStart, edofNoActivityDays, edofStartAfter, edofEndBefore]);
 
   // Pagination: slice data for current page (pageSize 0 = show all)
   const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
@@ -724,7 +757,7 @@ const InactiveManagement = () => {
     return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  const hasActiveFilters = !statusFilter.active || !statusFilter.inactive || !statusFilter.never_started || statusFilter.snoozed || statusFilter.dismissed || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive || noteFilterWithNote || noteFilterWithoutNote || noteFilterOlderThan || edofFilterWith || edofFilterWithout || edofFilterEndingSoon || edofFilterEnded;
+  const hasActiveFilters = !statusFilter.active || !statusFilter.inactive || !statusFilter.never_started || statusFilter.snoozed || statusFilter.dismissed || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive || noteFilterWithNote || noteFilterWithoutNote || noteFilterOlderThan || edofFilterWith || edofFilterWithout || edofFilterEndingSoon || edofFilterEnded || edofFilterActive || edofFilterNoActivityAfterStart || edofStartAfter || edofEndBefore;
 
   const resetAllFilters = useCallback(() => {
     setStatusFilter({ active: true, inactive: true, never_started: true, snoozed: false, dismissed: false });
@@ -744,8 +777,14 @@ const InactiveManagement = () => {
     setEdofFilterWithout(false);
     setEdofFilterEndingSoon(false);
     setEdofFilterEnded(false);
+    setEdofFilterActive(false);
     setEdofEndingSoonDays(30);
     setEdofEndingSoonInput('30');
+    setEdofFilterNoActivityAfterStart(false);
+    setEdofNoActivityDays(3);
+    setEdofNoActivityInput('3');
+    setEdofStartAfter('');
+    setEdofEndBefore('');
   }, []);
 
   const collectCurrentFilters = useCallback(() => ({
@@ -1201,7 +1240,7 @@ const InactiveManagement = () => {
                   Avec EDOF
                 </button>
                 <button
-                  onClick={() => { setEdofFilterWithout(v => !v); setEdofFilterWith(false); setEdofFilterEndingSoon(false); setEdofFilterEnded(false); }}
+                  onClick={() => { setEdofFilterWithout(v => !v); setEdofFilterWith(false); setEdofFilterEndingSoon(false); setEdofFilterEnded(false); setEdofFilterActive(false); setEdofFilterNoActivityAfterStart(false); setEdofStartAfter(''); setEdofEndBefore(''); }}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
                     edofFilterWithout
                       ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400'
@@ -1244,7 +1283,18 @@ const InactiveManagement = () => {
                   />
                 )}
                 <button
-                  onClick={() => { setEdofFilterEnded(v => !v); setEdofFilterWithout(false); }}
+                  onClick={() => { setEdofFilterActive(v => !v); setEdofFilterWithout(false); setEdofFilterEnded(false); }}
+                  title="Masquer les sessions EDOF terminées (afficher uniquement celles non terminées)"
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    edofFilterActive
+                      ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  En cours
+                </button>
+                <button
+                  onClick={() => { setEdofFilterEnded(v => !v); setEdofFilterWithout(false); setEdofFilterActive(false); }}
                   className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
                     edofFilterEnded
                       ? 'bg-gray-200 dark:bg-slate-600 border-gray-300 dark:border-slate-500 text-gray-700 dark:text-gray-300'
@@ -1253,6 +1303,76 @@ const InactiveManagement = () => {
                 >
                   Terminée
                 </button>
+                <button
+                  onClick={() => { setEdofFilterNoActivityAfterStart(v => !v); setEdofFilterWithout(false); }}
+                  title={`Début EDOF dépassé de ≥ ${edofNoActivityDays} j, mais 0% de progression et aucune CV faite ni planifiée`}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    edofFilterNoActivityAfterStart
+                      ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <AlertTriangle size={12} />
+                  Aucune activité ≥ {edofNoActivityDays} j après début
+                </button>
+                {edofFilterNoActivityAfterStart && (
+                  <input
+                    type="number"
+                    value={edofNoActivityInput}
+                    onChange={(e) => setEdofNoActivityInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = Math.max(0, Math.min(365, parseInt(edofNoActivityInput) || 0));
+                        setEdofNoActivityDays(val);
+                        setEdofNoActivityInput(String(val));
+                        e.target.blur();
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = Math.max(0, Math.min(365, parseInt(edofNoActivityInput) || 0));
+                      setEdofNoActivityDays(val);
+                      setEdofNoActivityInput(String(val));
+                    }}
+                    className="w-16 px-2 py-1.5 border border-gray-200 dark:border-slate-600 rounded-lg text-xs dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                    min="0"
+                    max="365"
+                  />
+                )}
+
+                {/* Absolute date range on the EDOF window */}
+                <div className="w-px h-5 bg-gray-200 dark:bg-slate-600 mx-1" />
+                <label className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-medium transition-colors ${
+                  edofStartAfter ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  Début ≥
+                  <input
+                    type="date"
+                    value={edofStartAfter}
+                    onChange={(e) => setEdofStartAfter(e.target.value)}
+                    className="bg-transparent text-xs focus:outline-none dark:[color-scheme:dark]"
+                  />
+                  {edofStartAfter && (
+                    <button onClick={() => setEdofStartAfter('')} className="text-gray-400 hover:text-red-500" title="Effacer">
+                      <X size={12} />
+                    </button>
+                  )}
+                </label>
+                <label className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-medium transition-colors ${
+                  edofEndBefore ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  Fin ≤
+                  <input
+                    type="date"
+                    value={edofEndBefore}
+                    onChange={(e) => setEdofEndBefore(e.target.value)}
+                    className="bg-transparent text-xs focus:outline-none dark:[color-scheme:dark]"
+                  />
+                  {edofEndBefore && (
+                    <button onClick={() => setEdofEndBefore('')} className="text-gray-400 hover:text-red-500" title="Effacer">
+                      <X size={12} />
+                    </button>
+                  )}
+                </label>
               </>
             )}
           </div>
