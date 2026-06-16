@@ -34,6 +34,13 @@ import { formatTimeSpentInHours, formatHoursMinutes } from '../utils/timeUtils';
 import InterventionPanel from '../components/InterventionPanel';
 import SavedViewsBar from '../components/SavedViewsBar';
 
+// EDOF pill colour by urgency: teal = ok, amber = ending soon (<=30j), gray = ended.
+const EDOF_TONE_CLASSES = {
+  teal: 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400',
+  amber: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400',
+  gray: 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-gray-400',
+};
+
 // Countdown to the next scheduled sync. Ticks every second; the parent re-fetches
 // `next_sync_at` from the backend on its own cadence.
 const NextSyncCountdown = ({ nextSyncAt, label }) => {
@@ -190,6 +197,39 @@ const InactiveManagement = () => {
   const [noteOlderThanDays, setNoteOlderThanDays] = useState(7);
   const [noteOlderThanInput, setNoteOlderThanInput] = useState('7');
 
+  // EDOF dates: display toggle (persisted, toggled from the filter panel; default on)
+  // plus a set of ephemeral filters on the linked deal's EDOF session window.
+  const [showEdofDates, setShowEdofDates] = useState(() => {
+    const cached = localStorage.getItem('inactiveManagement.showEdofDates');
+    return cached === null ? true : JSON.parse(cached);
+  });
+  const [edofFilterWith, setEdofFilterWith] = useState(false);        // has EDOF dates (linked deal)
+  const [edofFilterWithout, setEdofFilterWithout] = useState(false);  // no EDOF dates (unlinked)
+  const [edofFilterEndingSoon, setEdofFilterEndingSoon] = useState(false); // ends within N days
+  const [edofEndingSoonDays, setEdofEndingSoonDays] = useState(30);
+  const [edofEndingSoonInput, setEdofEndingSoonInput] = useState('30');
+  const [edofFilterEnded, setEdofFilterEnded] = useState(false);      // session window already closed
+
+  // EDOF pill metadata: parse dates + derive an urgency tone (ended/ending-soon/ok).
+  const getEdofMeta = useCallback((p) => {
+    const debut = p.edof_date_debut ? new Date(p.edof_date_debut) : null;
+    const fin = p.edof_date_fin ? new Date(p.edof_date_fin) : null;
+    if (!debut && !fin) return null;
+    let tone = 'teal';
+    let note = '';
+    if (fin) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const f = new Date(fin); f.setHours(0, 0, 0, 0);
+      const days = Math.round((f - today) / 86400000);
+      if (days < 0) { tone = 'gray'; note = `Session EDOF terminée depuis ${-days} j`; }
+      else if (days <= 30) { tone = 'amber'; note = `Session EDOF se termine dans ${days} j`; }
+      else { note = `Session EDOF se termine dans ${days} j`; }
+    } else {
+      note = 'Session EDOF';
+    }
+    return { debut, fin, tone, note };
+  }, []);
+
   // Intervention expand state
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
 
@@ -258,6 +298,10 @@ const InactiveManagement = () => {
   useEffect(() => {
     localStorage.setItem('inactiveManagement.cvPlannedIsActive', JSON.stringify(cvPlannedIsActive));
   }, [cvPlannedIsActive]);
+
+  useEffect(() => {
+    localStorage.setItem('inactiveManagement.showEdofDates', JSON.stringify(showEdofDates));
+  }, [showEdofDates]);
 
   useEffect(() => {
     localStorage.setItem('inactiveManagement.searchTerm', searchTerm);
@@ -445,6 +489,29 @@ const InactiveManagement = () => {
           filtered = filtered.filter(p => !!p.latest_note_date);
         }
       }
+      // EDOF date filters (only when EDOF display is enabled)
+      if (showEdofDates) {
+        const hasEdof = (p) => !!(p.edof_date_debut || p.edof_date_fin);
+        if (edofFilterWithout) {
+          filtered = filtered.filter(p => !hasEdof(p));
+        } else {
+          if (edofFilterWith) {
+            filtered = filtered.filter(hasEdof);
+          }
+          if (edofFilterEndingSoon || edofFilterEnded) {
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            filtered = filtered.filter(p => {
+              if (!p.edof_date_fin) return false;
+              const fin = new Date(p.edof_date_fin); fin.setHours(0, 0, 0, 0);
+              const daysToEnd = Math.round((fin - today) / 86400000);
+              return (
+                (edofFilterEndingSoon && daysToEnd >= 0 && daysToEnd <= edofEndingSoonDays) ||
+                (edofFilterEnded && daysToEnd < 0)
+              );
+            });
+          }
+        }
+      }
       return filtered;
     };
 
@@ -493,6 +560,13 @@ const InactiveManagement = () => {
             const dateA = a.latest_note_date ? new Date(a.latest_note_date).getTime() : 0;
             const dateB = b.latest_note_date ? new Date(b.latest_note_date).getTime() : 0;
             comparison = dateA - dateB;
+            break;
+          }
+          case 'edof_fin': {
+            // Sort by EDOF end date; missing dates sort last (ascending = soonest-ending first)
+            const finA = a.edof_date_fin ? new Date(a.edof_date_fin).getTime() : Infinity;
+            const finB = b.edof_date_fin ? new Date(b.edof_date_fin).getTime() : Infinity;
+            comparison = finA - finB;
             break;
           }
           default:
@@ -561,7 +635,7 @@ const InactiveManagement = () => {
       : [];
 
     return { filteredStats: stats, filteredParticipantsFlat: flat, filteredCourseGroups: groups };
-  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showLatestNotes, noteFilterWithNote, noteFilterWithoutNote, noteFilterOlderThan, noteOlderThanDays]);
+  }, [data, selectedADFs, selectedFormateurs, selectedCategories, searchTerm, statusFilter, sortBy, sortDirection, progressionRange, cvPlannedIsActive, showLatestNotes, noteFilterWithNote, noteFilterWithoutNote, noteFilterOlderThan, noteOlderThanDays, showEdofDates, edofFilterWith, edofFilterWithout, edofFilterEndingSoon, edofFilterEnded, edofEndingSoonDays]);
 
   // Pagination: slice data for current page (pageSize 0 = show all)
   const totalItems = groupByCourse ? filteredCourseGroups.length : filteredParticipantsFlat.length;
@@ -650,7 +724,7 @@ const InactiveManagement = () => {
     return Array.from(uniqueCategories.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [data]);
 
-  const hasActiveFilters = !statusFilter.active || !statusFilter.inactive || !statusFilter.never_started || statusFilter.snoozed || statusFilter.dismissed || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive || noteFilterWithNote || noteFilterWithoutNote || noteFilterOlderThan;
+  const hasActiveFilters = !statusFilter.active || !statusFilter.inactive || !statusFilter.never_started || statusFilter.snoozed || statusFilter.dismissed || selectedADFs.length > 0 || selectedFormateurs.length > 0 || selectedCategories.length > 0 || searchTerm || filters.inactivityThreshold !== 30 || filters.excludeRecentDays !== 0 || progressionRange[0] > 0 || progressionRange[1] < 100 || cvPlannedIsActive || noteFilterWithNote || noteFilterWithoutNote || noteFilterOlderThan || edofFilterWith || edofFilterWithout || edofFilterEndingSoon || edofFilterEnded;
 
   const resetAllFilters = useCallback(() => {
     setStatusFilter({ active: true, inactive: true, never_started: true, snoozed: false, dismissed: false });
@@ -666,6 +740,12 @@ const InactiveManagement = () => {
     setNoteFilterOlderThan(false);
     setNoteOlderThanDays(7);
     setNoteOlderThanInput('7');
+    setEdofFilterWith(false);
+    setEdofFilterWithout(false);
+    setEdofFilterEndingSoon(false);
+    setEdofFilterEnded(false);
+    setEdofEndingSoonDays(30);
+    setEdofEndingSoonInput('30');
   }, []);
 
   const collectCurrentFilters = useCallback(() => ({
@@ -936,6 +1016,7 @@ const InactiveManagement = () => {
                 { key: 'intervention', label: t('inactiveManagement.sorting.byIntervention') },
                 { key: 'date_add', label: t('inactiveManagement.sorting.byDateAdd') },
                 ...(showLatestNotes ? [{ key: 'latest_note', label: t('inactiveManagement.noteFilters.sortByNote') }] : []),
+                ...(showEdofDates ? [{ key: 'edof_fin', label: 'Fin EDOF' }] : []),
               ].map(({ key, label }) => (
                 <button
                   key={key}
@@ -1028,6 +1109,15 @@ const InactiveManagement = () => {
               CV planifié = Actif
             </label>
 
+            {/* EDOF dates display toggle (also reveals EDOF filters + sort below) */}
+            <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium cursor-pointer transition-colors ${
+              showEdofDates ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+            }`}>
+              <input type="checkbox" checked={showEdofDates} onChange={() => setShowEdofDates(v => !v)} className="sr-only" />
+              <Calendar size={12} />
+              Dates EDOF
+            </label>
+
             {/* Note filters (only when showLatestNotes is enabled) */}
             {showLatestNotes && (
               <>
@@ -1089,6 +1179,80 @@ const InactiveManagement = () => {
                     max="365"
                   />
                 )}
+              </>
+            )}
+
+            {/* EDOF filters (only when EDOF display is enabled) */}
+            {showEdofDates && (
+              <>
+                <div className="w-px h-5 bg-gray-200 dark:bg-slate-600 mx-1" />
+                <span className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-1 mr-1">
+                  <Calendar size={14} />
+                  EDOF
+                </span>
+                <button
+                  onClick={() => { setEdofFilterWith(v => !v); setEdofFilterWithout(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    edofFilterWith
+                      ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  Avec EDOF
+                </button>
+                <button
+                  onClick={() => { setEdofFilterWithout(v => !v); setEdofFilterWith(false); setEdofFilterEndingSoon(false); setEdofFilterEnded(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    edofFilterWithout
+                      ? 'bg-teal-50 dark:bg-teal-900/20 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  Sans EDOF
+                </button>
+                <button
+                  onClick={() => { setEdofFilterEndingSoon(v => !v); setEdofFilterWithout(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    edofFilterEndingSoon
+                      ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  Se termine ≤ {edofEndingSoonDays} j
+                </button>
+                {edofFilterEndingSoon && (
+                  <input
+                    type="number"
+                    value={edofEndingSoonInput}
+                    onChange={(e) => setEdofEndingSoonInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = Math.max(1, Math.min(365, parseInt(edofEndingSoonInput) || 1));
+                        setEdofEndingSoonDays(val);
+                        setEdofEndingSoonInput(String(val));
+                        e.target.blur();
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = Math.max(1, Math.min(365, parseInt(edofEndingSoonInput) || 1));
+                      setEdofEndingSoonDays(val);
+                      setEdofEndingSoonInput(String(val));
+                    }}
+                    className="w-16 px-2 py-1.5 border border-gray-200 dark:border-slate-600 rounded-lg text-xs dark:bg-slate-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    min="1"
+                    max="365"
+                  />
+                )}
+                <button
+                  onClick={() => { setEdofFilterEnded(v => !v); setEdofFilterWithout(false); }}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${
+                    edofFilterEnded
+                      ? 'bg-gray-200 dark:bg-slate-600 border-gray-300 dark:border-slate-500 text-gray-700 dark:text-gray-300'
+                      : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  Terminée
+                </button>
               </>
             )}
           </div>
@@ -1684,18 +1848,22 @@ const InactiveManagement = () => {
                                       <span className="text-sm text-gray-500 dark:text-gray-400">
                                         ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                                       </span>
+                                      {showEdofDates && (() => {
+                                        const m = getEdofMeta(participant);
+                                        if (!m) return null;
+                                        return (
+                                          <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-default ${EDOF_TONE_CLASSES[m.tone]}`} title={m.note}>
+                                            <Calendar size={12} />
+                                            EDOF {m.debut ? m.debut.toLocaleDateString('fr-FR') : '?'} → {m.fin ? m.fin.toLocaleDateString('fr-FR') : '?'}
+                                          </span>
+                                        );
+                                      })()}
                                     </div>
                                     <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
                                       <span className="flex items-center gap-1">
                                         <Calendar size={14} />
                                         Ajouté: {formatDate(participant.enrollment_date)}
                                       </span>
-                                      {(participant.edof_date_debut || participant.edof_date_fin) && (
-                                        <span className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default">
-                                          <Calendar size={12} />
-                                          EDOF: {participant.edof_date_debut ? new Date(participant.edof_date_debut).toLocaleDateString('fr-FR') : '?'} → {participant.edof_date_fin ? new Date(participant.edof_date_fin).toLocaleDateString('fr-FR') : '?'}
-                                        </span>
-                                      )}
                                       <span
                                         className="group/source flex items-center gap-1"
                                         title={participant.last_activity_source ? `${t('inactiveManagement.lastActivitySource')}: ${t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}` : ''}
@@ -1850,18 +2018,22 @@ const InactiveManagement = () => {
                               <span className="text-sm text-gray-500 dark:text-gray-400">
                                 ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                               </span>
+                              {showEdofDates && (() => {
+                                const m = getEdofMeta(participant);
+                                if (!m) return null;
+                                return (
+                                  <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-default ${EDOF_TONE_CLASSES[m.tone]}`} title={m.note}>
+                                    <Calendar size={12} />
+                                    EDOF {m.debut ? m.debut.toLocaleDateString('fr-FR') : '?'} → {m.fin ? m.fin.toLocaleDateString('fr-FR') : '?'}
+                                  </span>
+                                );
+                              })()}
                             </div>
                             <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
                               <span className="flex items-center gap-1">
                                 <Calendar size={14} />
                                 Ajouté: {formatDate(participant.enrollment_date)}
                               </span>
-                              {(participant.edof_date_debut || participant.edof_date_fin) && (
-                                <span className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default">
-                                  <Calendar size={12} />
-                                  EDOF: {participant.edof_date_debut ? new Date(participant.edof_date_debut).toLocaleDateString('fr-FR') : '?'} → {participant.edof_date_fin ? new Date(participant.edof_date_fin).toLocaleDateString('fr-FR') : '?'}
-                                </span>
-                              )}
                               <span
                                 className="group/source flex items-center gap-1"
                                 title={participant.last_activity_source ? `${t('inactiveManagement.lastActivitySource')}: ${t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}` : ''}
