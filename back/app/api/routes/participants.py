@@ -199,6 +199,27 @@ async def get_participants(
             )
             linked_counts = {pid: int(c) for pid, c in count_rows}
 
+        # Batch-fetch EDOF session dates for this page, keyed by (participant_id, ADF)
+        edof_map = {}
+        if participant_ids:
+            edof_rows = (
+                db.query(
+                    ParticipantHubspotData.participant_id,
+                    ParticipantHubspotData.id_action_formation,
+                    ParticipantHubspotData.edof_date_debut,
+                    ParticipantHubspotData.edof_date_fin,
+                )
+                .filter(
+                    ParticipantHubspotData.participant_id.in_(participant_ids),
+                    or_(
+                        ParticipantHubspotData.edof_date_debut.isnot(None),
+                        ParticipantHubspotData.edof_date_fin.isnot(None),
+                    ),
+                )
+                .all()
+            )
+            edof_map = {(pid, adf): (deb, fin) for pid, adf, deb, fin in edof_rows}
+
         result = []
 
         for participant in participants:
@@ -231,7 +252,15 @@ async def get_participants(
 
                 participant_data.completed_courses = completed_courses
                 participant_data.active_courses = active_courses
-                participant_data.courses = [ParticipantCourseSchema.model_validate(pc) for pc in active_pc]
+                course_schemas = []
+                for pc in active_pc:
+                    pc_schema = ParticipantCourseSchema.model_validate(pc)
+                    adf = pc.course.id_action_formation if pc.course else None
+                    edof = edof_map.get((participant.id, adf))
+                    if edof:
+                        pc_schema.edof_date_debut, pc_schema.edof_date_fin = edof
+                    course_schemas.append(pc_schema)
+                participant_data.courses = course_schemas
             else:
                 participant_data.overall_progression = 0.0
                 participant_data.total_courses = 0

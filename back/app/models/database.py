@@ -129,6 +129,21 @@ def create_tables():
 
         with engine.connect() as conn:
             try:
+                conn.execute(text(
+                    "ALTER TABLE participant_hubspot_data "
+                    "ADD COLUMN IF NOT EXISTS edof_date_debut VARCHAR"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE participant_hubspot_data "
+                    "ADD COLUMN IF NOT EXISTS edof_date_fin VARCHAR"
+                ))
+                conn.commit()
+                logger.info("Ensured participant_hubspot_data.edof_date_debut/edof_date_fin columns exist")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
                 conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS date_debut TIMESTAMPTZ"))
                 conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS date_fin TIMESTAMPTZ"))
                 conn.commit()

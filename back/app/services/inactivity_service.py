@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Tuple
-from app.models.models import Participant, ParticipantCourse, Course, Module, Creneau, CreneauParticipant, ModuleCategory, Intervention
+from app.models.models import Participant, ParticipantCourse, Course, Module, Creneau, CreneauParticipant, ModuleCategory, Intervention, ParticipantHubspotData
 from app.models.schemas import (
     InactiveParticipantDetail,
     InactiveParticipantsByCourse,
@@ -176,6 +176,25 @@ class InactivityService:
             if adf:
                 latest_notes_map[(pid, adf)] = latest
 
+        # Pre-build EDOF session dates map: (participant_id, adf_id) -> (debut, fin)
+        edof_map: Dict[Tuple[int, str], Tuple[Optional[str], Optional[str]]] = {}
+        edof_rows = (
+            self.db.query(
+                ParticipantHubspotData.participant_id,
+                ParticipantHubspotData.id_action_formation,
+                ParticipantHubspotData.edof_date_debut,
+                ParticipantHubspotData.edof_date_fin,
+            )
+            .filter(
+                (ParticipantHubspotData.edof_date_debut.isnot(None))
+                | (ParticipantHubspotData.edof_date_fin.isnot(None))
+            )
+            .all()
+        )
+        for pid, adf, deb, fin in edof_rows:
+            if adf:
+                edof_map[(pid, adf)] = (deb, fin)
+
         all_details: List[InactiveParticipantDetail] = []
         by_course_map: Dict[str, List[InactiveParticipantDetail]] = {}
 
@@ -333,6 +352,8 @@ class InactivityService:
                 snooze_until=snoozed_details.get((participant_id, adf_id)),
                 is_dismissed=(participant_id, adf_id) in dismissed_set,
                 latest_note_date=latest_notes_map.get((participant_id, adf_id)),
+                edof_date_debut=edof_map.get((participant_id, adf_id), (None, None))[0],
+                edof_date_fin=edof_map.get((participant_id, adf_id), (None, None))[1],
             )
 
             all_details.append(detail)

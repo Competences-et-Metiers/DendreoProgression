@@ -1690,6 +1690,12 @@ const InactiveManagement = () => {
                                         <Calendar size={14} />
                                         Ajouté: {formatDate(participant.enrollment_date)}
                                       </span>
+                                      {(participant.edof_date_debut || participant.edof_date_fin) && (
+                                        <span className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default">
+                                          <Calendar size={12} />
+                                          EDOF: {participant.edof_date_debut ? new Date(participant.edof_date_debut).toLocaleDateString('fr-FR') : '?'} → {participant.edof_date_fin ? new Date(participant.edof_date_fin).toLocaleDateString('fr-FR') : '?'}
+                                        </span>
+                                      )}
                                       <span
                                         className="group/source flex items-center gap-1"
                                         title={participant.last_activity_source ? `${t('inactiveManagement.lastActivitySource')}: ${t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}` : ''}
@@ -1850,6 +1856,12 @@ const InactiveManagement = () => {
                                 <Calendar size={14} />
                                 Ajouté: {formatDate(participant.enrollment_date)}
                               </span>
+                              {(participant.edof_date_debut || participant.edof_date_fin) && (
+                                <span className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default">
+                                  <Calendar size={12} />
+                                  EDOF: {participant.edof_date_debut ? new Date(participant.edof_date_debut).toLocaleDateString('fr-FR') : '?'} → {participant.edof_date_fin ? new Date(participant.edof_date_fin).toLocaleDateString('fr-FR') : '?'}
+                                </span>
+                              )}
                               <span
                                 className="group/source flex items-center gap-1"
                                 title={participant.last_activity_source ? `${t('inactiveManagement.lastActivitySource')}: ${t(`inactiveManagement.activitySource.${participant.last_activity_source}`)}` : ''}

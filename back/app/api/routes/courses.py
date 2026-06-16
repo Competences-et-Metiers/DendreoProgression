@@ -707,6 +707,8 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                     "deal_id": hubspot_deal_data.c_id_transaction_hubspot,
                     "deal_url": hubspot_deal_data.c_url_transaction_hubspot,
                 } if hubspot_deal_data and hubspot_deal_data.c_id_transaction_hubspot else None,
+                "edof_date_debut": hubspot_deal_data.edof_date_debut if hubspot_deal_data else None,
+                "edof_date_fin": hubspot_deal_data.edof_date_fin if hubspot_deal_data else None,
                 "modules": modules_data
             })
         

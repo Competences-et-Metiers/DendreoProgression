@@ -428,13 +428,52 @@ class DendreoSync:
             else:
                 logger.info("🧹 Skipping cleanup (DENDREO_ENABLE_CLEANUP=false)")
 
+            # Auto-link new participants to their single HubSpot deal (captures EDOF dates).
+            # Only the unambiguous case is linked (1 active ADF + 1 deal, no existing link);
+            # multi-deal / multi-ADF participants are left for staff to link manually.
+            # Bounded by the HubSpot budget; the progression phase below then runs with the
+            # remaining budget and pushes progression for the newly-linked deals too.
+            logger.info("🔗 Auto-linking new participants to HubSpot deals...")
+            autolink_calls = 0
+            try:
+                from app.services.edof_auto_link import auto_link_deals
+
+                autolink_result = await auto_link_deals(
+                    self.db,
+                    commit=True,
+                    sleep_s=0.15,
+                    max_hubspot_calls=hubspot_api_limit,
+                    update_counter=True,
+                    log=logger.info,
+                )
+                autolink_calls = autolink_result.get("hubspot_calls", 0)
+                self.stats["autolink_linked"] = autolink_result.get("linked", 0)
+                self.stats["autolink_candidates"] = autolink_result.get("candidates", 0)
+                self.stats["autolink_multi_deal"] = autolink_result.get("multi_deal", 0)
+                self.stats["autolink_hubspot_calls"] = autolink_calls
+                logger.info(
+                    f"🔗 Auto-link: {autolink_result.get('linked', 0)} linked, "
+                    f"{autolink_result.get('multi_deal', 0)} multi-deal skipped, "
+                    f"{autolink_calls} HubSpot calls"
+                    + (" (budget reached)" if autolink_result.get("budget_stopped") else "")
+                )
+            except Exception as e:
+                logger.error(f"❌ Auto-link phase failed: {str(e)}")
+                self.stats["autolink_error"] = str(e)
+
+            # Remaining HubSpot budget for the progression phase
+            remaining_hubspot_limit = (
+                hubspot_api_limit if hubspot_api_limit is None
+                else max(0, hubspot_api_limit - autolink_calls)
+            )
+
             # Update HubSpot deals with progression data
             logger.info("🔄 Updating HubSpot deals with progression data...")
             try:
                 # Import the function here to avoid circular imports
                 from update_hubspot_progression import update_hubspot_progressions_for_sync
 
-                hubspot_result = await update_hubspot_progressions_for_sync(self.db, max_api_calls=hubspot_api_limit)
+                hubspot_result = await update_hubspot_progressions_for_sync(self.db, max_api_calls=remaining_hubspot_limit)
                 
                 # Add HubSpot stats to our sync stats
                 self.stats["hubspot_updates_total"] = hubspot_result.get("total_processed", 0)

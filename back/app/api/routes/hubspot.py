@@ -132,6 +132,9 @@ async def link_deal(
 
     deal_url = f"https://app-eu1.hubspot.com/contacts/25868618/record/0-3/{body.deal_id}"
 
+    # Capture the deal's EDOF session dates (best-effort read, not budget-gated).
+    edof = await hubspot_client.get_deal_edof_dates(body.deal_id)
+
     # Upsert local link
     hubspot_data = db.query(ParticipantHubspotData).filter(
         ParticipantHubspotData.participant_id == body.participant_id,
@@ -142,6 +145,8 @@ async def link_deal(
         hubspot_data.c_id_transaction_hubspot = body.deal_id
         hubspot_data.c_url_transaction_hubspot = deal_url
         hubspot_data.is_manual_link = True
+        hubspot_data.edof_date_debut = edof.get("edof_date_debut")
+        hubspot_data.edof_date_fin = edof.get("edof_date_fin")
         hubspot_data.updated_at = datetime.now(timezone.utc)
     else:
         hubspot_data = ParticipantHubspotData(
@@ -150,6 +155,8 @@ async def link_deal(
             c_id_transaction_hubspot=body.deal_id,
             c_url_transaction_hubspot=deal_url,
             is_manual_link=True,
+            edof_date_debut=edof.get("edof_date_debut"),
+            edof_date_fin=edof.get("edof_date_fin"),
         )
         db.add(hubspot_data)
 
@@ -290,6 +297,8 @@ async def unlink_deal(
     hubspot_data.c_id_transaction_hubspot = None
     hubspot_data.c_url_transaction_hubspot = None
     hubspot_data.is_manual_link = False
+    hubspot_data.edof_date_debut = None
+    hubspot_data.edof_date_fin = None
     hubspot_data.updated_at = datetime.now(timezone.utc)
     db.commit()
 
