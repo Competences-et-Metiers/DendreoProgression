@@ -130,6 +130,11 @@ const DealLinkButton = ({ participantId, idActionFormation, email, hubspotDeal }
                       {formatAmount(deal.amount)}
                     </div>
                   )}
+                  {(deal.edof_date_debut || deal.edof_date_fin) && (
+                    <div className="text-xs text-teal-700 dark:text-teal-400 mt-0.5">
+                      EDOF: {deal.edof_date_debut ? new Date(deal.edof_date_debut).toLocaleDateString('fr-FR') : '?'} → {deal.edof_date_fin ? new Date(deal.edof_date_fin).toLocaleDateString('fr-FR') : '?'}
+                    </div>
+                  )}
                 </button>
                 <a
                   href={`https://app-eu1.hubspot.com/contacts/25868618/record/0-3/${deal.id}`}

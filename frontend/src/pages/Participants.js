@@ -16,7 +16,8 @@ import {
   ExternalLink,
   ArrowUp,
   ArrowDown,
-  Loader
+  Loader,
+  Calendar
 } from 'lucide-react';
 import { apiService } from '../services/api';
 
@@ -420,10 +421,28 @@ const Participants = () => {
                           </span>
                         </div>
                       </div>
-                      
+
+                      {/* EDOF session dates (per linked deal/course) */}
+                      {participant.courses && participant.courses.some(c => c.edof_date_debut || c.edof_date_fin) && (
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          {participant.courses
+                            .filter(c => c.edof_date_debut || c.edof_date_fin)
+                            .map(c => (
+                              <span
+                                key={c.id}
+                                className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default"
+                                title={c.course?.intitule || ''}
+                              >
+                                <Calendar size={12} />
+                                EDOF: {c.edof_date_debut ? new Date(c.edof_date_debut).toLocaleDateString('fr-FR') : '?'} → {c.edof_date_fin ? new Date(c.edof_date_fin).toLocaleDateString('fr-FR') : '?'}
+                              </span>
+                            ))}
+                        </div>
+                      )}
+
                       {/* Progress Bar */}
-                      <ProgressBar 
-                        percentage={participant.overall_progression || 0} 
+                      <ProgressBar
+                        percentage={participant.overall_progression || 0}
                         size="small"
                         className="max-w-md"
                       />

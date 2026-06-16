@@ -369,6 +369,12 @@ const ParticipantDetail = () => {
                           <Calendar size={14} className="mr-1" />
                           Ajouté: {formatDate(course.date_add || course.created_at)}
                         </div>
+                        {(course.edof_date_debut || course.edof_date_fin) && (
+                          <div className="flex items-center text-sm text-teal-700 dark:text-teal-400">
+                            <Calendar size={14} className="mr-1" />
+                            Session EDOF: {course.edof_date_debut ? new Date(course.edof_date_debut).toLocaleDateString('fr-FR') : '?'} → {course.edof_date_fin ? new Date(course.edof_date_fin).toLocaleDateString('fr-FR') : '?'}
+                          </div>
+                        )}
                       </div>
                       
                       <ProgressBar 

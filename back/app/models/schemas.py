@@ -67,6 +67,10 @@ class ParticipantCourse(ParticipantCourseBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+    # EDOF session dates from the linked HubSpot deal (populated by the participants endpoint)
+    edof_date_debut: Optional[str] = None
+    edof_date_fin: Optional[str] = None
+
     # Include related objects
     participant: Optional[Participant] = None
     course: Optional["CourseResponse"] = None
@@ -144,6 +148,10 @@ class InactiveParticipantDetail(BaseModel):
 
     # Latest note date (populated by inactivity service)
     latest_note_date: Optional[datetime] = None
+
+    # EDOF session dates from the linked HubSpot deal (populated by inactivity service)
+    edof_date_debut: Optional[str] = None
+    edof_date_fin: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -343,6 +351,8 @@ class DealInfo(BaseModel):
     id: str
     dealname: str
     amount: Optional[str] = None
+    edof_date_debut: Optional[str] = None
+    edof_date_fin: Optional[str] = None
 
 class LinkDealRequest(BaseModel):
     participant_id: int

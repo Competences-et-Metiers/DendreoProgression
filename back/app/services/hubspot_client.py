@@ -7,6 +7,31 @@ from app.config.settings import settings  # Remove 'back.' prefix
 
 logger = logging.getLogger(__name__)
 
+# HubSpot deal property internal names for the EDOF session dates
+# (form labels: "Date Début Session EDOF" / "Date Fin Session EDOF").
+EDOF_DATE_DEBUT_PROP = "date_debut_formation"
+EDOF_DATE_FIN_PROP = "date_fin_formation_edof"
+
+
+def normalize_hs_date(value: Any) -> Optional[str]:
+    """Normalize a HubSpot date property value to an ISO 'YYYY-MM-DD' string.
+
+    HubSpot date properties come back either as epoch-millis strings (midnight UTC)
+    or as ISO date/datetime strings depending on the property/endpoint. Returns None
+    for empty/unparseable values."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    if s.isdigit():  # epoch milliseconds
+        try:
+            return datetime.fromtimestamp(int(s) / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+        except (ValueError, OSError, OverflowError):
+            return None
+    return s[:10]  # ISO date or datetime -> keep the date part
+
+
 class HubSpotClient:
     _OWNERS_CACHE_TTL_SEC = 600
 
@@ -199,7 +224,10 @@ class HubSpotClient:
             async with httpx.AsyncClient(timeout=30) as client:
                 batch_url = f"{self.base_url}/crm/v3/objects/deals/batch/read"
                 batch_body = {
-                    "properties": ["dealname", "amount", "formation_detaillee"],
+                    "properties": [
+                        "dealname", "amount", "formation_detaillee",
+                        EDOF_DATE_DEBUT_PROP, EDOF_DATE_FIN_PROP,
+                    ],
                     "inputs": [{"id": did} for did in deal_ids[:100]]
                 }
                 response = await client.post(batch_url, json=batch_body, headers=headers)
@@ -214,6 +242,8 @@ class HubSpotClient:
                         'dealname': props.get('dealname', ''),
                         'amount': props.get('amount'),
                         'formation_detaillee': props.get('formation_detaillee'),
+                        'edof_date_debut': normalize_hs_date(props.get(EDOF_DATE_DEBUT_PROP)),
+                        'edof_date_fin': normalize_hs_date(props.get(EDOF_DATE_FIN_PROP)),
                     })
                 return deals
 
@@ -223,6 +253,28 @@ class HubSpotClient:
         except Exception as e:
             logger.error(f"Error fetching HubSpot deals for {email}: {e}")
             return []
+
+    async def get_deal_edof_dates(self, deal_id: str) -> Dict[str, Optional[str]]:
+        """Fetch the EDOF session dates for a single deal.
+        Returns {'edof_date_debut': ..., 'edof_date_fin': ...} (ISO dates or None)."""
+        empty = {"edof_date_debut": None, "edof_date_fin": None}
+        if not self.api_key or not deal_id:
+            return empty
+
+        url = f"{self.base_url}/crm/v3/objects/deals/{deal_id}"
+        params = {"properties": f"{EDOF_DATE_DEBUT_PROP},{EDOF_DATE_FIN_PROP}"}
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(url, params=params, headers=self._get_headers())
+                response.raise_for_status()
+                props = response.json().get("properties", {})
+                return {
+                    "edof_date_debut": normalize_hs_date(props.get(EDOF_DATE_DEBUT_PROP)),
+                    "edof_date_fin": normalize_hs_date(props.get(EDOF_DATE_FIN_PROP)),
+                }
+        except httpx.HTTPError as e:
+            logger.warning(f"Failed to fetch EDOF dates for deal {deal_id}: {e}")
+            return empty
 
     async def get_owner_by_email(self, email: str) -> Optional[str]:
         """Look up a HubSpot owner ID by email. Returns owner ID or None."""
