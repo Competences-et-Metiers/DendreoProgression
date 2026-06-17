@@ -231,13 +231,13 @@ const InactiveManagement = () => {
       const f = new Date(fin); f.setHours(0, 0, 0, 0);
       const days = Math.round((f - today) / 86400000);
       if (days < 0) { tone = 'gray'; note = `Session EDOF terminée depuis ${-days} j`; }
-      else if (days <= 30) { tone = 'amber'; note = `Session EDOF se termine dans ${days} j`; }
+      else if (days <= edofEndingSoonDays) { tone = 'amber'; note = `Session EDOF se termine dans ${days} j`; }
       else { note = `Session EDOF se termine dans ${days} j`; }
     } else {
       note = 'Session EDOF';
     }
     return { debut, fin, tone, note };
-  }, []);
+  }, [edofEndingSoonDays]);
 
   // Intervention expand state
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
