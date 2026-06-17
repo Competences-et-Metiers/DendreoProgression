@@ -39,10 +39,10 @@ export const useCourseParticipants = (courseId) => {
 };
 
 // Participant hooks
-export const useParticipants = (page = 1, pageSize = 25, searchTerm = '') => {
+export const useParticipants = (page = 1, pageSize = 25, searchTerm = '', dealFilter = 'all') => {
   return useQuery({
-    queryKey: [...queryKeys.participants, page, pageSize, searchTerm],
-    queryFn: () => apiService.getAllParticipants(page, pageSize, searchTerm),
+    queryKey: [...queryKeys.participants, page, pageSize, searchTerm, dealFilter],
+    queryFn: () => apiService.getAllParticipants(page, pageSize, searchTerm, dealFilter),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     refetchOnMount: false,
@@ -50,10 +50,10 @@ export const useParticipants = (page = 1, pageSize = 25, searchTerm = '') => {
   });
 };
 
-export const useParticipantsCount = (searchTerm = '') => {
+export const useParticipantsCount = (searchTerm = '', dealFilter = 'all') => {
   return useQuery({
-    queryKey: [...queryKeys.participants, 'count', searchTerm],
-    queryFn: () => apiService.getParticipantsCount(searchTerm),
+    queryKey: [...queryKeys.participants, 'count', searchTerm, dealFilter],
+    queryFn: () => apiService.getParticipantsCount(searchTerm, dealFilter),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 15 * 60 * 1000, // 15 minutes
     refetchOnMount: false,

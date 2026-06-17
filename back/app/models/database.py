@@ -144,6 +144,14 @@ def create_tables():
 
         with engine.connect() as conn:
             try:
+                conn.execute(text("ALTER TABLE participants ADD COLUMN IF NOT EXISTS edof_sessions JSON"))
+                conn.commit()
+                logger.info("Ensured participants.edof_sessions column exists")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
                 conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS date_debut TIMESTAMPTZ"))
                 conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS date_fin TIMESTAMPTZ"))
                 conn.commit()

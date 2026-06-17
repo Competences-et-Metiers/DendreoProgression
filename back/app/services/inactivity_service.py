@@ -354,6 +354,7 @@ class InactivityService:
                 latest_note_date=latest_notes_map.get((participant_id, adf_id)),
                 edof_date_debut=edof_map.get((participant_id, adf_id), (None, None))[0],
                 edof_date_fin=edof_map.get((participant_id, adf_id), (None, None))[1],
+                edof_sessions=participant.edof_sessions or [],
             )
 
             all_details.append(detail)

@@ -87,6 +87,8 @@ class ParticipantWithProgress(Participant):
     active_courses: int = 0
     id_lap: Optional[str] = None
     linked_deals_count: int = 0
+    # Participant-level EDOF sessions: [{deal_id, date_debut, date_fin}, ...]
+    edof_sessions: Optional[List[dict]] = None
 
 class CourseWithParticipants(CourseResponse):
     participants: List[ParticipantCourse] = []
@@ -152,6 +154,8 @@ class InactiveParticipantDetail(BaseModel):
     # EDOF session dates from the linked HubSpot deal (populated by inactivity service)
     edof_date_debut: Optional[str] = None
     edof_date_fin: Optional[str] = None
+    # Participant-level EDOF sessions (all eligible deals): [{deal_id, date_debut, date_fin}, ...]
+    edof_sessions: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True

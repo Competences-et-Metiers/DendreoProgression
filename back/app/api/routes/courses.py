@@ -720,6 +720,7 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
                 "prenom": participant.prenom,
                 "email": participant.email,
                 "id_entreprise": participant.id_entreprise,
+                "edof_sessions": participant.edof_sessions or [],
                 "created_at": participant.created_at.isoformat() if participant.created_at else None
             },
             "courses": courses_data,

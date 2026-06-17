@@ -14,6 +14,10 @@ class Participant(Base):
     prenom = Column(String)
     email = Column(String)
     id_entreprise = Column(String, nullable=True)  # Company ID from Dendreo
+    # Participant-level EDOF session dates, derived from ALL eligible HubSpot deals on the
+    # contact (pipeline + stage qualified). List of {deal_id, date_debut, date_fin}.
+    # Tied to the participant, not their courses — a participant may have several.
+    edof_sessions = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

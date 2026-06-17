@@ -226,6 +226,7 @@ class HubSpotClient:
                 batch_body = {
                     "properties": [
                         "dealname", "amount", "formation_detaillee",
+                        "pipeline", "dealstage",
                         EDOF_DATE_DEBUT_PROP, EDOF_DATE_FIN_PROP,
                     ],
                     "inputs": [{"id": did} for did in deal_ids[:100]]
@@ -242,6 +243,8 @@ class HubSpotClient:
                         'dealname': props.get('dealname', ''),
                         'amount': props.get('amount'),
                         'formation_detaillee': props.get('formation_detaillee'),
+                        'pipeline': props.get('pipeline'),
+                        'dealstage': props.get('dealstage'),
                         'edof_date_debut': normalize_hs_date(props.get(EDOF_DATE_DEBUT_PROP)),
                         'edof_date_fin': normalize_hs_date(props.get(EDOF_DATE_FIN_PROP)),
                     })

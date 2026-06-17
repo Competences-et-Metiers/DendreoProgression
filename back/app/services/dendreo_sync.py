@@ -428,13 +428,12 @@ class DendreoSync:
             else:
                 logger.info("🧹 Skipping cleanup (DENDREO_ENABLE_CLEANUP=false)")
 
-            # Auto-link new participants to their single HubSpot deal (captures EDOF dates).
-            # Only the unambiguous case is linked (1 active ADF + 1 deal, no existing link);
-            # multi-deal / multi-ADF participants are left for staff to link manually.
-            # Bounded by the HubSpot budget; the progression phase below then runs with the
-            # remaining budget and pushes progression for the newly-linked deals too.
+            # Auto-link new participants to their HubSpot deal (captures EDOF dates).
+            # Only the unambiguous case is linked (exactly one eligible deal in the EDOF
+            # pipeline); the deal is tied to the participant and replicated across all
+            # their active courses. Multi-eligible-deal participants are left for staff.
+            # Bounded by the HubSpot API budget.
             logger.info("🔗 Auto-linking new participants to HubSpot deals...")
-            autolink_calls = 0
             try:
                 from app.services.edof_auto_link import auto_link_deals
 
@@ -446,53 +445,19 @@ class DendreoSync:
                     update_counter=True,
                     log=logger.info,
                 )
-                autolink_calls = autolink_result.get("hubspot_calls", 0)
                 self.stats["autolink_linked"] = autolink_result.get("linked", 0)
                 self.stats["autolink_candidates"] = autolink_result.get("candidates", 0)
                 self.stats["autolink_multi_deal"] = autolink_result.get("multi_deal", 0)
-                self.stats["autolink_hubspot_calls"] = autolink_calls
+                self.stats["autolink_hubspot_calls"] = autolink_result.get("hubspot_calls", 0)
                 logger.info(
                     f"🔗 Auto-link: {autolink_result.get('linked', 0)} linked, "
                     f"{autolink_result.get('multi_deal', 0)} multi-deal skipped, "
-                    f"{autolink_calls} HubSpot calls"
+                    f"{autolink_result.get('hubspot_calls', 0)} HubSpot calls"
                     + (" (budget reached)" if autolink_result.get("budget_stopped") else "")
                 )
             except Exception as e:
                 logger.error(f"❌ Auto-link phase failed: {str(e)}")
                 self.stats["autolink_error"] = str(e)
-
-            # Remaining HubSpot budget for the progression phase
-            remaining_hubspot_limit = (
-                hubspot_api_limit if hubspot_api_limit is None
-                else max(0, hubspot_api_limit - autolink_calls)
-            )
-
-            # Update HubSpot deals with progression data
-            logger.info("🔄 Updating HubSpot deals with progression data...")
-            try:
-                # Import the function here to avoid circular imports
-                from update_hubspot_progression import update_hubspot_progressions_for_sync
-
-                hubspot_result = await update_hubspot_progressions_for_sync(self.db, max_api_calls=remaining_hubspot_limit)
-                
-                # Add HubSpot stats to our sync stats
-                self.stats["hubspot_updates_total"] = hubspot_result.get("total_processed", 0)
-                self.stats["hubspot_updates_successful"] = hubspot_result.get("successful_updates", 0)
-                self.stats["hubspot_updates_failed"] = hubspot_result.get("failed_updates", 0)
-                self.stats["hubspot_status"] = hubspot_result.get("status", "unknown")
-                
-                if hubspot_result["status"] == "skipped":
-                    logger.info("⏭️  HubSpot progression updates skipped (API key not configured)")
-                elif hubspot_result["status"] == "error":
-                    logger.warning(f"⚠️  HubSpot progression updates failed: {hubspot_result['message']}")
-                else:
-                    logger.info(f"✅ HubSpot progression updates completed: {hubspot_result['successful_updates']}/{hubspot_result['total_processed']} successful")
-                    
-            except Exception as e:
-                logger.error(f"❌ Error during HubSpot progression updates: {str(e)}")
-                # Don't fail the entire sync if HubSpot updates fail
-                self.stats["hubspot_status"] = "error"
-                self.stats["hubspot_error"] = str(e)
 
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()

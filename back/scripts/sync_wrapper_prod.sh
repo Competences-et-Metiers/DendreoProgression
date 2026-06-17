@@ -143,12 +143,8 @@ SYNC_EXIT_CODE=${PIPESTATUS[0]}
 
 if [ "$SYNC_EXIT_CODE" -eq 0 ]; then
     echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Sync completed successfully (PID: $$)"
-
-    # HubSpot updates if configured
-    if [ -n "${HUBSPOT_API_KEY}" ] && [ "${HUBSPOT_API_KEY}" != "your_hubspot_api_key_here" ]; then
-        echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - Running HubSpot progression updates..."
-        timeout 600 python3 /app/update_hubspot_progression.py 2>&1 || echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') - WARNING: HubSpot updates failed"
-    fi
+    # Note: EDOF deal auto-linking now runs inside sync_dendreo.py; the obsolete
+    # HubSpot progression push has been removed.
 
     exit 0
 else

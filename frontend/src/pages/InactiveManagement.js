@@ -220,9 +220,9 @@ const InactiveManagement = () => {
   const [edofNoActivityInput, setEdofNoActivityInput] = useState('3');
 
   // EDOF pill metadata: parse dates + derive an urgency tone (ended/ending-soon/ok).
-  const getEdofMeta = useCallback((p) => {
-    const debut = p.edof_date_debut ? new Date(p.edof_date_debut) : null;
-    const fin = p.edof_date_fin ? new Date(p.edof_date_fin) : null;
+  const getEdofMeta = useCallback((s) => {
+    const debut = s.date_debut ? new Date(s.date_debut) : null;
+    const fin = s.date_fin ? new Date(s.date_fin) : null;
     if (!debut && !fin) return null;
     let tone = 'teal';
     let note = '';
@@ -231,13 +231,13 @@ const InactiveManagement = () => {
       const f = new Date(fin); f.setHours(0, 0, 0, 0);
       const days = Math.round((f - today) / 86400000);
       if (days < 0) { tone = 'gray'; note = `Session EDOF terminée depuis ${-days} j`; }
-      else if (days <= 30) { tone = 'amber'; note = `Session EDOF se termine dans ${days} j`; }
+      else if (days <= edofEndingSoonDays) { tone = 'amber'; note = `Session EDOF se termine dans ${days} j`; }
       else { note = `Session EDOF se termine dans ${days} j`; }
     } else {
       note = 'Session EDOF';
     }
     return { debut, fin, tone, note };
-  }, []);
+  }, [edofEndingSoonDays]);
 
   // Intervention expand state
   const [expandedParticipants, setExpandedParticipants] = useState(new Set());
@@ -498,9 +498,11 @@ const InactiveManagement = () => {
           filtered = filtered.filter(p => !!p.latest_note_date);
         }
       }
-      // EDOF date filters (only when EDOF display is enabled)
+      // EDOF date filters (only when EDOF display is enabled). EDOF is participant-level:
+      // a participant can have several sessions, so a filter matches when ANY session does.
       if (showEdofDates) {
-        const hasEdof = (p) => !!(p.edof_date_debut || p.edof_date_fin);
+        const sessionsOf = (p) => p.edof_sessions || [];
+        const hasEdof = (p) => sessionsOf(p).length > 0;
         if (edofFilterWithout) {
           filtered = filtered.filter(p => !hasEdof(p));
         } else {
@@ -509,26 +511,28 @@ const InactiveManagement = () => {
           }
           if (edofFilterEndingSoon || edofFilterEnded || edofFilterActive) {
             const today = new Date(); today.setHours(0, 0, 0, 0);
-            filtered = filtered.filter(p => {
-              if (!p.edof_date_fin) return false;
-              const fin = new Date(p.edof_date_fin); fin.setHours(0, 0, 0, 0);
+            filtered = filtered.filter(p => sessionsOf(p).some(s => {
+              if (!s.date_fin) return false;
+              const fin = new Date(s.date_fin); fin.setHours(0, 0, 0, 0);
               const daysToEnd = Math.round((fin - today) / 86400000);
               return (
                 (edofFilterEndingSoon && daysToEnd >= 0 && daysToEnd <= edofEndingSoonDays) ||
                 (edofFilterEnded && daysToEnd < 0) ||
                 (edofFilterActive && daysToEnd >= 0)
               );
-            });
+            }));
           }
-          // Alert: X days past EDOF start with no real activity (0% progression,
-          // no attended CV, no planned CV) — the funding clock is running but nothing has started.
+          // Alert: X days past an EDOF start with no real activity (0% progression,
+          // no attended CV, no planned CV) — the funding clock is running but nothing started.
           if (edofFilterNoActivityAfterStart) {
             const today = new Date(); today.setHours(0, 0, 0, 0);
             filtered = filtered.filter(p => {
-              if (!p.edof_date_debut) return false;
-              const start = new Date(p.edof_date_debut); start.setHours(0, 0, 0, 0);
-              const daysSinceStart = Math.round((today - start) / 86400000);
-              if (daysSinceStart < edofNoActivityDays) return false;
+              const anyOldStart = sessionsOf(p).some(s => {
+                if (!s.date_debut) return false;
+                const start = new Date(s.date_debut); start.setHours(0, 0, 0, 0);
+                return Math.round((today - start) / 86400000) >= edofNoActivityDays;
+              });
+              if (!anyOldStart) return false;
               const prog = p.current_progression ?? p.overall_progression ?? 0;
               const hasProgress = prog >= 0.01;
               const attendedCV = (p.liveroom_time_spent_hours || 0) > 0;
@@ -538,10 +542,10 @@ const InactiveManagement = () => {
           }
           // Absolute date-range filters (ISO strings compare lexicographically)
           if (edofStartAfter) {
-            filtered = filtered.filter(p => p.edof_date_debut && p.edof_date_debut >= edofStartAfter);
+            filtered = filtered.filter(p => sessionsOf(p).some(s => s.date_debut && s.date_debut >= edofStartAfter));
           }
           if (edofEndBefore) {
-            filtered = filtered.filter(p => p.edof_date_fin && p.edof_date_fin <= edofEndBefore);
+            filtered = filtered.filter(p => sessionsOf(p).some(s => s.date_fin && s.date_fin <= edofEndBefore));
           }
         }
       }
@@ -596,10 +600,12 @@ const InactiveManagement = () => {
             break;
           }
           case 'edof_fin': {
-            // Sort by EDOF end date; missing dates sort last (ascending = soonest-ending first)
-            const finA = a.edof_date_fin ? new Date(a.edof_date_fin).getTime() : Infinity;
-            const finB = b.edof_date_fin ? new Date(b.edof_date_fin).getTime() : Infinity;
-            comparison = finA - finB;
+            // Sort by soonest EDOF end date across the participant's sessions; missing last.
+            const minFin = (p) => {
+              const fins = (p.edof_sessions || []).map(s => s.date_fin).filter(Boolean);
+              return fins.length ? Math.min(...fins.map(d => new Date(d).getTime())) : Infinity;
+            };
+            comparison = minFin(a) - minFin(b);
             break;
           }
           default:
@@ -1968,16 +1974,16 @@ const InactiveManagement = () => {
                                       <span className="text-sm text-gray-500 dark:text-gray-400">
                                         ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                                       </span>
-                                      {showEdofDates && (() => {
-                                        const m = getEdofMeta(participant);
+                                      {showEdofDates && (participant.edof_sessions || []).map((s, i) => {
+                                        const m = getEdofMeta(s);
                                         if (!m) return null;
                                         return (
-                                          <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-default ${EDOF_TONE_CLASSES[m.tone]}`} title={m.note}>
+                                          <span key={s.deal_id || i} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-default ${EDOF_TONE_CLASSES[m.tone]}`} title={m.note}>
                                             <Calendar size={12} />
                                             EDOF {m.debut ? m.debut.toLocaleDateString('fr-FR') : '?'} → {m.fin ? m.fin.toLocaleDateString('fr-FR') : '?'}
                                           </span>
                                         );
-                                      })()}
+                                      })}
                                     </div>
                                     <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
                                       <span className="flex items-center gap-1">
@@ -2138,16 +2144,16 @@ const InactiveManagement = () => {
                               <span className="text-sm text-gray-500 dark:text-gray-400">
                                 ({(participant.current_progression || participant.overall_progression || 0).toFixed(1)}%)
                               </span>
-                              {showEdofDates && (() => {
-                                const m = getEdofMeta(participant);
+                              {showEdofDates && (participant.edof_sessions || []).map((s, i) => {
+                                const m = getEdofMeta(s);
                                 if (!m) return null;
                                 return (
-                                  <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-default ${EDOF_TONE_CLASSES[m.tone]}`} title={m.note}>
+                                  <span key={s.deal_id || i} className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-default ${EDOF_TONE_CLASSES[m.tone]}`} title={m.note}>
                                     <Calendar size={12} />
                                     EDOF {m.debut ? m.debut.toLocaleDateString('fr-FR') : '?'} → {m.fin ? m.fin.toLocaleDateString('fr-FR') : '?'}
                                   </span>
                                 );
-                              })()}
+                              })}
                             </div>
                             <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
                               <span className="flex items-center gap-1">
