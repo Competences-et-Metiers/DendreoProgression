@@ -74,6 +74,13 @@ const Participants = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  // Deal-link filter: 'all' | 'with' | 'without' (applied server-side)
+  const [dealFilter, setDealFilter] = useState(() => {
+    return localStorage.getItem('participants.dealFilter') || 'all';
+  });
+  useEffect(() => {
+    localStorage.setItem('participants.dealFilter', dealFilter);
+  }, [dealFilter]);
   const searchInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -89,7 +96,7 @@ const Participants = () => {
     error,
     refetch,
     isFetching
-  } = useParticipants(currentPage, pageSize, debouncedSearchTerm);
+  } = useParticipants(currentPage, pageSize, debouncedSearchTerm, dealFilter);
   // refetch kept for error retry button
   
   // Keep previous data visible during refetch to avoid jarring reloads
@@ -109,7 +116,7 @@ const Participants = () => {
   const { 
     data: countData,
     isLoading: countLoading
-  } = useParticipantsCount(debouncedSearchTerm);
+  } = useParticipantsCount(debouncedSearchTerm, dealFilter);
   
   const { prefetchParticipantDetails } = usePrefetchQueries();
 
@@ -130,14 +137,6 @@ const Participants = () => {
       }
     }
   });
-
-  // Deal-link filter: 'all' | 'with' | 'without'
-  const [dealFilter, setDealFilter] = useState(() => {
-    return localStorage.getItem('participants.dealFilter') || 'all';
-  });
-  useEffect(() => {
-    localStorage.setItem('participants.dealFilter', dealFilter);
-  }, [dealFilter]);
 
   // Reset to first page when search/sort/filter changes
   useEffect(() => {
@@ -172,13 +171,9 @@ const Participants = () => {
   const getFilteredAndSortedParticipants = () => {
     const sortMultiplier = sortDirection === 'asc' ? 1 : -1;
 
-    const filtered = displayParticipants.filter(p => {
-      if (dealFilter === 'with') return (p.linked_deals_count || 0) > 0;
-      if (dealFilter === 'without') return (p.linked_deals_count || 0) === 0;
-      return true;
-    });
-
-    return [...filtered].sort((a, b) => {
+    // Deal filter is applied server-side (so pagination + total stay consistent);
+    // here we only sort the current page.
+    return [...displayParticipants].sort((a, b) => {
       let comparison = 0;
       switch (sortBy) {
         case 'name':
@@ -423,20 +418,17 @@ const Participants = () => {
                       </div>
 
                       {/* EDOF session dates (per linked deal/course) */}
-                      {participant.courses && participant.courses.some(c => c.edof_date_debut || c.edof_date_fin) && (
+                      {participant.edof_sessions && participant.edof_sessions.length > 0 && (
                         <div className="flex flex-wrap items-center gap-2 mb-3">
-                          {participant.courses
-                            .filter(c => c.edof_date_debut || c.edof_date_fin)
-                            .map(c => (
-                              <span
-                                key={c.id}
-                                className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default"
-                                title={c.course?.intitule || ''}
-                              >
-                                <Calendar size={12} />
-                                EDOF: {c.edof_date_debut ? new Date(c.edof_date_debut).toLocaleDateString('fr-FR') : '?'} → {c.edof_date_fin ? new Date(c.edof_date_fin).toLocaleDateString('fr-FR') : '?'}
-                              </span>
-                            ))}
+                          {participant.edof_sessions.map((s, i) => (
+                            <span
+                              key={s.deal_id || i}
+                              className="flex items-center gap-1 text-xs bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-400 px-2 py-0.5 rounded-full cursor-default"
+                            >
+                              <Calendar size={12} />
+                              EDOF: {s.date_debut ? new Date(s.date_debut).toLocaleDateString('fr-FR') : '?'} → {s.date_fin ? new Date(s.date_fin).toLocaleDateString('fr-FR') : '?'}
+                            </span>
+                          ))}
                         </div>
                       )}
 

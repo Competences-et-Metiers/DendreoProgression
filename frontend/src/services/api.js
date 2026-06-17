@@ -64,30 +64,36 @@ export const apiService = {
   },
 
   // Participants
-  async getAllParticipants(page = 1, pageSize = 25, searchTerm = '') {
+  async getAllParticipants(page = 1, pageSize = 25, searchTerm = '', dealFilter = 'all') {
     const skip = (page - 1) * pageSize;
     const params = {
       skip,
       limit: pageSize
     };
-    
+
     // Add search parameters if provided
     if (searchTerm) {
       params.search = searchTerm;
     }
-    
+    if (dealFilter === 'with' || dealFilter === 'without') {
+      params.deal_filter = dealFilter;
+    }
+
     const response = await api.get('/participants/', { params });
     return response.data;
   },
 
-  async getParticipantsCount(searchTerm = '') {
+  async getParticipantsCount(searchTerm = '', dealFilter = 'all') {
     const params = {};
-    
+
     // Add search parameters if provided
     if (searchTerm) {
       params.search = searchTerm;
     }
-    
+    if (dealFilter === 'with' || dealFilter === 'without') {
+      params.deal_filter = dealFilter;
+    }
+
     const response = await api.get('/participants/count', { params });
     return response.data;
   },

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, and_, func as sa_func
+from sqlalchemy import or_, and_, exists, func as sa_func
 from typing import List, Optional
 from app.models.database import get_db
 from app.models.models import Participant, ParticipantCourse, Course, ModuleCategory, ParticipantHubspotData
@@ -127,6 +127,25 @@ def calculate_activity_status(participant_course: ParticipantCourse, db: Session
     else:
         return "inactive"
 
+def _linked_deal_exists():
+    """EXISTS clause: participant has at least one linked HubSpot deal."""
+    return exists().where(
+        and_(
+            ParticipantHubspotData.participant_id == Participant.id,
+            ParticipantHubspotData.c_id_transaction_hubspot.isnot(None),
+        )
+    )
+
+
+def _apply_deal_filter(query, deal_filter: Optional[str]):
+    """Filter a participants query by linked-deal presence ('with' | 'without')."""
+    if deal_filter == 'with':
+        return query.filter(_linked_deal_exists())
+    if deal_filter == 'without':
+        return query.filter(~_linked_deal_exists())
+    return query
+
+
 @router.get("/", response_model=List[ParticipantWithProgress])
 async def get_participants(
         skip: int = Query(0, ge=0),
@@ -134,12 +153,13 @@ async def get_participants(
         email: Optional[str] = Query(None),
         company: Optional[str] = Query(None),
         search: Optional[str] = Query(None),
+        deal_filter: Optional[str] = Query(None),  # 'with' | 'without' linked HubSpot deal
         db: Session = Depends(get_db)
 ):
     """Get all participants with their course progress"""
     try:
         # For basic requests without filters, try cache first
-        if skip == 0 and limit == 100 and not email and not company and not search:
+        if skip == 0 and limit == 100 and not email and not company and not search and not deal_filter:
             cached_participants = cache_service.get_participants_list()
             if cached_participants:
                 logger.info("🚀 Participants list served from cache")
@@ -177,6 +197,9 @@ async def get_participants(
         # Note: company field doesn't exist in our model, so removing this filter
         # if company:
         #     query = query.filter(Participant.company.ilike(f"%{company}%"))
+
+        # Filter by linked-deal presence (server-side so pagination + count stay consistent)
+        query = _apply_deal_filter(query, deal_filter)
 
         # Apply pagination
         participants = query.offset(skip).limit(limit).all()
@@ -284,6 +307,7 @@ async def get_participants_count(
         email: Optional[str] = Query(None),
         company: Optional[str] = Query(None),
         search: Optional[str] = Query(None),
+        deal_filter: Optional[str] = Query(None),  # 'with' | 'without' linked HubSpot deal
         db: Session = Depends(get_db)
 ):
     """Get total count of participants"""
@@ -312,6 +336,8 @@ async def get_participants_count(
         # Note: company field doesn't exist in our model, so removing this filter
         # if company:
         #     query = query.filter(Participant.company.ilike(f"%{company}%"))
+
+        query = _apply_deal_filter(query, deal_filter)
 
         count = query.count()
         return {"total": count}

@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 import httpx
 import logging
 from datetime import datetime, timezone
@@ -9,7 +8,7 @@ from app.services.hubspot_client import hubspot_client
 from app.services.dendreo_client import DendreoClient, DendreoAPIError
 from app.services.api_budget import check_budget
 from app.models.database import get_db
-from app.models.models import Participant, ParticipantHubspotData, ParticipantCourse, Course, Module, User, ActionHistory
+from app.models.models import Participant, ParticipantHubspotData, ParticipantCourse, Course, User, ActionHistory
 from app.models.schemas import LinkDealRequest, UnlinkDealRequest
 from app.auth.dependencies import get_current_user
 from app.services.cache_service import cache_service
@@ -160,41 +159,21 @@ async def link_deal(
         )
         db.add(hubspot_data)
 
+    # Merge this deal's EDOF dates into the participant-level sessions (the display
+    # source). Replace any existing entry for the same deal; keep the others.
+    if edof.get("edof_date_debut") or edof.get("edof_date_fin"):
+        sessions = [s for s in (participant.edof_sessions or []) if s.get("deal_id") != body.deal_id]
+        sessions.append({
+            "deal_id": body.deal_id,
+            "date_debut": edof.get("edof_date_debut"),
+            "date_fin": edof.get("edof_date_fin"),
+        })
+        sessions.sort(key=lambda s: s.get("date_debut") or s.get("date_fin") or "")
+        participant.edof_sessions = sessions
+
     db.commit()
 
-    # Compute avg progression for this (participant, ADF)
-    progression = None
-    try:
-        avg_result = (
-            db.query(func.avg(Module.lms_progression))
-            .join(Course, Course.id_lam == Module.id_lam)
-            .filter(
-                Module.participant_id == body.participant_id,
-                Course.id_action_formation == body.id_action_formation,
-            )
-            .scalar()
-        )
-        if avg_result is not None:
-            progression = round(float(avg_result), 2)
-    except Exception as e:
-        logger.warning(f"Could not compute progression for participant {body.participant_id} ADF {body.id_action_formation}: {e}")
-
-    # Push to HubSpot
-    hubspot_calls = 0
-    hubspot_push_ok = False
-    if progression is not None:
-        hubspot_calls = 1
-        # HubSpot percentage property stores fraction-of-one (0.661 = 66.1%)
-        # Keep 3 decimals = 0.1% precision
-        progression_fraction = f"{progression / 100:.3f}"
-        try:
-            hubspot_push_ok = await hubspot_client.update_deal_properties(
-                body.deal_id, {"progression_e_learning": progression_fraction},
-            )
-        except Exception as e:
-            logger.warning(f"HubSpot deal property push failed: {e}")
-
-    # Push to Dendreo
+    # Push deal fields to the Dendreo LAP (local link + EDOF saved above).
     dendreo_calls = 0
     dendreo_push_ok = False
     id_lap = hubspot_data.id_lap or _resolve_id_lap(db, body.participant_id, body.id_action_formation)
@@ -223,41 +202,35 @@ async def link_deal(
 
     cache_service.invalidate_participant_cache(body.participant_id)
 
-    # Determine overall status
-    attempted = (hubspot_calls > 0) + (dendreo_calls > 0)
-    succeeded = int(hubspot_push_ok) + int(dendreo_push_ok)
-    if attempted == 0:
+    # Status: the only external write is the Dendreo LAP push (when applicable).
+    if dendreo_calls == 0:
         overall = 'success'  # local link only
-    elif succeeded == attempted:
+    elif dendreo_push_ok:
         overall = 'success'
-    elif succeeded == 0:
-        overall = 'error'
     else:
-        overall = 'partial'
+        overall = 'error'
 
     duration = (datetime.now(timezone.utc) - start_time).total_seconds()
     _record_action(
         db, 'link_deal', current_user.id, overall,
         body.participant_id, body.id_action_formation, body.deal_id,
-        api_calls=dendreo_calls, hubspot_calls=hubspot_calls, duration=duration,
+        api_calls=dendreo_calls, hubspot_calls=1, duration=duration,  # 1 HubSpot read (EDOF dates)
         details={
-            "progression": progression,
-            "hubspot_push_ok": hubspot_push_ok,
             "dendreo_push_ok": dendreo_push_ok,
+            "edof_date_debut": edof.get("edof_date_debut"),
+            "edof_date_fin": edof.get("edof_date_fin"),
         },
     )
 
     logger.info(
-        f"Deal {body.deal_id} linked to participant {body.participant_id} ADF {body.id_action_formation} by {current_user.username} "
-        f"(progression={progression}, hubspot_push={hubspot_push_ok}, dendreo_push={dendreo_push_ok})"
+        f"Deal {body.deal_id} linked to participant {body.participant_id} ADF {body.id_action_formation} "
+        f"by {current_user.username} (dendreo_push={dendreo_push_ok})"
     )
     return {
         "status": "linked",
         "deal_id": body.deal_id,
         "deal_url": deal_url,
-        "progression_pushed": hubspot_push_ok,
         "dendreo_lap_pushed": dendreo_push_ok,
-        "progression_value": progression,
     }
 
 
@@ -267,7 +240,7 @@ async def unlink_deal(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Remove the HubSpot deal link and clear progression on HubSpot and deal fields on Dendreo LAP."""
+    """Remove the HubSpot deal link and clear the deal fields on the Dendreo LAP."""
     start_time = datetime.now(timezone.utc)
 
     hubspot_data = db.query(ParticipantHubspotData).filter(
@@ -278,8 +251,8 @@ async def unlink_deal(
     if not hubspot_data:
         raise HTTPException(status_code=404, detail="No deal link found")
 
-    # Pre-flight budget check (same cost as link: up to 1 Dendreo + 1 HubSpot)
-    ok, reason = check_budget(db, dendreo_needed=1, hubspot_needed=1)
+    # Pre-flight budget check (clears the Dendreo LAP: up to 1 Dendreo call)
+    ok, reason = check_budget(db, dendreo_needed=1, hubspot_needed=0)
     if not ok:
         _record_action(
             db, 'unlink_deal', current_user.id, 'blocked',
@@ -300,18 +273,25 @@ async def unlink_deal(
     hubspot_data.edof_date_debut = None
     hubspot_data.edof_date_fin = None
     hubspot_data.updated_at = datetime.now(timezone.utc)
-    db.commit()
 
-    hubspot_calls = 0
-    hubspot_push_ok = False
-    if prev_deal_id:
-        hubspot_calls = 1
-        try:
-            hubspot_push_ok = await hubspot_client.update_deal_properties(
-                prev_deal_id, {"progression_e_learning": ""},
+    # Drop this deal from the participant-level EDOF sessions (unless another of the
+    # participant's courses is still linked to the same deal).
+    if participant and prev_deal_id and participant.edof_sessions:
+        still_linked = (
+            db.query(ParticipantHubspotData)
+            .filter(
+                ParticipantHubspotData.participant_id == body.participant_id,
+                ParticipantHubspotData.c_id_transaction_hubspot == prev_deal_id,
+                ParticipantHubspotData.id != hubspot_data.id,
             )
-        except Exception as e:
-            logger.warning(f"HubSpot deal property clear failed for deal {prev_deal_id}: {e}")
+            .first()
+        )
+        if not still_linked:
+            participant.edof_sessions = [
+                s for s in participant.edof_sessions if s.get("deal_id") != prev_deal_id
+            ]
+
+    db.commit()
 
     dendreo_calls = 0
     dendreo_push_ok = False
@@ -335,34 +315,29 @@ async def unlink_deal(
 
     cache_service.invalidate_participant_cache(body.participant_id)
 
-    attempted = (hubspot_calls > 0) + (dendreo_calls > 0)
-    succeeded = int(hubspot_push_ok) + int(dendreo_push_ok)
-    if attempted == 0:
+    # Status: the only external write is the Dendreo LAP clear (when applicable).
+    if dendreo_calls == 0:
         overall = 'success'
-    elif succeeded == attempted:
+    elif dendreo_push_ok:
         overall = 'success'
-    elif succeeded == 0:
-        overall = 'error'
     else:
-        overall = 'partial'
+        overall = 'error'
 
     duration = (datetime.now(timezone.utc) - start_time).total_seconds()
     _record_action(
         db, 'unlink_deal', current_user.id, overall,
         body.participant_id, body.id_action_formation, prev_deal_id,
-        api_calls=dendreo_calls, hubspot_calls=hubspot_calls, duration=duration,
+        api_calls=dendreo_calls, hubspot_calls=0, duration=duration,
         details={
-            "hubspot_cleared": hubspot_push_ok,
             "dendreo_cleared": dendreo_push_ok,
         },
     )
 
     logger.info(
-        f"Deal unlinked from participant {body.participant_id} ADF {body.id_action_formation} by {current_user.username} "
-        f"(hubspot_cleared={hubspot_push_ok}, dendreo_cleared={dendreo_push_ok})"
+        f"Deal unlinked from participant {body.participant_id} ADF {body.id_action_formation} "
+        f"by {current_user.username} (dendreo_cleared={dendreo_push_ok})"
     )
     return {
         "status": "unlinked",
-        "hubspot_cleared": hubspot_push_ok,
         "dendreo_lap_cleared": dendreo_push_ok,
     }
