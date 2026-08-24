@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# ==========================================================================
+# Certbot deploy-hook — installed by Ansible to
+#   /etc/letsencrypt/renewal-hooks/deploy/dendreo-nginx.sh
+# ==========================================================================
+# Runs (as root, via the packaged certbot.timer) ONLY after a certificate is
+# actually renewed. It copies the fresh cert into the nginx bind-mount and
+# hot-reloads the container — no downtime, no port juggling.
+#
+# certbot exports these for deploy hooks:
+#   RENEWED_LINEAGE  -> /etc/letsencrypt/live/<certname>
+#   RENEWED_DOMAINS  -> space-separated SANs that were renewed
+set -euo pipefail
+
+DEST="{{ app_dir }}/ssl"
+DEPLOY_USER="{{ deploy_user }}"
+NGINX_CONTAINER="dendreo_nginx_prod"
+
+if [ -z "${RENEWED_LINEAGE:-}" ]; then
+    echo "RENEWED_LINEAGE is unset — this script must be run as a certbot deploy-hook." >&2
+    exit 1
+fi
+
+cp "${RENEWED_LINEAGE}/fullchain.pem" "${DEST}/fullchain.pem"
+cp "${RENEWED_LINEAGE}/privkey.pem"  "${DEST}/privkey.pem"
+chown "${DEPLOY_USER}:${DEPLOY_USER}" "${DEST}/fullchain.pem" "${DEST}/privkey.pem"
+chmod 644 "${DEST}/fullchain.pem"
+chmod 600 "${DEST}/privkey.pem"
+
+# Hot-reload nginx inside the container (no downtime). Fall back to a restart
+# if the container isn't running or the reload fails.
+if docker exec "${NGINX_CONTAINER}" nginx -s reload 2>/dev/null; then
+    echo "nginx reloaded with renewed certificate (${RENEWED_DOMAINS:-unknown})"
+else
+    docker restart "${NGINX_CONTAINER}" || true
+    echo "nginx restarted with renewed certificate (${RENEWED_DOMAINS:-unknown})"
+fi
