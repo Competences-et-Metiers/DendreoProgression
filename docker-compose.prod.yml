@@ -23,6 +23,9 @@ services:
       - ./logs/nginx:/var/log/nginx
       # SSL certificates
       - ./ssl:/etc/nginx/ssl:ro
+      # Let's Encrypt ACME webroot: host certbot writes challenge files here,
+      # nginx serves them on port 80 so renewals need no downtime.
+      - ./certbot-webroot:/var/www/certbot:ro
       # Basic-auth credentials for netdata subdomain (created on VPS, not committed)
       - ./nginx/.htpasswd:/etc/nginx/.htpasswd:ro
       # Timezone mapping

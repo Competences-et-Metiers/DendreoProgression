@@ -33,6 +33,7 @@
     - backups
     - back/scripts
     - netdata/health.d
+    - certbot-webroot   # ACME HTTP-01 challenge webroot (shared with nginx)
 
 # --- Copy Docker Compose and nginx config ---
 # These files define the stack. They're copied from the repo so the server
@@ -172,12 +173,58 @@
   become_user: "{{ deploy_user }}"
 
 # --- Install certbot for Let's Encrypt ---
-# Certbot handles automatic SSL certificate renewal.
+# The certbot apt package ships a systemd timer (certbot.timer) that runs
+# `certbot renew` twice daily. Renewal uses the ACME webroot at
+# {{ app_dir }}/certbot-webroot (served by nginx on port 80) and the
+# deploy-hook below to publish the fresh cert — no downtime.
 - name: Install certbot
   apt:
     name:
       - certbot
     state: present
+
+# --- Certbot deploy-hook ---
+# Runs after every successful renewal: copies the new cert into the nginx
+# bind-mount ({{ app_dir }}/ssl) and hot-reloads the nginx container.
+- name: Install certbot deploy-hook (publish cert + reload nginx)
+  template:
+    src: certbot-deploy-hook.sh.j2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/dendreo-nginx.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+# --- Enable the renewal timer ---
+# Idempotent: certbot.timer is what actually triggers `certbot renew`.
+- name: Enable and start certbot renewal timer
+  systemd:
+    name: certbot.timer
+    enabled: yes
+    state: started
+
+# --- One-time issuance reminder ---
+# Ansible does NOT issue/reissue the cert (that needs live DNS + nginx already
+# serving the ACME location). After the nginx config change is deployed, switch
+# the existing cert to the webroot authenticator ONCE:
+#   sudo certbot certonly --webroot -w {{ app_dir }}/certbot-webroot \
+#     -d {{ app_domain }} -d netdata.{{ app_domain }} \
+#     --cert-name {{ app_domain }} --keep-until-expiring
+# then verify:  sudo certbot renew --dry-run
+- name: Check whether a certbot-managed cert exists yet
+  stat:
+    path: "/etc/letsencrypt/live/{{ app_domain }}/fullchain.pem"
+  register: le_cert
+
+- name: Remind to switch cert to webroot authenticator (if not done)
+  debug:
+    msg: >
+      No certbot 'live' cert for {{ app_domain }} yet, or it may still use the
+      standalone authenticator. Run once (no downtime):
+        sudo certbot certonly --webroot -w {{ app_dir }}/certbot-webroot
+        -d {{ app_domain }} -d netdata.{{ app_domain }}
+        --cert-name {{ app_domain }} --keep-until-expiring
+      Then test:  sudo certbot renew --dry-run
+  when: not le_cert.stat.exists
 
 # --- Log rotation ---
 # Your app writes logs to {{ app_dir }}/logs/. Without rotation,
