@@ -180,6 +180,23 @@ Routes are defined in `App.js` wrapped by `Layout`:
 
 ### Styling with Tailwind CSS
 
+Tailwind is compiled **at build time** by the Tailwind CLI, not by the browser.
+(It used to be loaded from `cdn.tailwindcss.com`, which shipped the JIT compiler to
+every visitor and recompiled the stylesheet on each DOM change — a major cause of
+slow page rendering.)
+
+- Config: `tailwind.config.js` (darkMode `class`, custom `primary` palette)
+- Source: `src/styles/tailwind.css` (`@tailwind` directives + custom CSS)
+- Output: `src/styles/app.generated.css` — **generated, git-ignored**, imported by `src/index.js`
+
+`npm start` and `npm run build` compile it automatically via the `prestart`/`prebuild`
+hooks. When editing classes during development, run `npm run watch:css` alongside
+`npm start` so the stylesheet rebuilds on save (the dev container does this already).
+
+Because classes are now scanned statically from source, **never build a class name
+from fragments** (`` `bg-${color}-100` ``) — Tailwind won't see it. Always write
+complete class strings and select between them.
+
 Use Tailwind utility classes directly in JSX:
 
 ```javascript
@@ -274,8 +291,10 @@ const PlaceholderPage = () => {
 ## Development Commands
 
 ```bash
-npm start          # Start development server (port 3000)
-npm run build      # Production build
+npm start          # Start development server (port 3000); runs build:css first
+npm run build      # Production build; runs build:css first
+npm run build:css  # Compile Tailwind once -> src/styles/app.generated.css
+npm run watch:css  # Recompile Tailwind on change (run alongside npm start)
 npm test           # Run tests
 npm install --legacy-peer-deps  # Install dependencies
 ```

@@ -34,8 +34,12 @@ def create_database_engine():
                 'options': f'-c timezone={timezone_setting} -c client_encoding=utf8',
             },
             'poolclass': QueuePool,
-            'pool_size': 10 if settings.is_production else 5,
-            'max_overflow': 20 if settings.is_production else 10,
+            # Production runs multiple uvicorn workers (UVICORN_WORKERS, default 2), and
+            # each worker process gets its OWN pool. These are sized per-worker so the
+            # total stays within Postgres' default max_connections=100 alongside the
+            # sync container: 2 workers x (5 + 10) = 30 connections max.
+            'pool_size': int(os.getenv('DB_POOL_SIZE', '5')),
+            'max_overflow': int(os.getenv('DB_MAX_OVERFLOW', '10')),
         })
     
     try:
@@ -95,6 +99,92 @@ def get_db():
         raise
     finally:
         db.close()
+
+# Indexes backing the hot read paths (inactivity list, ADF list, course/participant
+# detail). Entries are (index_name, table, column_list), using the same idx_<table>_<col>
+# convention as database/init/01-init.sql — which already covers modules(participant_id),
+# modules(course_id), courses(id_action_formation), courses(id_lam),
+# participant_courses(participant_id|course_id) and participant_hubspot_data(participant_id).
+# Only the genuinely missing ones are listed here.
+PERFORMANCE_INDEXES = [
+    # modules.id_lam drives every `Module.id_lam IN (...)` lookup and the
+    # Module.id_lam == Course.id_lam join; the composite serves the very common
+    # `participant_id == X AND id_lam IN (...)` pattern in one index.
+    ("idx_modules_id_lam", "modules", "id_lam"),
+    ("idx_modules_participant_id_lam", "modules", "participant_id, id_lam"),
+
+    # Active-ADF filter: status IN ('5','6','7').
+    ("idx_courses_status", "courses", "status"),
+
+    # Liveroom (classe virtuelle) tables had no non-unique indexes at all, despite
+    # being joined on every inactivity/course/participant query.
+    ("idx_creneaux_id_action_formation", "creneaux", "id_action_formation"),
+    ("idx_creneaux_id_lam", "creneaux", "id_lam"),
+    ("idx_creneaux_date_debut", "creneaux", "date_debut"),
+    ("idx_creneaux_date_fin", "creneaux", "date_fin"),
+    ("idx_creneau_participants_creneau_id", "creneau_participants", "creneau_id"),
+    ("idx_creneau_participants_participant_id", "creneau_participants", "participant_id"),
+
+    # EDOF/deal lookups filter by ADF alone; the existing unique constraint leads
+    # with participant_id, so it can't serve this.
+    ("idx_participant_hubspot_data_id_action_formation", "participant_hubspot_data", "id_action_formation"),
+]
+
+
+def create_indexes(conn_factory=None):
+    """Create performance indexes if an equivalent one doesn't already exist.
+
+    Safe to run on every startup. Beyond CREATE INDEX IF NOT EXISTS (which only
+    matches on name), this skips any index whose leading columns are already
+    covered by an existing index under a different name, so it can't create
+    duplicates alongside the idx_* indexes from database/init/01-init.sql.
+    """
+    target_engine = conn_factory if conn_factory is not None else engine
+
+    # Map table -> set of leading-column-lists already indexed, e.g. {"modules": {"participant_id", ...}}
+    existing: dict = {}
+    try:
+        with target_engine.connect() as conn:
+            rows = conn.execute(text("""
+                SELECT t.relname AS table_name,
+                       string_agg(a.attname, ', ' ORDER BY k.ord) AS cols
+                FROM pg_index i
+                JOIN pg_class t ON t.oid = i.indrelid
+                JOIN pg_namespace n ON n.oid = t.relnamespace
+                JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS k(attnum, ord) ON TRUE
+                JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = k.attnum
+                WHERE n.nspname = 'public'
+                GROUP BY i.indexrelid, t.relname
+            """)).fetchall()
+        for table_name, cols in rows:
+            existing.setdefault(table_name, set()).add(cols)
+    except Exception as e:
+        logger.debug(f"Could not introspect existing indexes, falling back to name check: {e}")
+
+    created = skipped = 0
+    for index_name, table, columns in PERFORMANCE_INDEXES:
+        normalized = ", ".join(c.strip() for c in columns.split(","))
+        table_indexes = existing.get(table, set())
+        # Skip when an existing index already leads with exactly these columns.
+        if normalized in table_indexes:
+            skipped += 1
+            continue
+        try:
+            with target_engine.connect() as conn:
+                conn.execute(text(
+                    f"CREATE INDEX IF NOT EXISTS {index_name} ON {table} ({columns})"
+                ))
+                conn.commit()
+            created += 1
+            logger.info(f"✅ Created index {index_name} on {table}({columns})")
+        except Exception as e:
+            logger.warning(f"⚠️  Could not create index {index_name}: {e}")
+
+    logger.info(
+        f"Performance indexes: {created} created, {skipped} already covered "
+        f"({len(PERFORMANCE_INDEXES)} total)"
+    )
+
 
 def create_tables():
     """Create all database tables with proper error handling."""
@@ -196,7 +286,13 @@ def create_tables():
                 logger.info("Ensured sync_metadata.log_path column exists")
             except Exception as e:
                 logger.debug(f"Column migration note: {e}")
-        
+
+        # Performance indexes for the read-heavy API endpoints.
+        # Postgres does NOT auto-index foreign keys, so every join/filter below was
+        # doing a sequential scan. Names match SQLAlchemy's `index=True` convention
+        # (ix_<table>_<column>) so create_all() and this migration stay idempotent.
+        create_indexes(conn_factory=engine)
+
         # Verify tables were created using text() for SQLAlchemy 2.0+ compatibility
         with engine.connect() as conn:
             result = conn.execute(

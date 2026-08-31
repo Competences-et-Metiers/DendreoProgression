@@ -106,6 +106,16 @@ CREATE INDEX IF NOT EXISTS idx_modules_lms_time_spent ON modules(lms_time_spent)
 CREATE INDEX IF NOT EXISTS idx_modules_lms_started_at ON modules(lms_started_at);
 CREATE INDEX IF NOT EXISTS idx_modules_lms_completed_at ON modules(lms_completed_at);
 
+-- Indexes for the read-heavy API paths (inactivity list, ADF list, course/participant
+-- detail). Only tables created above can be indexed here; creneaux and
+-- creneau_participants are created later by SQLAlchemy, so their indexes are applied
+-- by PERFORMANCE_INDEXES in back/app/models/database.py, which runs after create_all()
+-- and also backfills already-provisioned databases.
+CREATE INDEX IF NOT EXISTS idx_modules_id_lam ON modules(id_lam);
+CREATE INDEX IF NOT EXISTS idx_modules_participant_id_lam ON modules(participant_id, id_lam);
+CREATE INDEX IF NOT EXISTS idx_courses_status ON courses(status);
+CREATE INDEX IF NOT EXISTS idx_participant_hubspot_data_id_action_formation ON participant_hubspot_data(id_action_formation);
+
 -- Create a function to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$

@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { MODULE_EXPORT_COLUMNS } from './moduleExportColumns';
 
 const formatDate = (iso, lang, fallback = '-') => {
   if (!iso) return fallback;
@@ -9,15 +10,9 @@ const formatDate = (iso, lang, fallback = '-') => {
   });
 };
 
-export const MODULE_EXPORT_COLUMNS = [
-  { key: 'name', weight: 1.6, excelWidth: 26, default: true },
-  { key: 'email', weight: 2.2, excelWidth: 30, default: false },
-  { key: 'course', weight: 2.0, excelWidth: 32, default: false, collapsible: true },
-  { key: 'module', weight: 2.0, excelWidth: 32, default: false, collapsible: true },
-  { key: 'deadline', weight: 1.0, excelWidth: 14, default: false, align: 'center' },
-  { key: 'last_access', weight: 1.1, excelWidth: 18, default: true, align: 'center' },
-  { key: 'progression', weight: 0.9, excelWidth: 14, default: true, align: 'center' },
-];
+// Re-exported so existing importers keep working; prefer importing from
+// './moduleExportColumns' directly to avoid pulling in jspdf/xlsx.
+export { MODULE_EXPORT_COLUMNS };
 
 const getCellValue = (item, key, lang) => {
   const neverLabel = lang === 'fr' ? 'Jamais' : 'Never';

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, X, Download, GripVertical, Filter as FilterIcon, FileSpreadsheet } from 'lucide-react';
-import { MODULE_EXPORT_COLUMNS, generateModuleReport, generateModuleExcel } from '../utils/moduleExport';
+import { MODULE_EXPORT_COLUMNS } from '../utils/moduleExportColumns';
 
 const STORAGE_KEY = 'moduleManagement.pdfColumns';
 const FORMAT_STORAGE_KEY = 'moduleManagement.exportFormat';
@@ -61,11 +61,14 @@ const ModulePdfExportModal = ({ isOpen, onClose, items, activeFilters }) => {
     setDragKey(null);
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (selectedKeys.length === 0) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedKeys));
     localStorage.setItem(FORMAT_STORAGE_KEY, format);
     const lang = i18n.language?.startsWith('fr') ? 'fr' : 'en';
+    // jspdf/xlsx are loaded here rather than at module scope so they stay out of
+    // the initial bundle and only download when someone actually exports.
+    const { generateModuleReport, generateModuleExcel } = await import('../utils/moduleExport');
     const generator = format === 'excel' ? generateModuleExcel : generateModuleReport;
     generator({ items, columns: selectedKeys, activeFilters, t, lang });
     onClose();

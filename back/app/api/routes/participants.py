@@ -76,8 +76,88 @@ def normalize_search_term(search: str) -> list:
     
     return unique_patterns
 
-def calculate_activity_status(participant_course: ParticipantCourse, db: Session = None) -> str:
-    """Calculate activity status for a participant course"""
+# Sentinel distinguishing "caller supplied no precomputed fallback" (query the DB)
+# from "precomputed fallback resolved to no activity" (don't query).
+_UNSET = object()
+
+
+def build_last_activity_fallback_map(db: Session, participant_courses: list) -> dict:
+    """Pre-compute the module-derived last-activity fallback for a batch of enrollments.
+
+    `calculate_activity_status` otherwise issues up to three queries per enrollment
+    whenever `ParticipantCourse.last_activity` is null. This resolves the same value
+    for every enrollment on a page in three queries total, keyed by
+    (participant_id, id_action_formation).
+    """
+    from app.models.models import Module, Course
+
+    pending = [
+        pc for pc in participant_courses
+        if not pc.last_activity
+        and not (pc.overall_progression and pc.overall_progression >= 100.0)
+    ]
+    if not pending:
+        return {}
+
+    participant_ids = {pc.participant_id for pc in pending}
+    course_ids = {pc.course_id for pc in pending if pc.course_id}
+    if not course_ids:
+        return {}
+
+    # course_id -> ADF
+    adf_by_course = {
+        cid: adf for cid, adf in
+        db.query(Course.id, Course.id_action_formation).filter(Course.id.in_(course_ids)).all()
+    }
+    adf_ids = {adf for adf in adf_by_course.values() if adf}
+    if not adf_ids:
+        return {}
+
+    # ADF -> LAM ids
+    adf_lams = {}
+    all_lams = set()
+    for adf, lam in db.query(Course.id_action_formation, Course.id_lam).filter(
+        Course.id_action_formation.in_(adf_ids)
+    ).distinct().all():
+        if lam:
+            adf_lams.setdefault(adf, []).append(lam)
+            all_lams.add(lam)
+    if not all_lams:
+        return {}
+
+    # (participant_id, id_lam) -> max last access
+    module_last = {}
+    for pid, lam, last_access in db.query(
+        Module.participant_id,
+        Module.id_lam,
+        sa_func.max(Module.lms_last_access_at),
+    ).filter(
+        Module.participant_id.in_(participant_ids),
+        Module.id_lam.in_(all_lams),
+        Module.lms_last_access_at.isnot(None),
+    ).group_by(Module.participant_id, Module.id_lam).all():
+        module_last[(pid, lam)] = last_access
+
+    # Collapse to (participant_id, ADF) -> max last access across the ADF's LAMs
+    fallback = {}
+    for pid in participant_ids:
+        for adf, lams in adf_lams.items():
+            dates = [module_last[(pid, lam)] for lam in lams if (pid, lam) in module_last]
+            if dates:
+                fallback[(pid, adf)] = max(dates)
+    return fallback
+
+
+def calculate_activity_status(
+    participant_course: ParticipantCourse,
+    db: Session = None,
+    fallback_last_activity=_UNSET,
+) -> str:
+    """Calculate activity status for a participant course.
+
+    Pass `fallback_last_activity` (from `build_last_activity_fallback_map`) to skip
+    the per-enrollment module queries when processing many enrollments at once.
+    """
     from datetime import datetime, timezone
     from app.models.models import Module, Course
 
@@ -87,8 +167,10 @@ def calculate_activity_status(participant_course: ParticipantCourse, db: Session
 
     # Check last activity - if null in participant_course, calculate from modules
     last_activity = participant_course.last_activity
-    
-    if not last_activity and db:
+
+    if not last_activity and fallback_last_activity is not _UNSET:
+        last_activity = fallback_last_activity
+    elif not last_activity and db:
         # Get the course and find the ADF
         course = db.query(Course).filter(Course.id == participant_course.course_id).first()
         if course:
@@ -147,7 +229,7 @@ def _apply_deal_filter(query, deal_filter: Optional[str]):
 
 
 @router.get("/", response_model=List[ParticipantWithProgress])
-async def get_participants(
+def get_participants(
         skip: int = Query(0, ge=0),
         limit: int = Query(25, ge=1, le=1000),
         email: Optional[str] = Query(None),
@@ -158,9 +240,15 @@ async def get_participants(
 ):
     """Get all participants with their course progress"""
     try:
-        # For basic requests without filters, try cache first
-        if skip == 0 and limit == 100 and not email and not company and not search and not deal_filter:
-            cached_participants = cache_service.get_participants_list()
+        # For basic requests without filters, try cache first.
+        # The cache key includes `limit` so the read and write paths can't drift apart
+        # (they previously required limit==100 to read but wrote at limit==25, so the
+        # cache was populated and never used).
+        is_cacheable = skip == 0 and not email and not company and not search and not deal_filter
+        cache_key = f"participants:list:{limit}"
+
+        if is_cacheable:
+            cached_participants = cache_service.get(cache_key)
             if cached_participants:
                 logger.info("🚀 Participants list served from cache")
                 return cached_participants
@@ -243,6 +331,14 @@ async def get_participants(
             )
             edof_map = {(pid, adf): (deb, fin) for pid, adf, deb, fin in edof_rows}
 
+        # Pre-compute module-derived last-activity for every enrollment on this page,
+        # so calculate_activity_status doesn't query per enrollment below.
+        all_page_courses = [
+            pc for p in participants for pc in (p.courses or [])
+            if pc.course and pc.course.status in ('5', '6', '7')
+        ]
+        last_activity_fallback = build_last_activity_fallback_map(db, all_page_courses)
+
         result = []
 
         for participant in participants:
@@ -266,7 +362,11 @@ async def get_participants(
                 active_courses = 0
 
                 for pc in active_pc:
-                    status = calculate_activity_status(pc, db)
+                    adf = pc.course.id_action_formation if pc.course else None
+                    status = calculate_activity_status(
+                        pc, db,
+                        fallback_last_activity=last_activity_fallback.get((pc.participant_id, adf), None),
+                    )
                     pc.activity_status = status
                     if status == 'completed':
                         completed_courses += 1
@@ -293,9 +393,9 @@ async def get_participants(
 
             result.append(participant_data)
 
-        # Cache the result if it's the default query
-        if skip == 0 and limit == 25 and not email and not company and not search:
-            cache_service.set_participants_list(result, ttl=300)
+        # Cache the result if it's an unfiltered first page (same condition as the read above)
+        if is_cacheable:
+            cache_service.set(cache_key, [r.model_dump(mode='json') for r in result], ttl=300)
 
         return result
 
@@ -303,7 +403,7 @@ async def get_participants(
         raise HTTPException(status_code=500, detail=f"Error fetching participants: {str(e)}")
 
 @router.get("/count")
-async def get_participants_count(
+def get_participants_count(
         email: Optional[str] = Query(None),
         company: Optional[str] = Query(None),
         search: Optional[str] = Query(None),
@@ -346,7 +446,7 @@ async def get_participants_count(
         raise HTTPException(status_code=500, detail=f"Error counting participants: {str(e)}")
 
 @router.get("/inactive", response_model=InactivitySummary)
-async def get_inactive_participants(
+def get_inactive_participants(
     group_by_course: bool = Query(False),
     course_id: Optional[int] = Query(None),
     inactivity_threshold_days: int = Query(30, ge=1, le=365),
@@ -400,7 +500,7 @@ async def get_inactive_participants(
         raise HTTPException(status_code=500, detail=f"Error fetching participants: {str(e)}")
 
 @router.get("/categories", response_model=List[ModuleCategoryResponse])
-async def get_module_categories(db: Session = Depends(get_db)):
+def get_module_categories(db: Session = Depends(get_db)):
     """Get all active module categories for filtering"""
     try:
         categories = db.query(ModuleCategory).filter(
@@ -412,7 +512,7 @@ async def get_module_categories(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error fetching categories: {str(e)}")
 
 @router.get("/{participant_id}", response_model=ParticipantWithProgress)
-async def get_participant(participant_id: int, db: Session = Depends(get_db)):
+def get_participant(participant_id: int, db: Session = Depends(get_db)):
     """Get a specific participant with their course progress"""
     try:
         participant = db.query(Participant).options(
@@ -454,7 +554,7 @@ async def get_participant(participant_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error fetching participant: {str(e)}")
 
 @router.get("/email/{email}", response_model=ParticipantWithProgress)
-async def get_participant_by_email(email: str, db: Session = Depends(get_db)):
+def get_participant_by_email(email: str, db: Session = Depends(get_db)):
     """Get a participant by email"""
     try:
         participant = db.query(Participant).options(

@@ -112,7 +112,7 @@ def _get_liveroom_progression(db: Session, participant_id: int, adf_id: str, id_
 
 
 @router.get("/stats")
-async def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get overall dashboard statistics"""
     try:
         # Try to get from cache first
@@ -155,7 +155,7 @@ async def get_dashboard_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=f"Failed to fetch dashboard stats: {str(e)}")
 
 @router.get("/courses")
-async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
     """Get all ADFs with their participants and e-learning module count"""
     try:
         # Try to get from cache first
@@ -169,74 +169,129 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
         # Each ADF should appear only once, regardless of how many modules (id_lam) it contains
         # Only active ADFs (Dendreo etape_process 5, 6, 7) are listed — inactive ones drop off
         # once sync updates their Course.status.
-        adfs = db.query(Course.id_action_formation).filter(
-            Course.status.in_(['5', '6', '7'])
-        ).distinct().all()
-        
+        #
+        # Everything below is batched into a handful of queries. The previous version ran a
+        # triple-nested loop (per ADF → per participant → per-participant LAM/Module/HubSpot
+        # lookups), which meant thousands of round-trips on every cache miss.
+        adfs = [
+            row[0] for row in db.query(Course.id_action_formation).filter(
+                Course.status.in_(['5', '6', '7'])
+            ).distinct().all()
+        ]
+
+        if not adfs:
+            cache_service.set_courses_list([], ttl=600)
+            return []
+
+        active_adf_set = set(adfs)
+
+        # Single pass over the courses table: representative course row per ADF + ADF -> LAM ids.
+        # Deliberately unordered: the previous code took an unordered .first() per ADF, so
+        # first-seen in natural scan order reproduces which Course row represents each ADF
+        # (it supplies the ADF's id, intitule, planned_duration_hours and timestamps).
+        adf_course_map: Dict[str, Course] = {}
+        adf_lams_map: Dict[str, List[str]] = {}
+        for course in db.query(Course).all():
+            adf = course.id_action_formation
+            if adf not in adf_course_map:
+                adf_course_map[adf] = course
+            if course.id_lam:
+                adf_lams_map.setdefault(adf, []).append(course.id_lam)
+
+        # Distinct LAMs that actually have module rows — the denominator for module_count.
+        module_lam_set = {
+            row[0] for row in db.query(Module.id_lam).distinct().all() if row[0]
+        }
+
+        # One enrollment row per (ADF, participant), inner-joined to Participant as the
+        # previous DISTINCT ON query did.
+        #
+        # NOTE: a participant enrolled in several LAMs of one ADF has several
+        # participant_courses rows with differing activity_status, and this endpoint
+        # surfaces only one of them. The old DISTINCT ON had no ORDER BY, so which row
+        # won was an arbitrary Postgres sort tie-break (stable for a given plan + heap
+        # layout, but liable to change after a VACUUM or plan change). Ordering by id
+        # makes the pick the participant's earliest enrollment row and keeps it stable.
+        enrollment_rows = (
+            db.query(
+                Course.id_action_formation,
+                Participant,
+                ParticipantCourse.activity_status,
+            )
+            .join(ParticipantCourse, ParticipantCourse.course_id == Course.id)
+            .join(Participant, Participant.id == ParticipantCourse.participant_id)
+            .filter(Course.id_action_formation.in_(active_adf_set))
+            .order_by(ParticipantCourse.id)
+            .all()
+        )
+
+        # (adf, participant_id) -> (participant, activity_status), first occurrence wins
+        enrollments_by_adf: Dict[str, List[Any]] = {}
+        seen_pairs = set()
+        for adf, participant, activity_status in enrollment_rows:
+            pair = (adf, participant.id)
+            if pair in seen_pairs:
+                continue
+            seen_pairs.add(pair)
+            enrollments_by_adf.setdefault(adf, []).append((participant, activity_status))
+
+        # Module aggregates keyed by (participant_id, id_lam): count, progression sum, time sum.
+        module_agg: Dict[tuple, tuple] = {}
+        for pid, lam, cnt, prog_sum, time_sum in db.query(
+            Module.participant_id,
+            Module.id_lam,
+            func.count(Module.id),
+            func.sum(Module.lms_progression),
+            func.sum(Module.lms_time_spent),
+        ).group_by(Module.participant_id, Module.id_lam).all():
+            module_agg[(pid, lam)] = (int(cnt or 0), float(prog_sum or 0.0), int(time_sum or 0))
+
+        # HubSpot data keyed by (participant_id, ADF) — unique per the table constraint.
+        hubspot_map = {
+            (h.participant_id, h.id_action_formation): h
+            for h in db.query(ParticipantHubspotData).filter(
+                ParticipantHubspotData.id_action_formation.in_(active_adf_set)
+            ).all()
+        }
+
         result = []
-        for (id_adf,) in adfs:
-            # Get the first course record for this ADF to get basic info
-            adf_course = db.query(Course).filter(Course.id_action_formation == id_adf).first()
+        for id_adf in adfs:
+            adf_course = adf_course_map.get(id_adf)
             if not adf_course:
                 continue
-            
-            # Get all participants in this ADF (distinct to avoid duplicates)
-            participants_query = db.query(ParticipantCourse).join(Course).join(Participant).filter(
-                Course.id_action_formation == id_adf
-            ).distinct(ParticipantCourse.participant_id).all()
-            
-            # Use the deduplicated participant count
-            participant_count = len(participants_query)
-            
-            # Count all modules for this ADF by matching id_lam (since course_id FK may not be set)
-            adf_lam_ids = db.query(Course.id_lam).filter(
-                Course.id_action_formation == id_adf
-            ).distinct().all()
 
-            if adf_lam_ids:
-                lam_ids_list = [lam_id[0] for lam_id in adf_lam_ids if lam_id[0]]
-                module_count = db.query(Module.id_lam).filter(
-                    Module.id_lam.in_(lam_ids_list)
-                ).distinct().count()
-            else:
-                module_count = 0
+            lam_ids_list = adf_lams_map.get(id_adf, [])
+
+            # Count all modules for this ADF by matching id_lam (since course_id FK may not be set)
+            module_count = len({lam for lam in lam_ids_list if lam in module_lam_set})
 
             # Skip if no modules at all (empty courses)
             if module_count == 0:
                 continue
-            
+
+            adf_enrollments = enrollments_by_adf.get(id_adf, [])
+
+            # Use the deduplicated participant count
+            participant_count = len(adf_enrollments)
+
             participants_data = []
-            for pc in participants_query:
-                participant = pc.participant
-                
-                # Get modules for this participant in this ADF to calculate real progression
-                # Join by id_lam instead of course_id FK
-                adf_lam_ids_for_participant = db.query(Course.id_lam).filter(
-                    Course.id_action_formation == id_adf
-                ).distinct().all()
-                
-                if adf_lam_ids_for_participant:
-                    lam_ids_for_participant = [lam_id[0] for lam_id in adf_lam_ids_for_participant if lam_id[0]]
-                    participant_modules = db.query(Module).filter(
-                        Module.id_lam.in_(lam_ids_for_participant),
-                        Module.participant_id == participant.id
-                    ).all()
-                else:
-                    participant_modules = []
-                
+            for participant, activity_status in adf_enrollments:
+                # Aggregate this participant's modules across the ADF's LAMs
+                module_rows = 0
+                progression_sum = 0.0
+                total_time_spent = 0
+                for lam_id in lam_ids_list:
+                    agg = module_agg.get((participant.id, lam_id))
+                    if agg:
+                        module_rows += agg[0]
+                        progression_sum += agg[1]
+                        total_time_spent += agg[2]
+
                 # Calculate real progression: average of all module progressions
-                if participant_modules:
-                    total_progression = sum(module.lms_progression for module in participant_modules)
-                    calculated_progression = total_progression / len(participant_modules)
-                else:
-                    calculated_progression = 0.0
-                
-                # Get HubSpot data for this participant and ADF
-                hubspot_data = db.query(ParticipantHubspotData).filter(
-                    ParticipantHubspotData.participant_id == participant.id,
-                    ParticipantHubspotData.id_action_formation == id_adf
-                ).first()
-                
+                calculated_progression = (progression_sum / module_rows) if module_rows else 0.0
+
+                hubspot_data = hubspot_map.get((participant.id, id_adf))
+
                 participants_data.append({
                     "id": participant.id,
                     "id_participant": participant.id_participant,
@@ -245,22 +300,22 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
                     "email": participant.email,
                     "id_entreprise": participant.id_entreprise,
                     "overall_progression": round(calculated_progression, 2),
-                    "activity_status": pc.activity_status,
-                    "total_time_spent": sum(module.lms_time_spent for module in participant_modules if module.lms_time_spent),
+                    "activity_status": activity_status,
+                    "total_time_spent": total_time_spent,
                     "hubspot_data": {
                         "c_url_transaction_hubspot": hubspot_data.c_url_transaction_hubspot if hubspot_data else None,
                         "c_id_transaction_hubspot": hubspot_data.c_id_transaction_hubspot if hubspot_data else None,
                         "id_lap": hubspot_data.id_lap if hubspot_data else None
                     } if hubspot_data else None
                 })
-            
+
             # Calculate average progression across all participants in this ADF using real module data
             if participants_data:
                 total_progression = sum(p["overall_progression"] for p in participants_data)
                 avg_progression = total_progression / len(participants_data)
             else:
                 avg_progression = 0
-            
+
             result.append({
                 "id": adf_course.id,
                 "id_action_formation": id_adf,
@@ -285,7 +340,7 @@ async def get_all_courses(db: Session = Depends(get_db)) -> List[Dict[str, Any]]
         raise HTTPException(status_code=500, detail=f"Failed to fetch courses: {str(e)}")
 
 @router.get("/courses/{course_id}/time-stats")
-async def get_course_time_stats(course_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_course_time_stats(course_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get time spent statistics for a specific course"""
     try:
         # Get course info
@@ -386,7 +441,7 @@ async def get_course_time_stats(course_id: int, db: Session = Depends(get_db)) -
         raise HTTPException(status_code=500, detail=f"Failed to fetch course time stats: {str(e)}")
 
 @router.get("/courses/{course_id}/participants")
-async def get_course_participants(course_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_course_participants(course_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get all participants for a specific course with their progression"""
     try:
         # Get course info
@@ -394,53 +449,143 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
         if not course:
             raise HTTPException(status_code=404, detail="Course not found")
         
-        # Get participant courses for this ADF (not just this specific course)
-        # Use distinct to avoid duplicates when the same participant appears multiple times
-        participant_courses = db.query(ParticipantCourse).join(Course).filter(
-            Course.id_action_formation == course.id_action_formation
-        ).distinct(ParticipantCourse.participant_id).all()
-        
-        participants_data = []
-        seen_participants = set()  # Track participants we've already processed
-        
-        for pc in participant_courses:
-            # Skip if we've already processed this participant
+        adf_id = course.id_action_formation
+
+        # --- Batched lookups -------------------------------------------------
+        # Everything below used to be queried once per participant (and, for liveroom
+        # progression, once per module). It's all fetched up front now.
+
+        # ADF -> LAM ids and the Course row per LAM (participant-independent).
+        adf_courses = db.query(Course).filter(
+            Course.id_action_formation == adf_id
+        ).all()
+        lam_ids_modules = [c.id_lam for c in adf_courses if c.id_lam]
+        course_dates = {c.id_lam: c for c in adf_courses if c.id_lam}
+
+        # One enrollment row per participant, inner-joined to Participant.
+        enrollment_rows = (
+            db.query(ParticipantCourse, Participant)
+            .join(Course, ParticipantCourse.course_id == Course.id)
+            .join(Participant, Participant.id == ParticipantCourse.participant_id)
+            .filter(Course.id_action_formation == adf_id)
+            .order_by(ParticipantCourse.id)
+            .all()
+        )
+        enrollments = []
+        seen_participants = set()
+        for pc, participant in enrollment_rows:
             if pc.participant_id in seen_participants:
                 continue
             seen_participants.add(pc.participant_id)
-            
-            participant = db.query(Participant).filter(Participant.id == pc.participant_id).first()
-            if not participant:
-                continue
-            
-            # Get modules for this participant in this ADF (not just this course)
-            # Join by id_lam instead of course_id FK
-            adf_lam_ids_modules = db.query(Course.id_lam).filter(
-                Course.id_action_formation == course.id_action_formation
-            ).distinct().all()
-            
-            if adf_lam_ids_modules:
-                lam_ids_modules = [lam_id[0] for lam_id in adf_lam_ids_modules if lam_id[0]]
-                modules = db.query(Module).filter(
-                    Module.id_lam.in_(lam_ids_modules),
-                    Module.participant_id == participant.id
-                ).all()
-                # Build date lookup from Course by id_lam
-                course_dates = {c.id_lam: c for c in db.query(Course).filter(
-                    Course.id_action_formation == course.id_action_formation,
-                    Course.id_lam.in_(lam_ids_modules)
-                ).all()}
-            else:
-                modules = []
-                course_dates = {}
-            
+            enrollments.append((pc, participant))
+
+        participant_ids = [p.id for _, p in enrollments]
+
+        # Modules for every participant in this ADF, grouped by participant.
+        modules_by_participant: Dict[int, List[Module]] = {}
+        if lam_ids_modules and participant_ids:
+            for module in db.query(Module).filter(
+                Module.id_lam.in_(lam_ids_modules),
+                Module.participant_id.in_(participant_ids)
+            ).all():
+                modules_by_participant.setdefault(module.participant_id, []).append(module)
+
+        # Liveroom progression inputs: total creneaux per LAM, attended per (participant, LAM).
+        creneaux_total_per_lam: Dict[str, int] = {}
+        for lam, cnt in db.query(
+            Creneau.id_lam, func.count(Creneau.id)
+        ).filter(Creneau.id_action_formation == adf_id).group_by(Creneau.id_lam).all():
+            creneaux_total_per_lam[lam] = int(cnt or 0)
+
+        attended_per_participant_lam: Dict[tuple, int] = {}
+        for pid, lam, cnt in (
+            db.query(CreneauParticipant.participant_id, Creneau.id_lam, func.count(CreneauParticipant.id))
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(
+                Creneau.id_action_formation == adf_id,
+                CreneauParticipant.presence == "1"
+            )
+            .group_by(CreneauParticipant.participant_id, Creneau.id_lam)
+            .all()
+        ):
+            attended_per_participant_lam[(pid, lam)] = int(cnt or 0)
+
+        # Liveroom time spent + last attended date, per participant, for this ADF.
+        liveroom_time_by_participant: Dict[int, int] = {}
+        last_liveroom_by_participant: Dict[int, Any] = {}
+        now_ts = datetime.now(timezone.utc)
+        for pid, total_duration in (
+            db.query(
+                CreneauParticipant.participant_id,
+                func.sum(Creneau.duration),
+            )
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(
+                Creneau.id_action_formation == adf_id,
+                CreneauParticipant.presence == "1"
+            )
+            .group_by(CreneauParticipant.participant_id)
+            .all()
+        ):
+            liveroom_time_by_participant[pid] = int(total_duration or 0)
+
+        # Last attended date must exclude future sessions, so it needs its own filter.
+        for pid, last_fin in (
+            db.query(CreneauParticipant.participant_id, func.max(Creneau.date_fin))
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(
+                Creneau.id_action_formation == adf_id,
+                CreneauParticipant.presence == "1",
+                Creneau.date_fin <= now_ts
+            )
+            .group_by(CreneauParticipant.participant_id)
+            .all()
+        ):
+            last_liveroom_by_participant[pid] = last_fin
+
+        # Upcoming sessions per participant (no presence filter, matching the helper).
+        upcoming_by_participant: Dict[int, tuple] = {}
+        for pid, cnt, next_date in (
+            db.query(
+                CreneauParticipant.participant_id,
+                func.count(Creneau.id),
+                func.min(Creneau.date_debut),
+            )
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(
+                Creneau.id_action_formation == adf_id,
+                Creneau.date_debut > now_ts
+            )
+            .group_by(CreneauParticipant.participant_id)
+            .all()
+        ):
+            upcoming_by_participant[pid] = (int(cnt or 0), next_date)
+
+        # HubSpot data per participant for this ADF.
+        hubspot_map = {
+            h.participant_id: h
+            for h in db.query(ParticipantHubspotData).filter(
+                ParticipantHubspotData.id_action_formation == adf_id
+            ).all()
+        }
+        # ---------------------------------------------------------------------
+
+        participants_data = []
+
+        for pc, participant in enrollments:
+            modules = modules_by_participant.get(participant.id, [])
+
             # Build module data with liveroom-based progression for sync/mixte modules
             modules_data = []
             for module in modules:
                 mode = module.mode_organisation or ''
                 if mode in ('elearning_sync', 'mixte'):
-                    liveroom_prog = _get_liveroom_progression(db, participant.id, course.id_action_formation, module.id_lam)
-                    progression = liveroom_prog if liveroom_prog is not None else 0.0
+                    total_creneaux = creneaux_total_per_lam.get(module.id_lam, 0)
+                    if total_creneaux:
+                        attended = attended_per_participant_lam.get((participant.id, module.id_lam), 0)
+                        progression = round((attended / total_creneaux) * 100, 2)
+                    else:
+                        progression = 0.0
                 else:
                     progression = module.lms_progression
 
@@ -473,7 +618,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
 
             # Calculate total time spent: e-learning + liveroom attended
             elearning_time_spent = sum(module.lms_time_spent or 0 for module in modules)
-            lr_spent = _get_liveroom_time_spent(db, participant.id, course.id_action_formation)
+            lr_spent = liveroom_time_by_participant.get(participant.id, 0)
             total_time_spent = elearning_time_spent + lr_spent
 
             # Get earliest start and latest completion dates
@@ -495,17 +640,14 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                     last_elearning = max(elearning_dates)
 
             # Get last liveroom attendance
-            last_liveroom = _get_last_liveroom_date(db, participant.id, course.id_action_formation)
+            last_liveroom = last_liveroom_by_participant.get(participant.id)
             last_activity, last_activity_source = _resolve_last_activity(last_elearning, last_liveroom)
 
             # Get upcoming sessions
-            upcoming_count, next_session_date = _get_upcoming_sessions(db, participant.id, course.id_action_formation)
+            upcoming_count, next_session_date = upcoming_by_participant.get(participant.id, (0, None))
 
             # Get HubSpot data for this participant and ADF
-            hubspot_data = db.query(ParticipantHubspotData).filter(
-                ParticipantHubspotData.participant_id == participant.id,
-                ParticipantHubspotData.id_action_formation == course.id_action_formation
-            ).first()
+            hubspot_data = hubspot_map.get(participant.id)
 
             participants_data.append({
                 "id": participant.id,
@@ -544,14 +686,10 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
                 "id_lam": course.id_lam,
                 "intitule": course.intitule,
                 "status": course.status,
-                "planned_duration_hours": (course.planned_duration_hours or 0) + (_get_liveroom_total_duration(db, course.id_action_formation) / 3600.0),
+                "planned_duration_hours": (course.planned_duration_hours or 0) + (_get_liveroom_total_duration(db, adf_id) / 3600.0),
                 "total_modules": db.query(Module.id_lam).filter(
-                    Module.id_lam.in_([lam_id[0] for lam_id in db.query(Course.id_lam).filter(
-                        Course.id_action_formation == course.id_action_formation
-                    ).distinct().all() if lam_id[0]])
-                ).distinct().count() if db.query(Course.id_lam).filter(
-                    Course.id_action_formation == course.id_action_formation
-                ).distinct().all() else 0
+                    Module.id_lam.in_(lam_ids_modules)
+                ).distinct().count() if lam_ids_modules else 0
             },
             "participants": participants_data,
             "summary": {
@@ -569,7 +707,7 @@ async def get_course_participants(course_id: int, db: Session = Depends(get_db))
         raise HTTPException(status_code=500, detail=f"Failed to fetch course participants: {str(e)}")
 
 @router.get("/participants/{participant_id}")
-async def get_participant_details(participant_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_participant_details(participant_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get detailed information about a specific participant"""
     try:
         # Try to get from cache first
@@ -583,17 +721,19 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
         if not participant:
             raise HTTPException(status_code=404, detail="Participant not found")
         
-        # Get all unique ADFs for this participant (group by ADF to avoid duplicates)
-        participant_courses = db.query(ParticipantCourse).join(Course).filter(
+        # Get all unique ADFs for this participant (group by ADF to avoid duplicates).
+        # Course comes back on the same row, so the loop below no longer re-queries it.
+        participant_courses = db.query(ParticipantCourse, Course).join(
+            Course, ParticipantCourse.course_id == Course.id
+        ).filter(
             ParticipantCourse.participant_id == participant_id
         ).all()
-        
+
         # Group by ADF to avoid duplicate courses.
         # Skip ADFs whose status is no longer active (Dendreo etape 5/6/7); they're
         # considered archived and should drop off the participant's view.
         adf_groups = {}
-        for pc in participant_courses:
-            course = db.query(Course).filter(Course.id == pc.course_id).first()
+        for pc, course in participant_courses:
             if course and course.id_action_formation and course.status in ('5', '6', '7'):
                 adf_id = course.id_action_formation
                 if adf_id not in adf_groups:
@@ -627,14 +767,39 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
             else:
                 modules = []
                 course_dates_detail = {}
-            
+
+            # Liveroom progression inputs for this ADF, fetched once instead of
+            # twice per sync/mixte module.
+            creneaux_total_per_lam = {
+                lam: int(cnt or 0)
+                for lam, cnt in db.query(Creneau.id_lam, func.count(Creneau.id))
+                .filter(Creneau.id_action_formation == adf_id)
+                .group_by(Creneau.id_lam).all()
+            }
+            attended_per_lam = {
+                lam: int(cnt or 0)
+                for lam, cnt in db.query(Creneau.id_lam, func.count(CreneauParticipant.id))
+                .join(CreneauParticipant, CreneauParticipant.creneau_id == Creneau.id)
+                .filter(
+                    Creneau.id_action_formation == adf_id,
+                    CreneauParticipant.participant_id == participant.id,
+                    CreneauParticipant.presence == "1"
+                )
+                .group_by(Creneau.id_lam).all()
+            }
+
             # Build module data with liveroom-based progression for sync/mixte modules
             modules_data = []
             for module in modules:
                 mode = module.mode_organisation or ''
                 if mode in ('elearning_sync', 'mixte'):
-                    liveroom_prog = _get_liveroom_progression(db, participant.id, adf_id, module.id_lam)
-                    progression = liveroom_prog if liveroom_prog is not None else 0.0
+                    total_creneaux = creneaux_total_per_lam.get(module.id_lam, 0)
+                    if total_creneaux:
+                        progression = round(
+                            (attended_per_lam.get(module.id_lam, 0) / total_creneaux) * 100, 2
+                        )
+                    else:
+                        progression = 0.0
                 else:
                     progression = module.lms_progression
 
@@ -748,7 +913,7 @@ async def get_participant_details(participant_id: int, db: Session = Depends(get
         raise HTTPException(status_code=500, detail=f"Failed to fetch participant details: {str(e)}")
 
 @router.get("/", response_model=List[CourseResponse])
-async def get_courses(db: Session = Depends(get_db)):
+def get_courses(db: Session = Depends(get_db)):
     """Get all courses with their modules grouped by ADF"""
     courses = db.query(Course).all()
     
@@ -771,7 +936,7 @@ async def get_courses(db: Session = Depends(get_db)):
     return courses
 
 @router.get("/deadline-data")
-async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Return all participant-module combinations for active courses.
     Frontend filters by deadline (overdue) status and progression threshold."""
     try:
@@ -980,7 +1145,7 @@ async def get_deadline_data(db: Session = Depends(get_db)) -> Dict[str, Any]:
 
 
 @router.get("/{course_id}", response_model=CourseResponse)
-async def get_course(course_id: int, db: Session = Depends(get_db)):
+def get_course(course_id: int, db: Session = Depends(get_db)):
     """Get a specific course with its modules"""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -1003,7 +1168,7 @@ async def get_course(course_id: int, db: Session = Depends(get_db)):
     return course
 
 @router.get("/{course_id}/modules", response_model=List[ModuleResponse])
-async def get_course_modules(course_id: int, db: Session = Depends(get_db)):
+def get_course_modules(course_id: int, db: Session = Depends(get_db)):
     """Get all modules for a specific course"""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -1012,7 +1177,7 @@ async def get_course_modules(course_id: int, db: Session = Depends(get_db)):
     return course.modules
 
 @router.get("/elearning/", response_model=List[CourseWithParticipants])
-async def get_elearning_courses(
+def get_elearning_courses(
         skip: int = Query(0, ge=0),
         limit: int = Query(100, ge=1, le=1000),
         db: Session = Depends(get_db)

@@ -112,6 +112,49 @@ class InactivityService:
         for pid, adf, cnt, next_date in upcoming_rows:
             upcoming_sessions_map[(pid, adf)] = (cnt, next_date)
 
+        # Pre-build last-attended-liveroom map: (participant_id, adf_id) -> latest past date_fin.
+        # Replaces one query per (participant, ADF) inside the main loop.
+        last_liveroom_map: Dict[Tuple[int, str], datetime] = {}
+        last_liveroom_rows = (
+            self.db.query(
+                CreneauParticipant.participant_id,
+                Creneau.id_action_formation,
+                sa_func.max(Creneau.date_fin).label('last_fin')
+            )
+            .join(Creneau, CreneauParticipant.creneau_id == Creneau.id)
+            .filter(
+                CreneauParticipant.presence == "1",
+                Creneau.date_fin <= now
+            )
+            .group_by(CreneauParticipant.participant_id, Creneau.id_action_formation)
+            .all()
+        )
+        for pid, adf, last_fin in last_liveroom_rows:
+            last_liveroom_map[(pid, adf)] = last_fin
+
+        # Pre-build ADF -> LAM ids map (single query, was one query per ADF in the loop).
+        # No status filter here, matching the original per-ADF lookup.
+        adf_lams_map: Dict[str, List[str]] = {}
+        for adf, lam in self.db.query(
+            Course.id_action_formation, Course.id_lam
+        ).distinct().all():
+            if lam:
+                adf_lams_map.setdefault(adf, []).append(lam)
+
+        # Pre-build module aggregates: (participant_id, id_lam) -> (count, progression_sum, time_sum).
+        # Replaces the per-participant Module query; summing across an ADF's LAMs in
+        # Python reproduces the previous avg-progression and total-time figures exactly.
+        module_agg: Dict[Tuple[int, str], Tuple[int, float, int]] = {}
+        module_rows = self.db.query(
+            Module.participant_id,
+            Module.id_lam,
+            sa_func.count(Module.id).label('cnt'),
+            sa_func.sum(Module.lms_progression).label('prog_sum'),
+            sa_func.sum(Module.lms_time_spent).label('time_sum'),
+        ).group_by(Module.participant_id, Module.id_lam).all()
+        for pid, lam, cnt, prog_sum, time_sum in module_rows:
+            module_agg[(pid, lam)] = (int(cnt or 0), float(prog_sum or 0.0), int(time_sum or 0))
+
         query = (
             self.db.query(ParticipantCourse, Participant, Course)
             .join(Participant, ParticipantCourse.participant_id == Participant.id)
@@ -210,7 +253,7 @@ class InactivityService:
             has_liveroom = (participant_id, adf_id) in liveroom_pairs
 
             # Liveroom last attended (only sessions where participant was present)
-            last_liveroom = self._get_last_liveroom_date(participant_id, adf_id) if has_liveroom else None
+            last_liveroom = last_liveroom_map.get((participant_id, adf_id)) if has_liveroom else None
 
             # Determine effective last activity and its source
             last_activity = None
@@ -262,27 +305,23 @@ class InactivityService:
 
             total_duration = module_planned_hours
 
-            # Query all LAMs for this ADF (same as course detail page)
-            adf_lam_rows = self.db.query(Course.id_lam).filter(
-                Course.id_action_formation == adf_id
-            ).distinct().all()
-            lam_ids = [row[0] for row in adf_lam_rows if row[0]]
-            if lam_ids:
-                all_modules = self.db.query(Module).filter(
-                    Module.participant_id == participant.id,
-                    Module.id_lam.in_(lam_ids)
-                ).all()
-            else:
-                all_modules = []
+            # Aggregate module data across all LAMs of this ADF (same as course detail page),
+            # using the pre-built maps instead of per-participant queries.
+            lam_ids = adf_lams_map.get(adf_id, [])
+            module_count = 0
+            progression_sum = 0.0
+            elearning_time_spent_seconds = 0
+            for lam_id in lam_ids:
+                agg = module_agg.get((participant.id, lam_id))
+                if agg:
+                    module_count += agg[0]
+                    progression_sum += agg[1]
+                    elearning_time_spent_seconds += agg[2]
 
-            elearning_time_spent_seconds = sum(m.lms_time_spent or 0 for m in all_modules)
             total_time_spent_hours = (elearning_time_spent_seconds / 3600.0) + lr_spent_hours
 
             # Compute progression from all module data (same as course detail page)
-            if all_modules:
-                avg_progression = sum(m.lms_progression or 0 for m in all_modules) / len(all_modules)
-            else:
-                avg_progression = 0.0
+            avg_progression = (progression_sum / module_count) if module_count else 0.0
 
             # Skip fully completed participants
             if avg_progression >= 100.0:
@@ -383,26 +422,6 @@ class InactivityService:
         else:
             all_details.sort(key=lambda x: x.days_inactive, reverse=True)
             return InactivitySummary(by_course=None, participants=all_details, **summary_kwargs)
-
-    def _get_last_liveroom_date(self, participant_id: int, adf_id: str) -> Optional[datetime]:
-        """
-        Get the most recent creneau date_fin where the participant was present (presence='1')
-        for a given ADF. Excludes future sessions.
-        """
-        now = datetime.now(timezone.utc)
-        result = (
-            self.db.query(Creneau.date_fin)
-            .join(CreneauParticipant, CreneauParticipant.creneau_id == Creneau.id)
-            .filter(
-                Creneau.id_action_formation == adf_id,
-                CreneauParticipant.participant_id == participant_id,
-                CreneauParticipant.presence == "1",
-                Creneau.date_fin <= now
-            )
-            .order_by(Creneau.date_fin.desc())
-            .first()
-        )
-        return result[0] if result else None
 
     def _classify(self, days_since_activity: int) -> tuple[str, str]:
         """Classify into active / inactive based on days since last activity."""

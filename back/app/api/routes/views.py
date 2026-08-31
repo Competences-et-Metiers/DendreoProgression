@@ -14,7 +14,7 @@ MAX_VIEWS_PER_USER = 20
 
 
 @router.get("/", response_model=List[UserViewResponse])
-async def list_views(
+def list_views(
     page: str = Query("inactive"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -27,7 +27,7 @@ async def list_views(
 
 
 @router.post("/", response_model=UserViewResponse, status_code=201)
-async def create_view(
+def create_view(
     payload: UserViewCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -56,7 +56,7 @@ async def create_view(
 
 
 @router.put("/{view_id}", response_model=UserViewResponse)
-async def update_view(
+def update_view(
     view_id: int,
     payload: UserViewCreate,
     current_user: User = Depends(get_current_user),
@@ -78,7 +78,7 @@ async def update_view(
 
 
 @router.delete("/{view_id}", status_code=204)
-async def delete_view(
+def delete_view(
     view_id: int,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
