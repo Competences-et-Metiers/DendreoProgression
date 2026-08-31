@@ -144,6 +144,22 @@ def create_tables():
 
         with engine.connect() as conn:
             try:
+                for col, sql_type in (
+                    ("deal_amount", "DOUBLE PRECISION"),
+                    ("deal_type_financement", "VARCHAR"),
+                    ("deal_montant_pec", "DOUBLE PRECISION"),
+                    ("deal_montant_rac", "DOUBLE PRECISION"),
+                ):
+                    conn.execute(text(
+                        f"ALTER TABLE participant_hubspot_data ADD COLUMN IF NOT EXISTS {col} {sql_type}"
+                    ))
+                conn.commit()
+                logger.info("Ensured participant_hubspot_data deal financial columns exist")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
                 conn.execute(text("ALTER TABLE participants ADD COLUMN IF NOT EXISTS edof_sessions JSON"))
                 conn.commit()
                 logger.info("Ensured participants.edof_sessions column exists")

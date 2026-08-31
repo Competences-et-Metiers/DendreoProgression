@@ -654,6 +654,10 @@
     "openDeal": "Ouvrir la transac dans HubSpot",
     "noEmail": "Aucune adresse email disponible",
     "noDeals": "Aucune transac trouvée pour ce contact",
-    "fetchError": "Impossible de charger les transacs depuis HubSpot"
+    "fetchError": "Impossible de charger les transacs depuis HubSpot",
+    "amount": "Montant",
+    "typeDeFinancement": "Financement",
+    "montantPec": "PEC",
+    "montantRac": "RAC"
   }
 } 

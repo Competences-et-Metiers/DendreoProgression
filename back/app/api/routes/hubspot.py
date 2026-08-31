@@ -4,7 +4,7 @@ import httpx
 import logging
 from datetime import datetime, timezone
 
-from app.services.hubspot_client import hubspot_client
+from app.services.hubspot_client import DEAL_FINANCE_FIELDS, hubspot_client
 from app.services.dendreo_client import DendreoClient, DendreoAPIError
 from app.services.api_budget import check_budget
 from app.models.database import get_db
@@ -131,8 +131,10 @@ async def link_deal(
 
     deal_url = f"https://app-eu1.hubspot.com/contacts/25868618/record/0-3/{body.deal_id}"
 
-    # Capture the deal's EDOF session dates (best-effort read, not budget-gated).
-    edof = await hubspot_client.get_deal_edof_dates(body.deal_id)
+    # Capture the deal's EDOF session dates + financial fields (best-effort read,
+    # not budget-gated).
+    deal_fields = await hubspot_client.get_deal_link_fields(body.deal_id)
+    finance = {k: deal_fields.get(k) for k in DEAL_FINANCE_FIELDS}
 
     # Upsert local link
     hubspot_data = db.query(ParticipantHubspotData).filter(
@@ -144,8 +146,10 @@ async def link_deal(
         hubspot_data.c_id_transaction_hubspot = body.deal_id
         hubspot_data.c_url_transaction_hubspot = deal_url
         hubspot_data.is_manual_link = True
-        hubspot_data.edof_date_debut = edof.get("edof_date_debut")
-        hubspot_data.edof_date_fin = edof.get("edof_date_fin")
+        hubspot_data.edof_date_debut = deal_fields.get("edof_date_debut")
+        hubspot_data.edof_date_fin = deal_fields.get("edof_date_fin")
+        for field, value in finance.items():
+            setattr(hubspot_data, field, value)
         hubspot_data.updated_at = datetime.now(timezone.utc)
     else:
         hubspot_data = ParticipantHubspotData(
@@ -154,19 +158,20 @@ async def link_deal(
             c_id_transaction_hubspot=body.deal_id,
             c_url_transaction_hubspot=deal_url,
             is_manual_link=True,
-            edof_date_debut=edof.get("edof_date_debut"),
-            edof_date_fin=edof.get("edof_date_fin"),
+            edof_date_debut=deal_fields.get("edof_date_debut"),
+            edof_date_fin=deal_fields.get("edof_date_fin"),
+            **finance,
         )
         db.add(hubspot_data)
 
     # Merge this deal's EDOF dates into the participant-level sessions (the display
     # source). Replace any existing entry for the same deal; keep the others.
-    if edof.get("edof_date_debut") or edof.get("edof_date_fin"):
+    if deal_fields.get("edof_date_debut") or deal_fields.get("edof_date_fin"):
         sessions = [s for s in (participant.edof_sessions or []) if s.get("deal_id") != body.deal_id]
         sessions.append({
             "deal_id": body.deal_id,
-            "date_debut": edof.get("edof_date_debut"),
-            "date_fin": edof.get("edof_date_fin"),
+            "date_debut": deal_fields.get("edof_date_debut"),
+            "date_fin": deal_fields.get("edof_date_fin"),
         })
         sessions.sort(key=lambda s: s.get("date_debut") or s.get("date_fin") or "")
         participant.edof_sessions = sessions
@@ -214,11 +219,11 @@ async def link_deal(
     _record_action(
         db, 'link_deal', current_user.id, overall,
         body.participant_id, body.id_action_formation, body.deal_id,
-        api_calls=dendreo_calls, hubspot_calls=1, duration=duration,  # 1 HubSpot read (EDOF dates)
+        api_calls=dendreo_calls, hubspot_calls=1, duration=duration,  # 1 HubSpot read (EDOF dates + financials)
         details={
             "dendreo_push_ok": dendreo_push_ok,
-            "edof_date_debut": edof.get("edof_date_debut"),
-            "edof_date_fin": edof.get("edof_date_fin"),
+            "edof_date_debut": deal_fields.get("edof_date_debut"),
+            "edof_date_fin": deal_fields.get("edof_date_fin"),
         },
     )
 
@@ -272,6 +277,8 @@ async def unlink_deal(
     hubspot_data.is_manual_link = False
     hubspot_data.edof_date_debut = None
     hubspot_data.edof_date_fin = None
+    for field in DEAL_FINANCE_FIELDS:
+        setattr(hubspot_data, field, None)
     hubspot_data.updated_at = datetime.now(timezone.utc)
 
     # Drop this deal from the participant-level EDOF sessions (unless another of the

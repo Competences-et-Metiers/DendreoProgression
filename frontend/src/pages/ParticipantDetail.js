@@ -7,6 +7,7 @@ import { useParticipantDetails } from '../hooks/useQuery';
 import { apiService } from '../services/api';
 import * as timeUtils from '../utils/timeUtils';
 import DealLinkButton from '../components/DealLinkButton';
+import DealFinancials from '../components/DealFinancials';
 import {
   ArrowLeft,
   User,
@@ -384,6 +385,8 @@ const ParticipantDetail = () => {
                         </div>
                       </div>
                       
+                      <DealFinancials deal={course.hubspot_deal} />
+
                       <ProgressBar 
                         percentage={course.progression || 0} 
                         size="small"
