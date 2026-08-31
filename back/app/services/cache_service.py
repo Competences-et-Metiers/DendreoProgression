@@ -131,7 +131,7 @@ class CacheService:
             patterns = [
                 f"participants:details:{participant_id}",
                 f"participants:course:*:{participant_id}",
-                "participants:list",
+                "participants:list*",  # keys are participants:list:<limit>
                 "inactivity:*",
             ]
         else:
@@ -175,13 +175,13 @@ class CacheService:
         """Cache courses list (10 min TTL)"""
         return self.set("courses:list", courses, ttl)
 
-    def get_participants_list(self) -> Optional[list]:
-        """Get cached participants list"""
-        return self.get("participants:list")
+    def get_participants_list(self, limit: int = 25) -> Optional[list]:
+        """Get cached participants list for a given page size"""
+        return self.get(f"participants:list:{limit}")
 
-    def set_participants_list(self, participants: list, ttl: int = 300) -> bool:
-        """Cache participants list (5 min TTL)"""
-        return self.set("participants:list", participants, ttl)
+    def set_participants_list(self, participants: list, limit: int = 25, ttl: int = 300) -> bool:
+        """Cache participants list (5 min TTL), keyed by page size"""
+        return self.set(f"participants:list:{limit}", participants, ttl)
 
     def get_participant_details(self, participant_id: int) -> Optional[Dict]:
         """Get cached participant details"""

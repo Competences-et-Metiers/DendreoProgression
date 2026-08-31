@@ -12,6 +12,29 @@ logger = logging.getLogger(__name__)
 EDOF_DATE_DEBUT_PROP = "date_debut_formation"
 EDOF_DATE_FIN_PROP = "date_fin_formation_edof"
 
+# HubSpot deal property internal names for the financial fields shown on the
+# participant's course cards ("Type de financement", "Montant PEC", "Montant RAC").
+DEAL_TYPE_FINANCEMENT_PROP = "type_de_financement"
+DEAL_MONTANT_PEC_PROP = "montant_pec"
+DEAL_MONTANT_RAC_PROP = "montant_rac"
+
+# Keys of the financial fields as returned by this client / stored on
+# participant_hubspot_data (same names on both sides).
+DEAL_FINANCE_FIELDS = (
+    "deal_amount",
+    "deal_type_financement",
+    "deal_montant_pec",
+    "deal_montant_rac",
+)
+
+# Properties read for every deal we fetch (link dropdown, auto-link, backfill).
+DEAL_PROPERTIES = [
+    "dealname", "amount", "formation_detaillee",
+    "pipeline", "dealstage",
+    EDOF_DATE_DEBUT_PROP, EDOF_DATE_FIN_PROP,
+    DEAL_TYPE_FINANCEMENT_PROP, DEAL_MONTANT_PEC_PROP, DEAL_MONTANT_RAC_PROP,
+]
+
 
 def normalize_hs_date(value: Any) -> Optional[str]:
     """Normalize a HubSpot date property value to an ISO 'YYYY-MM-DD' string.
@@ -30,6 +53,30 @@ def normalize_hs_date(value: Any) -> Optional[str]:
         except (ValueError, OSError, OverflowError):
             return None
     return s[:10]  # ISO date or datetime -> keep the date part
+
+
+def parse_hs_number(value: Any) -> Optional[float]:
+    """Parse a HubSpot number property (returned as a string) into a float.
+    Returns None for empty/unparseable values."""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def extract_deal_finance(props: Dict[str, Any]) -> Dict[str, Any]:
+    """Pull the financial fields off a deal's properties payload."""
+    return {
+        "deal_amount": parse_hs_number(props.get("amount")),
+        "deal_type_financement": (props.get(DEAL_TYPE_FINANCEMENT_PROP) or None),
+        "deal_montant_pec": parse_hs_number(props.get(DEAL_MONTANT_PEC_PROP)),
+        "deal_montant_rac": parse_hs_number(props.get(DEAL_MONTANT_RAC_PROP)),
+    }
 
 
 class HubSpotClient:
@@ -192,9 +239,50 @@ class HubSpotClient:
             logger.error(f"Error fetching HubSpot calls: {e}")
             return []
 
+    @staticmethod
+    def _map_deal(result: Dict[str, Any]) -> Dict[str, Any]:
+        """Map a raw HubSpot deal payload to the dict shape used across the app."""
+        props = result.get('properties', {})
+        return {
+            'id': result.get('id'),
+            'dealname': props.get('dealname', ''),
+            'amount': props.get('amount'),
+            'formation_detaillee': props.get('formation_detaillee'),
+            'pipeline': props.get('pipeline'),
+            'dealstage': props.get('dealstage'),
+            'edof_date_debut': normalize_hs_date(props.get(EDOF_DATE_DEBUT_PROP)),
+            'edof_date_fin': normalize_hs_date(props.get(EDOF_DATE_FIN_PROP)),
+            **extract_deal_finance(props),
+        }
+
+    async def get_deals_batch(self, deal_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+        """Batch-read deals by ID (100 per HubSpot call). Returns {deal_id: deal_dict}.
+        Missing/archived deals are simply absent from the result."""
+        out: Dict[str, Dict[str, Any]] = {}
+        ids = [str(d) for d in deal_ids if d]
+        if not self.api_key or not ids:
+            return out
+
+        url = f"{self.base_url}/crm/v3/objects/deals/batch/read"
+        headers = self._get_headers()
+        async with httpx.AsyncClient(timeout=60) as client:
+            for start in range(0, len(ids), 100):
+                chunk = ids[start:start + 100]
+                body = {"properties": DEAL_PROPERTIES, "inputs": [{"id": d} for d in chunk]}
+                try:
+                    response = await client.post(url, json=body, headers=headers)
+                    response.raise_for_status()
+                    for result in response.json().get('results', []):
+                        deal = self._map_deal(result)
+                        if deal['id']:
+                            out[str(deal['id'])] = deal
+                except httpx.HTTPError as e:
+                    logger.error(f"HubSpot batch deal read failed for {len(chunk)} deals: {e}")
+        return out
+
     async def get_deals_for_contact(self, email: str) -> List[Dict[str, Any]]:
         """Fetch all deals associated with a HubSpot contact by email.
-        Returns list of dicts: [{id, dealname, amount}, ...]."""
+        Returns a list of deal dicts (see _map_deal)."""
         if not self.api_key:
             return []
 
@@ -224,31 +312,14 @@ class HubSpotClient:
             async with httpx.AsyncClient(timeout=30) as client:
                 batch_url = f"{self.base_url}/crm/v3/objects/deals/batch/read"
                 batch_body = {
-                    "properties": [
-                        "dealname", "amount", "formation_detaillee",
-                        "pipeline", "dealstage",
-                        EDOF_DATE_DEBUT_PROP, EDOF_DATE_FIN_PROP,
-                    ],
+                    "properties": DEAL_PROPERTIES,
                     "inputs": [{"id": did} for did in deal_ids[:100]]
                 }
                 response = await client.post(batch_url, json=batch_body, headers=headers)
                 response.raise_for_status()
                 batch_data = response.json()
 
-                deals = []
-                for result in batch_data.get('results', []):
-                    props = result.get('properties', {})
-                    deals.append({
-                        'id': result.get('id'),
-                        'dealname': props.get('dealname', ''),
-                        'amount': props.get('amount'),
-                        'formation_detaillee': props.get('formation_detaillee'),
-                        'pipeline': props.get('pipeline'),
-                        'dealstage': props.get('dealstage'),
-                        'edof_date_debut': normalize_hs_date(props.get(EDOF_DATE_DEBUT_PROP)),
-                        'edof_date_fin': normalize_hs_date(props.get(EDOF_DATE_FIN_PROP)),
-                    })
-                return deals
+                return [self._map_deal(r) for r in batch_data.get('results', [])]
 
         except httpx.HTTPStatusError as e:
             logger.error(f"HubSpot API error fetching deals for {email}: {e.response.status_code}")
@@ -257,15 +328,23 @@ class HubSpotClient:
             logger.error(f"Error fetching HubSpot deals for {email}: {e}")
             return []
 
-    async def get_deal_edof_dates(self, deal_id: str) -> Dict[str, Optional[str]]:
-        """Fetch the EDOF session dates for a single deal.
-        Returns {'edof_date_debut': ..., 'edof_date_fin': ...} (ISO dates or None)."""
-        empty = {"edof_date_debut": None, "edof_date_fin": None}
+    async def get_deal_link_fields(self, deal_id: str) -> Dict[str, Any]:
+        """Fetch the deal fields captured on a link: EDOF session dates + financials.
+        Returns edof_date_debut/edof_date_fin (ISO dates or None) and
+        deal_amount/deal_type_financement/deal_montant_pec/deal_montant_rac."""
+        empty = {
+            "edof_date_debut": None,
+            "edof_date_fin": None,
+            "deal_amount": None,
+            "deal_type_financement": None,
+            "deal_montant_pec": None,
+            "deal_montant_rac": None,
+        }
         if not self.api_key or not deal_id:
             return empty
 
         url = f"{self.base_url}/crm/v3/objects/deals/{deal_id}"
-        params = {"properties": f"{EDOF_DATE_DEBUT_PROP},{EDOF_DATE_FIN_PROP}"}
+        params = {"properties": ",".join(DEAL_PROPERTIES)}
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 response = await client.get(url, params=params, headers=self._get_headers())
@@ -274,9 +353,10 @@ class HubSpotClient:
                 return {
                     "edof_date_debut": normalize_hs_date(props.get(EDOF_DATE_DEBUT_PROP)),
                     "edof_date_fin": normalize_hs_date(props.get(EDOF_DATE_FIN_PROP)),
+                    **extract_deal_finance(props),
                 }
         except httpx.HTTPError as e:
-            logger.warning(f"Failed to fetch EDOF dates for deal {deal_id}: {e}")
+            logger.warning(f"Failed to fetch link fields for deal {deal_id}: {e}")
             return empty
 
     async def get_owner_by_email(self, email: str) -> Optional[str]:

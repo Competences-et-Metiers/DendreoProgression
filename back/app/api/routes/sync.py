@@ -49,7 +49,7 @@ def _compute_next_sync_at(config: Optional[AdminSyncConfig], last_success: Optio
 # Only read-only status endpoints remain in the API
 
 @router.get("/last-sync")
-async def get_last_sync(db: Session = Depends(get_db)) -> Dict[str, Any]:
+def get_last_sync(db: Session = Depends(get_db)) -> Dict[str, Any]:
     """Get information about the last completed full sync (sync_all only).
     Single-ADF syncs are excluded so the inactivity manager only reflects large/scheduled runs."""
     try:

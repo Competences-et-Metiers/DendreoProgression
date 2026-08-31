@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
@@ -8,19 +8,30 @@ import { useLanguageEffect } from './hooks/useLanguageEffect';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Layout from './components/Layout';
-import Login from './pages/Login';
-import AdfList from './pages/AdfList';
-import CourseDetail from './pages/CourseDetail';
-import Participants from './pages/Participants';
-import ParticipantDetail from './pages/ParticipantDetail';
-import Account from './pages/Account';
-import InactiveManagement from './pages/InactiveManagement';
-import Settings from './pages/Settings';
-import AdminSyncDashboard from './pages/AdminSyncDashboard';
-import AdminInterventions from './pages/AdminInterventions';
-import AdminActionHistory from './pages/AdminActionHistory';
-import ModuleManagement from './pages/ModuleManagement';
 import { Loader2 } from 'lucide-react';
+
+// Pages are code-split so the initial bundle only carries the shell. Previously all
+// twelve were imported eagerly, so every visitor downloaded every page (including
+// the 2k-line InactiveManagement and the admin dashboards) before first paint.
+const Login = lazy(() => import('./pages/Login'));
+const AdfList = lazy(() => import('./pages/AdfList'));
+const CourseDetail = lazy(() => import('./pages/CourseDetail'));
+const Participants = lazy(() => import('./pages/Participants'));
+const ParticipantDetail = lazy(() => import('./pages/ParticipantDetail'));
+const Account = lazy(() => import('./pages/Account'));
+const InactiveManagement = lazy(() => import('./pages/InactiveManagement'));
+const Settings = lazy(() => import('./pages/Settings'));
+const AdminSyncDashboard = lazy(() => import('./pages/AdminSyncDashboard'));
+const AdminInterventions = lazy(() => import('./pages/AdminInterventions'));
+const AdminActionHistory = lazy(() => import('./pages/AdminActionHistory'));
+const ModuleManagement = lazy(() => import('./pages/ModuleManagement'));
+
+// Shown while a route chunk is being fetched.
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-900">
+    <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+  </div>
+);
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -82,58 +93,60 @@ const AppContent = () => {
 
   return (
     <Router>
-      <Routes>
-        {/* Public route */}
-        <Route path="/login" element={<Login />} />
+      <Suspense fallback={<RouteFallback />}>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<Login />} />
 
-        {/* Protected routes */}
-        <Route
-          path="/*"
-          element={
-            <ProtectedRoute>
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<Navigate to="/inactive-management" replace />} />
-                  <Route path="/adf-list" element={<AdfList />} />
-                  <Route path="/courses/:courseId" element={<CourseDetail />} />
-                  <Route path="/participants" element={<Participants />} />
-                  <Route path="/participants/:participantId" element={<ParticipantDetail />} />
-                  <Route path="/account" element={<Account />} />
-                  <Route path="/inactive-management" element={<InactiveManagement />} />
-                  <Route path="/module-management" element={<ModuleManagement />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route
-                    path="/admin/sync"
-                    element={
-                      <AdminRoute>
-                        <AdminSyncDashboard />
-                      </AdminRoute>
-                    }
-                  />
-                  <Route
-                    path="/interventions"
-                    element={
-                      <ManagerOrAdminRoute>
-                        <AdminInterventions />
-                      </ManagerOrAdminRoute>
-                    }
-                  />
-                  {/* Legacy path redirect so old bookmarks still work */}
-                  <Route path="/admin/interventions" element={<Navigate to="/interventions" replace />} />
-                  <Route
-                    path="/admin/action-history"
-                    element={
-                      <AdminRoute>
-                        <AdminActionHistory />
-                      </AdminRoute>
-                    }
-                  />
-                </Routes>
-              </Layout>
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
+          {/* Protected routes */}
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Routes>
+                    <Route path="/" element={<Navigate to="/inactive-management" replace />} />
+                    <Route path="/adf-list" element={<AdfList />} />
+                    <Route path="/courses/:courseId" element={<CourseDetail />} />
+                    <Route path="/participants" element={<Participants />} />
+                    <Route path="/participants/:participantId" element={<ParticipantDetail />} />
+                    <Route path="/account" element={<Account />} />
+                    <Route path="/inactive-management" element={<InactiveManagement />} />
+                    <Route path="/module-management" element={<ModuleManagement />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route
+                      path="/admin/sync"
+                      element={
+                        <AdminRoute>
+                          <AdminSyncDashboard />
+                        </AdminRoute>
+                      }
+                    />
+                    <Route
+                      path="/interventions"
+                      element={
+                        <ManagerOrAdminRoute>
+                          <AdminInterventions />
+                        </ManagerOrAdminRoute>
+                      }
+                    />
+                    {/* Legacy path redirect so old bookmarks still work */}
+                    <Route path="/admin/interventions" element={<Navigate to="/interventions" replace />} />
+                    <Route
+                      path="/admin/action-history"
+                      element={
+                        <AdminRoute>
+                          <AdminActionHistory />
+                        </AdminRoute>
+                      }
+                    />
+                  </Routes>
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Suspense>
     </Router>
   );
 };

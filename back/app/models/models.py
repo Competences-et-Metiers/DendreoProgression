@@ -126,6 +126,12 @@ class ParticipantHubspotData(Base):
     # Populated at link time only (manual link or bulk-link script); sync never touches these.
     edof_date_debut = Column(String, nullable=True)  # Date Début Session EDOF (HubSpot: date_debut_formation)
     edof_date_fin = Column(String, nullable=True)  # Date Fin Session EDOF (HubSpot: date_fin_formation_edof)
+    # Financial fields captured from the linked HubSpot deal (same lifecycle as the
+    # EDOF dates: written at link time, refreshed by scripts/refresh_deal_fields.py).
+    deal_amount = Column(Float, nullable=True)  # HubSpot: amount
+    deal_type_financement = Column(String, nullable=True)  # HubSpot: type_de_financement
+    deal_montant_pec = Column(Float, nullable=True)  # HubSpot: montant_pec
+    deal_montant_rac = Column(Float, nullable=True)  # HubSpot: montant_rac
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

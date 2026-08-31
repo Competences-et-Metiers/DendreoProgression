@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest, db: Session = Depends(get_db)):
+def login(request: LoginRequest, db: Session = Depends(get_db)):
     """
     Authenticate user and return JWT token.
     """
@@ -68,7 +68,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
+def get_current_user_info(current_user: User = Depends(get_current_user)):
     """
     Get current authenticated user information.
     """
@@ -76,7 +76,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 
 
 @router.put("/change-password", response_model=MessageResponse)
-async def change_password(
+def change_password(
     request: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -120,7 +120,7 @@ async def change_password(
 
 
 @router.get("/microsoft/config", response_model=MicrosoftConfigResponse)
-async def get_microsoft_config():
+def get_microsoft_config():
     """
     Return Microsoft auth configuration for the frontend.
     Public endpoint (no auth required).

@@ -18,7 +18,8 @@ Everything else (0 deals, 0 eligible, 2+ eligible deals) is skipped and counted
 so staff can link it manually. Links are written with is_manual_link=True so the
 sync's deal-data guard preserves them (this flag is the system's only "don't
 overwrite from Dendreo" signal — auto-links are not literally manual but must be
-preserved the same way). EDOF dates are captured at link time only.
+preserved the same way). EDOF dates and the deal's financial fields (amount,
+type de financement, montant PEC/RAC) are captured at link time only.
 
 No writes to HubSpot happen here — only the local participant_hubspot_data table
 is populated.
@@ -34,7 +35,7 @@ from typing import Any, Callable, Dict, Optional, Set
 from sqlalchemy.orm import Session
 
 from app.models.models import Participant, ParticipantCourse, Course, ParticipantHubspotData
-from app.services.hubspot_client import hubspot_client
+from app.services.hubspot_client import DEAL_FINANCE_FIELDS, hubspot_client
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +237,7 @@ async def auto_link_deals(
         edof_debut = deal.get("edof_date_debut")
         edof_fin = deal.get("edof_date_fin")
         deal_url = DEAL_URL_TMPL.format(deal_id=deal_id)
+        finance = {k: deal.get(k) for k in DEAL_FINANCE_FIELDS}
 
         # Replicate the deal across all of the participant's unlinked active courses.
         for adf in unlinked_adfs:
@@ -253,6 +255,8 @@ async def auto_link_deals(
                 existing.is_manual_link = True
                 existing.edof_date_debut = edof_debut
                 existing.edof_date_fin = edof_fin
+                for field, value in finance.items():
+                    setattr(existing, field, value)
             else:
                 db.add(
                     ParticipantHubspotData(
@@ -263,6 +267,7 @@ async def auto_link_deals(
                         is_manual_link=True,
                         edof_date_debut=edof_debut,
                         edof_date_fin=edof_fin,
+                        **finance,
                     )
                 )
             linked_pairs.add((participant.id, adf))

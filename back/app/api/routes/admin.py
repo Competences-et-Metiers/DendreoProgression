@@ -213,7 +213,7 @@ def start_sync_process(command: List[str]) -> Dict[str, Any]:
 
 # API Endpoints
 @router.get("/sync/api-usage", response_model=APIUsageStats)
-async def get_api_usage(
+def get_api_usage(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -329,7 +329,7 @@ async def get_api_usage(
 
 
 @router.post("/sync/dry-run", response_model=SyncCommandResponse)
-async def trigger_dry_run(
+def trigger_dry_run(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -357,7 +357,7 @@ async def trigger_dry_run(
 
 
 @router.post("/sync/force", response_model=SyncCommandResponse)
-async def force_sync(
+def force_sync(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -393,7 +393,7 @@ async def force_sync(
 
 
 @router.post("/sync/adf/{id_action_formation}", response_model=SyncCommandResponse)
-async def sync_specific_adf(
+def sync_specific_adf(
     id_action_formation: str,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
@@ -430,7 +430,7 @@ async def sync_specific_adf(
 
 
 @router.get("/sync/config", response_model=SyncConfigResponse)
-async def get_sync_config(
+def get_sync_config(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -443,7 +443,7 @@ async def get_sync_config(
 
 
 @router.put("/sync/config", response_model=SyncConfigResponse)
-async def update_sync_config(
+def update_sync_config(
     config_update: SyncConfigUpdate,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
@@ -520,7 +520,7 @@ async def update_sync_config(
 
 
 @router.get("/sync/status", response_model=SyncStatusResponse)
-async def get_sync_status(
+def get_sync_status(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -590,7 +590,7 @@ async def get_sync_status(
 
 
 @router.get("/sync/history")
-async def get_sync_history(
+def get_sync_history(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
     page: int = QueryParam(1, ge=1),
@@ -639,7 +639,7 @@ async def get_sync_history(
 
 
 @router.post("/sync/resume", response_model=SyncCommandResponse)
-async def resume_sync(
+def resume_sync(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -705,7 +705,7 @@ async def resume_sync(
 
 
 @router.post("/sync/resume/cancel", response_model=SyncCommandResponse)
-async def cancel_resume(
+def cancel_resume(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -745,7 +745,7 @@ async def cancel_resume(
 
 
 @router.post("/sync/stop", response_model=SyncCommandResponse)
-async def stop_sync(
+def stop_sync(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
@@ -868,7 +868,7 @@ async def sync_categories(
 
 
 @router.get("/sync/{sync_id}/log")
-async def get_sync_log(
+def get_sync_log(
     sync_id: int,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
@@ -907,7 +907,7 @@ async def get_sync_log(
 
 
 @router.get("/sync/live-log")
-async def get_live_log(
+def get_live_log(
     offset: int = 0,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db)
@@ -996,7 +996,7 @@ async def get_live_log(
 # ─── Admin Interventions Log ────────────────────────────────────────────────
 
 @router.get("/interventions", dependencies=[Depends(require_manager_or_admin)])
-async def get_admin_interventions(
+def get_admin_interventions(
     page: int = QueryParam(1, ge=1),
     page_size: int = QueryParam(50, ge=1, le=200),
     sort_order: str = QueryParam("desc", pattern="^(asc|desc)$"),
@@ -1081,7 +1081,7 @@ async def get_admin_interventions(
 
 
 @router.get("/interventions/stats", dependencies=[Depends(require_manager_or_admin)])
-async def get_admin_intervention_stats(
+def get_admin_intervention_stats(
     db: Session = Depends(get_db),
 ):
     """Admin endpoint: aggregate intervention stats."""
@@ -1131,7 +1131,7 @@ async def get_admin_intervention_stats(
 
 
 @router.get("/action-history", dependencies=[Depends(require_admin)])
-async def get_action_history(
+def get_action_history(
     page: int = QueryParam(1, ge=1),
     page_size: int = QueryParam(50, ge=1, le=200),
     sort_order: str = QueryParam("desc", pattern="^(asc|desc)$"),
@@ -1212,7 +1212,7 @@ async def get_action_history(
 
 
 @router.get("/action-history/stats", dependencies=[Depends(require_admin)])
-async def get_action_history_stats(db: Session = Depends(get_db)):
+def get_action_history_stats(db: Session = Depends(get_db)):
     """Aggregate stats for the action-history page header."""
     type_rows = db.query(
         ActionHistory.action_type,

@@ -59,6 +59,10 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PYTHONUNBUFFERED: ${PYTHONUNBUFFERED:-1}
+      # Uvicorn worker processes. DB-bound endpoints are sync `def` handlers that
+      # FastAPI runs in a threadpool, so >1 worker keeps a slow query on one page
+      # from blocking every other request.
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
       # Security Configuration
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       SECRET_KEY: ${SECRET_KEY}

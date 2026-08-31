@@ -30,7 +30,8 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import { useLastSync } from '../hooks/useQuery';
-import { generateInactivityReport } from '../utils/pdfExport';
+// pdfExport pulls in jspdf + jspdf-autotable; it's imported dynamically in
+// handleDownloadPDF so those libraries stay out of the initial bundle.
 import { formatTimeSpentInHours, formatHoursMinutes } from '../utils/timeUtils';
 import InterventionPanel from '../components/InterventionPanel';
 import SavedViewsBar from '../components/SavedViewsBar';
@@ -860,6 +861,8 @@ const InactiveManagement = () => {
     }
 
     const lang = i18n.language?.startsWith('fr') ? 'fr' : 'en';
+
+    const { generateInactivityReport } = await import('../utils/pdfExport');
 
     generateInactivityReport({
       participants: filteredParticipants,

@@ -630,6 +630,10 @@
     "openDeal": "Open deal in HubSpot",
     "noEmail": "No email address available",
     "noDeals": "No deals found for this contact",
-    "fetchError": "Failed to load deals from HubSpot"
+    "fetchError": "Failed to load deals from HubSpot",
+    "amount": "Amount",
+    "typeDeFinancement": "Funding",
+    "montantPec": "Covered",
+    "montantRac": "Out of pocket"
   }
 } 
