@@ -468,9 +468,15 @@ class DendreoSync:
 
                 remaining_hubspot = None
                 if hubspot_api_limit:
-                    remaining_hubspot = max(
-                        0, hubspot_api_limit - self.stats.get("autolink_hubspot_calls", 0)
-                    )
+                    if "autolink_error" in self.stats:
+                        # Auto-link raised before reporting its usage, so we don't
+                        # know what it spent. Assume the limit is gone rather than
+                        # risk overrunning it; the next sync picks the refresh up.
+                        remaining_hubspot = 0
+                    else:
+                        remaining_hubspot = max(
+                            0, hubspot_api_limit - self.stats.get("autolink_hubspot_calls", 0)
+                        )
 
                 refresh_result = await refresh_deal_fields(
                     self.db,

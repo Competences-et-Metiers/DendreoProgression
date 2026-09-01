@@ -108,7 +108,11 @@ async def refresh_deal_fields(
         deal_ids = deal_ids[: max_hubspot_calls * BATCH_SIZE]
         stats["budget_stopped"] = True
 
-    stats["hubspot_calls"] = (len(deal_ids) + BATCH_SIZE - 1) // BATCH_SIZE
+    # Only count calls we actually make: with no API key get_deals_batch returns
+    # without issuing a request, and charging the budget for those would 429 real
+    # staff actions for nothing.
+    if hubspot_client.api_key:
+        stats["hubspot_calls"] = (len(deal_ids) + BATCH_SIZE - 1) // BATCH_SIZE
     log(f"Refreshing {len(rows)} linked row(s) from {len(deal_ids)} deal(s) "
         f"({stats['hubspot_calls']} HubSpot batch call(s))")
 

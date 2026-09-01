@@ -1280,20 +1280,28 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # Don't let an admin lock themselves out of the admin area.
+    if body.role is not None and body.reset_role_to_group:
+        raise HTTPException(
+            status_code=400,
+            detail="Set a role or hand it back to group mapping, not both",
+        )
+
+    # Don't let an admin lock themselves out of the admin area — including by
+    # unpinning their own role, which the next M365 login would then re-derive.
     if user.id == current_user.id:
         if body.role is not None and body.role != 'admin':
             raise HTTPException(status_code=400, detail="You cannot change your own role")
+        if body.reset_role_to_group:
+            raise HTTPException(status_code=400, detail="You cannot unpin your own role")
         if body.is_active is False:
             raise HTTPException(status_code=400, detail="You cannot deactivate your own account")
 
     changes = {}
-    if body.role is not None and body.role != user.role:
-        changes['role'] = f"{user.role} -> {body.role}"
-        user.role = body.role
-        user.role_source = 'manual'
-    elif body.role is not None:
-        # Same role re-submitted: still pin it so group mapping stops overwriting.
+    if body.role is not None:
+        if body.role != user.role:
+            changes['role'] = f"{user.role} -> {body.role}"
+            user.role = body.role
+        # Pin it either way, so group mapping stops overwriting the choice.
         user.role_source = 'manual'
 
     if body.reset_role_to_group and user.role_source != 'group':

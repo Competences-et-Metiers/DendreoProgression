@@ -279,17 +279,21 @@ export const useSetBillingStatus = (filters = {}) => {
   return useMutation({
     mutationFn: ({ participantId, idActionFormation, facturation }) =>
       apiService.setBillingStatus(participantId, idActionFormation, facturation),
-    onMutate: async ({ participantId, idActionFormation, facturation }) => {
+    onMutate: async ({ participantId, idActionFormation, facturation, dealId }) => {
       await queryClient.cancelQueries({ queryKey: key });
       const previous = queryClient.getQueryData(key);
+      // The status lives on the deal, and one deal can be linked to several of a
+      // participant's enrollments — the server updates them all, so preview that.
+      const affects = (p) =>
+        dealId
+          ? p.deal_id === dealId
+          : p.id === participantId && p.id_action_formation === idActionFormation;
       queryClient.setQueryData(key, (old) => {
         if (!old?.participants) return old;
         return {
           ...old,
           participants: old.participants.map((p) =>
-            p.id === participantId && p.id_action_formation === idActionFormation
-              ? { ...p, deal_facturation: facturation }
-              : p
+            affects(p) ? { ...p, deal_facturation: facturation } : p
           ),
         };
       });

@@ -405,18 +405,28 @@ async def set_billing_status(
         )
         raise HTTPException(status_code=502, detail="Failed to update the HubSpot deal")
 
-    hubspot_data.deal_facturation = body.facturation
-    hubspot_data.deal_facturation_synced_at = datetime.now(timezone.utc)
-    hubspot_data.updated_at = datetime.now(timezone.utc)
+    # The status belongs to the deal, and auto-link replicates one deal across
+    # every active course of a participant. Update all rows pointing at this deal
+    # so the sibling enrollments don't keep showing the old status (and can't
+    # overwrite the one just set from their own dropdown).
+    now = datetime.now(timezone.utc)
+    siblings = db.query(ParticipantHubspotData).filter(
+        ParticipantHubspotData.c_id_transaction_hubspot == deal_id
+    ).all()
+    for row in siblings:
+        row.deal_facturation = body.facturation
+        row.deal_facturation_synced_at = now
+        row.updated_at = now
     db.commit()
 
-    cache_service.invalidate_participant_cache(body.participant_id)
+    for participant_id in {row.participant_id for row in siblings}:
+        cache_service.invalidate_participant_cache(participant_id)
 
     _record_action(
         db, 'billing_status', current_user.id, 'success',
         body.participant_id, body.id_action_formation, deal_id,
         hubspot_calls=1, duration=duration,
-        details={"from": previous, "to": body.facturation},
+        details={"from": previous, "to": body.facturation, "rows_updated": len(siblings)},
     )
 
     logger.info(

@@ -102,9 +102,12 @@ const BillingManagement = () => {
   }, [search, courseFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  // A refetch can shrink the list under the current page; without this the user
+  // lands on an empty page with no pagination control to get back.
+  const currentPage = Math.min(page, totalPages);
   const visible = useMemo(
-    () => filtered.slice((page - 1) * pageSize, page * pageSize),
-    [filtered, page, pageSize]
+    () => filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [filtered, currentPage, pageSize]
   );
 
   const edofHoursNum = parseFloat(edofHours);
@@ -117,6 +120,7 @@ const BillingManagement = () => {
         participantId: row.id,
         idActionFormation: row.id_action_formation,
         facturation,
+        dealId: row.deal_id,
       },
       {
         onError: (err) =>
@@ -344,7 +348,7 @@ const BillingManagement = () => {
 
           {filtered.length > 0 && (
             <Pagination
-              currentPage={page}
+              currentPage={currentPage}
               totalPages={totalPages}
               pageSize={pageSize}
               totalItems={filtered.length}
