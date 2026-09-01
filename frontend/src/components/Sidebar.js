@@ -6,6 +6,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import {
   Users,
   UserCircle,
+  UserCog,
   UserX,
   Settings,
   LogOut,
@@ -27,7 +28,8 @@ const Sidebar = ({ collapsed, onToggle }) => {
   const { logout, user } = useAuth();
   const { isDark, toggleTheme } = useTheme();
 
-  const baseMenuItems = [
+  // One ordered list; `roles` restricts an entry to those roles (absent = everyone).
+  const allMenuItems = [
     {
       id: 'inactive-management',
       label: t('sidebar.inactiveManagement'),
@@ -57,6 +59,38 @@ const Sidebar = ({ collapsed, onToggle }) => {
       active: true
     },
     {
+      id: 'admin-sync',
+      label: 'Admin: Sync',
+      icon: Shield,
+      path: '/admin/sync',
+      active: true,
+      roles: ['admin'],
+    },
+    {
+      id: 'interventions',
+      label: 'Interventions',
+      icon: ClipboardList,
+      path: '/interventions',
+      active: true,
+      roles: ['admin', 'manager'],
+    },
+    {
+      id: 'admin-action-history',
+      label: 'Admin: Historique',
+      icon: History,
+      path: '/admin/action-history',
+      active: true,
+      roles: ['admin'],
+    },
+    {
+      id: 'admin-users',
+      label: t('sidebar.adminUsers'),
+      icon: UserCog,
+      path: '/admin/users',
+      active: true,
+      roles: ['admin'],
+    },
+    {
       id: 'account',
       label: t('sidebar.account'),
       icon: UserCircle,
@@ -72,51 +106,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
     }
   ];
 
-  // Build privileged menu items based on role
-  const interventionsItem = {
-    id: 'interventions',
-    label: 'Interventions',
-    icon: ClipboardList,
-    path: '/interventions',
-    active: true,
-  };
-  const adminOnlyItems = [
-    {
-      id: 'admin-sync',
-      label: 'Admin: Sync',
-      icon: Shield,
-      path: '/admin/sync',
-      active: true,
-      isAdmin: true,
-    },
-    {
-      id: 'admin-action-history',
-      label: 'Admin: Historique',
-      icon: History,
-      path: '/admin/action-history',
-      active: true,
-      isAdmin: true,
-    },
-  ];
-
-  let menuItems;
-  if (user?.role === 'admin') {
-    menuItems = [
-      ...baseMenuItems.slice(0, 4),
-      adminOnlyItems[0],       // Admin: Sync
-      interventionsItem,        // Interventions (shared label)
-      adminOnlyItems[1],       // Admin: Historique
-      ...baseMenuItems.slice(4),
-    ];
-  } else if (user?.role === 'manager') {
-    menuItems = [
-      ...baseMenuItems.slice(0, 4),
-      interventionsItem,
-      ...baseMenuItems.slice(4),
-    ];
-  } else {
-    menuItems = baseMenuItems;
-  }
+  const menuItems = allMenuItems.filter((item) => !item.roles || item.roles.includes(user?.role));
 
   const isActive = (path) => {
     if (path === '/') {

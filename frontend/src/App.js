@@ -24,6 +24,7 @@ const Settings = lazy(() => import('./pages/Settings'));
 const AdminSyncDashboard = lazy(() => import('./pages/AdminSyncDashboard'));
 const AdminInterventions = lazy(() => import('./pages/AdminInterventions'));
 const AdminActionHistory = lazy(() => import('./pages/AdminActionHistory'));
+const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const ModuleManagement = lazy(() => import('./pages/ModuleManagement'));
 
 // Shown while a route chunk is being fetched.
@@ -137,6 +138,14 @@ const AppContent = () => {
                       element={
                         <AdminRoute>
                           <AdminActionHistory />
+                        </AdminRoute>
+                      }
+                    />
+                    <Route
+                      path="/admin/users"
+                      element={
+                        <AdminRoute>
+                          <AdminUsers />
                         </AdminRoute>
                       }
                     />

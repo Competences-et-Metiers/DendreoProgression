@@ -341,7 +341,9 @@
     "expand": "Expand menu",
     "collapse": "Collapse menu",
     "comingSoon": "Soon",
-    "moduleManagement": "Module Management"
+    "moduleManagement": "Module Management",
+    "billing": "Billing",
+    "adminUsers": "Admin: Users"
   },
   "moduleManagement": {
     "title": "Module Management",
@@ -635,5 +637,34 @@
     "typeDeFinancement": "Funding",
     "montantPec": "Covered",
     "montantRac": "Out of pocket"
+  },
+  "adminUsers": {
+    "title": "User management",
+    "subtitle": "Assign roles and enable or disable accounts",
+    "searchPlaceholder": "Search a user…",
+    "user": "User",
+    "provider": "Sign-in",
+    "local": "Local",
+    "role": "Role",
+    "roleSource": "Role source",
+    "status": "Status",
+    "you": "(you)",
+    "active": "Active",
+    "inactive": "Inactive",
+    "toggleActive": "Enable / disable account",
+    "sourceManual": "Manual",
+    "sourceGroup": "M365 group",
+    "manualHint": "Role assigned from the app: Microsoft 365 sign-in will not change it.",
+    "groupHint": "Role derived from Entra ID groups on every Microsoft 365 sign-in.",
+    "resetToGroup": "Hand the role back to M365 groups",
+    "cannotEditSelf": "You cannot edit your own account",
+    "updateError": "Failed to update the user",
+    "noUsers": "No user found",
+    "roles": {
+      "admin": "Admin",
+      "manager": "Manager",
+      "billing": "Billing",
+      "user": "User"
+    }
   }
-} 
+}

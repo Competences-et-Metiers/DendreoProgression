@@ -346,7 +346,9 @@
     "expand": "Développer le menu",
     "collapse": "Réduire le menu",
     "comingSoon": "Bientôt",
-    "moduleManagement": "Gestion des Modules"
+    "moduleManagement": "Gestion des Modules",
+    "billing": "Facturation",
+    "adminUsers": "Admin: Utilisateurs"
   },
   "moduleManagement": {
     "title": "Gestion des Modules",
@@ -659,5 +661,34 @@
     "typeDeFinancement": "Financement",
     "montantPec": "PEC",
     "montantRac": "RAC"
+  },
+  "adminUsers": {
+    "title": "Gestion des utilisateurs",
+    "subtitle": "Attribuer les rôles et activer ou désactiver les comptes",
+    "searchPlaceholder": "Rechercher un utilisateur…",
+    "user": "Utilisateur",
+    "provider": "Connexion",
+    "local": "Local",
+    "role": "Rôle",
+    "roleSource": "Source du rôle",
+    "status": "Statut",
+    "you": "(vous)",
+    "active": "Actif",
+    "inactive": "Inactif",
+    "toggleActive": "Activer / désactiver le compte",
+    "sourceManual": "Manuel",
+    "sourceGroup": "Groupe M365",
+    "manualHint": "Rôle attribué depuis l'application : la connexion Microsoft 365 ne le modifiera pas.",
+    "groupHint": "Rôle dérivé des groupes Entra ID à chaque connexion Microsoft 365.",
+    "resetToGroup": "Redonner le contrôle aux groupes M365",
+    "cannotEditSelf": "Vous ne pouvez pas modifier votre propre compte",
+    "updateError": "Impossible de mettre à jour l'utilisateur",
+    "noUsers": "Aucun utilisateur trouvé",
+    "roles": {
+      "admin": "Admin",
+      "manager": "Manager",
+      "billing": "Facturation",
+      "user": "Utilisateur"
+    }
   }
-} 
+}
