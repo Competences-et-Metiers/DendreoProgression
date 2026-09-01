@@ -691,5 +691,26 @@
       "billing": "Facturation",
       "user": "Utilisateur"
     }
+  },
+  "billing": {
+    "title": "Suivi de facturation",
+    "subtitle": "Statut de facturation des inscriptions et comparaison au volume horaire EDOF",
+    "refresh": "Actualiser",
+    "searchPlaceholder": "Nom, email, formation…",
+    "allCourses": "Toutes les formations",
+    "allStatuses": "Tous les statuts",
+    "noDealFilter": "Sans transac liée",
+    "noDealLinked": "Aucune transac liée",
+    "noStatus": "Sans statut",
+    "setStatus": "Modifier le statut de facturation (mis à jour dans HubSpot)",
+    "openDeal": "Ouvrir la transac dans HubSpot",
+    "updateError": "Échec de la mise à jour du statut dans HubSpot",
+    "edofHours": "Heures EDOF",
+    "edofHoursHint": "Volume horaire attendu par EDOF. Saisissez-le pour comparer le temps passé de chaque participant affiché ; la valeur n'est pas enregistrée côté serveur.",
+    "edofRatioHint": "Temps passé rapporté aux {{hours}}h attendues par EDOF",
+    "clearEdofHours": "Effacer",
+    "timeSpentHint": "Temps passé / durée prévue Dendreo (e-learning + classes virtuelles)",
+    "resultCount": "{{shown}} inscription(s) affichée(s) sur {{total}}",
+    "noRows": "Aucune inscription ne correspond aux filtres"
   }
 }

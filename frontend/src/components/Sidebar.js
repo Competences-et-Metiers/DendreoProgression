@@ -8,6 +8,7 @@ import {
   UserCircle,
   UserCog,
   UserX,
+  Receipt,
   Settings,
   LogOut,
   Menu,
@@ -36,6 +37,14 @@ const Sidebar = ({ collapsed, onToggle }) => {
       icon: UserX,
       path: '/inactive-management',
       active: true
+    },
+    {
+      id: 'billing',
+      label: t('sidebar.billing'),
+      icon: Receipt,
+      path: '/billing',
+      active: true,
+      roles: ['admin', 'billing'],
     },
     {
       id: 'adf-list',

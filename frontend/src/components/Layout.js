@@ -9,6 +9,7 @@ const TITLE_BY_PREFIX = [
   { prefix: '/admin/users', key: 'sidebar.adminUsers' },
   { prefix: '/admin/sync', literal: 'Admin: Sync' },
   { prefix: '/interventions', literal: 'Interventions' },
+  { prefix: '/billing', key: 'sidebar.billing' },
   { prefix: '/inactive-management', key: 'sidebar.inactiveManagement' },
   { prefix: '/module-management', key: 'sidebar.moduleManagement' },
   { prefix: '/adf-list', key: 'sidebar.dashboard' },

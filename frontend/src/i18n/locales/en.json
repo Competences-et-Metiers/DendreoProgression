@@ -667,5 +667,26 @@
       "billing": "Billing",
       "user": "User"
     }
+  },
+  "billing": {
+    "title": "Billing tracking",
+    "subtitle": "Billing status per enrollment, compared against the EDOF expected hours",
+    "refresh": "Refresh",
+    "searchPlaceholder": "Name, email, course…",
+    "allCourses": "All courses",
+    "allStatuses": "All statuses",
+    "noDealFilter": "No linked deal",
+    "noDealLinked": "No linked deal",
+    "noStatus": "No status",
+    "setStatus": "Change the billing status (written to HubSpot)",
+    "openDeal": "Open deal in HubSpot",
+    "updateError": "Failed to update the status in HubSpot",
+    "edofHours": "EDOF hours",
+    "edofHoursHint": "Expected duration from EDOF. Type it in to compare every displayed participant's time spent; the value is not stored server-side.",
+    "edofRatioHint": "Time spent against the {{hours}}h expected by EDOF",
+    "clearEdofHours": "Clear",
+    "timeSpentHint": "Time spent / Dendreo planned duration (e-learning + virtual classrooms)",
+    "resultCount": "{{shown}} of {{total}} enrollment(s) shown",
+    "noRows": "No enrollment matches the filters"
   }
 }

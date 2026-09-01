@@ -26,6 +26,7 @@ const AdminInterventions = lazy(() => import('./pages/AdminInterventions'));
 const AdminActionHistory = lazy(() => import('./pages/AdminActionHistory'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const ModuleManagement = lazy(() => import('./pages/ModuleManagement'));
+const BillingManagement = lazy(() => import('./pages/BillingManagement'));
 
 // Shown while a route chunk is being fetched.
 const RouteFallback = () => (
@@ -86,6 +87,11 @@ const ManagerOrAdminRoute = ({ children }) => (
     {children}
   </RoleRoute>
 );
+const BillingOrAdminRoute = ({ children }) => (
+  <RoleRoute allowedRoles={['admin', 'billing']} deniedMessage="Billing or admin access required">
+    {children}
+  </RoleRoute>
+);
 
 // Main app content with routing
 const AppContent = () => {
@@ -139,6 +145,14 @@ const AppContent = () => {
                         <AdminRoute>
                           <AdminActionHistory />
                         </AdminRoute>
+                      }
+                    />
+                    <Route
+                      path="/billing"
+                      element={
+                        <BillingOrAdminRoute>
+                          <BillingManagement />
+                        </BillingOrAdminRoute>
                       }
                     />
                     <Route

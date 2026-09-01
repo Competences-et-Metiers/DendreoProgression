@@ -132,6 +132,28 @@ export const apiService = {
     return response.data;
   },
 
+  // Billing
+  // Same rows as the inactivity view, but keeping completed enrollments — those
+  // are precisely the ones to invoice.
+  async getBillingParticipants({ courseId } = {}) {
+    const params = new URLSearchParams({
+      include_completed: 'true',
+      group_by_course: 'false',
+    });
+    if (courseId) params.set('course_id', courseId);
+    const response = await api.get(`/participants/inactive?${params}`);
+    return response.data;
+  },
+
+  async setBillingStatus(participantId, idActionFormation, facturation) {
+    const response = await api.post('/hubspot/billing-status', {
+      participant_id: participantId,
+      id_action_formation: idActionFormation,
+      facturation,
+    });
+    return response.data;
+  },
+
   // Interventions
   async createIntervention(data) {
     const response = await api.post('/interventions/', data);
