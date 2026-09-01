@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional, List
 
@@ -241,6 +241,29 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+USER_ROLES = ('admin', 'manager', 'billing', 'user')
+
+
+class AdminUserResponse(UserResponse):
+    """User row for the admin user-management page."""
+    role_source: str = 'group'  # 'group' (from Entra ID) or 'manual' (set in-app)
+
+
+class AdminUserUpdate(BaseModel):
+    """Partial update of a user by an admin. Omitted fields are left untouched."""
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+    # Hand the role back to Entra ID group mapping (re-derived at next M365 login).
+    reset_role_to_group: Optional[bool] = None
+
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v):
+        if v is not None and v not in USER_ROLES:
+            raise ValueError(f"role must be one of {', '.join(USER_ROLES)}")
+        return v
 
 
 class ChangePasswordRequest(BaseModel):

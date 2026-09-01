@@ -250,6 +250,17 @@ def create_tables():
 
         with engine.connect() as conn:
             try:
+                conn.execute(text(
+                    "ALTER TABLE users "
+                    "ADD COLUMN IF NOT EXISTS role_source VARCHAR(20) NOT NULL DEFAULT 'group'"
+                ))
+                conn.commit()
+                logger.info("Ensured users.role_source column exists")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
                 conn.execute(text("ALTER TABLE participants ADD COLUMN IF NOT EXISTS edof_sessions JSON"))
                 conn.commit()
                 logger.info("Ensured participants.edof_sessions column exists")

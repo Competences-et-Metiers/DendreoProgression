@@ -244,7 +244,10 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=True)  # Nullable for Microsoft-only users
-    role = Column(String(20), default='user', nullable=False)  # 'admin' or 'user'
+    role = Column(String(20), default='user', nullable=False)  # 'admin', 'manager', 'billing' or 'user'
+    # 'group' = role derived from Entra ID groups at every login (default).
+    # 'manual' = role set by an admin from the app; the M365 login must not overwrite it.
+    role_source = Column(String(20), default='group', nullable=False)
     is_active = Column(Boolean, default=True)
     auth_provider = Column(String(20), default='local', nullable=False)  # 'local' or 'microsoft'
     microsoft_id = Column(String(255), unique=True, nullable=True, index=True)  # Azure AD oid

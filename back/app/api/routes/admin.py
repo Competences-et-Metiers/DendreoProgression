@@ -4,6 +4,7 @@ from sqlalchemy import func, extract, desc, asc
 from app.models.database import get_db
 from app.models.models import User, SyncMetadata, AdminSyncConfig, ModuleCategory, Intervention, Participant, ActionHistory
 from app.auth.dependencies import require_admin, require_manager_or_admin
+from app.models.schemas import AdminUserResponse, AdminUserUpdate
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
@@ -1248,3 +1249,65 @@ def get_action_history_stats(db: Session = Depends(get_db)):
         "by_status": by_status,
         "staff": staff,
     }
+
+
+# ============================================================================
+# User management
+# ============================================================================
+
+@router.get("/users", response_model=List[AdminUserResponse])
+async def list_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """List all users with their role and how that role was assigned."""
+    return db.query(User).order_by(User.username).all()
+
+
+@router.patch("/users/{user_id}", response_model=AdminUserResponse)
+async def update_user(
+    user_id: int,
+    body: AdminUserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    """Update a user's role or active state.
+
+    Setting a role marks it 'manual' so the M365 login stops re-deriving it from
+    Entra groups (see auth/microsoft.py). reset_role_to_group hands it back.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Don't let an admin lock themselves out of the admin area.
+    if user.id == current_user.id:
+        if body.role is not None and body.role != 'admin':
+            raise HTTPException(status_code=400, detail="You cannot change your own role")
+        if body.is_active is False:
+            raise HTTPException(status_code=400, detail="You cannot deactivate your own account")
+
+    changes = {}
+    if body.role is not None and body.role != user.role:
+        changes['role'] = f"{user.role} -> {body.role}"
+        user.role = body.role
+        user.role_source = 'manual'
+    elif body.role is not None:
+        # Same role re-submitted: still pin it so group mapping stops overwriting.
+        user.role_source = 'manual'
+
+    if body.reset_role_to_group and user.role_source != 'group':
+        changes['role_source'] = 'manual -> group'
+        user.role_source = 'group'
+
+    if body.is_active is not None and body.is_active != user.is_active:
+        changes['is_active'] = f"{user.is_active} -> {body.is_active}"
+        user.is_active = body.is_active
+
+    user.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(user)
+
+    if changes:
+        logger.info(f"User '{user.username}' updated by {current_user.username}: {changes}")
+    return user

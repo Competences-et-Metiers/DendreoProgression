@@ -135,15 +135,19 @@ def find_or_create_microsoft_user(
 ) -> User:
     """
     Find existing user by microsoft_id, or create a new one.
-    Updates role based on group membership on every login.
+    Updates role based on group membership on every login, unless an admin has
+    set the role from the app (role_source='manual').
     """
     user = db.query(User).filter(User.microsoft_id == microsoft_id).first()
 
     role = determine_role_from_groups(groups)
 
     if user:
-        # Update fields on each login (role may have changed in Entra ID)
-        user.role = role
+        # Update fields on each login (role may have changed in Entra ID).
+        # A manually assigned role wins: it has no Entra group to derive it from
+        # (e.g. 'billing'), so re-deriving would silently revoke it at next login.
+        if user.role_source != 'manual':
+            user.role = role
         user.email = email or user.email
         user.display_name = display_name or user.display_name
         db.commit()
