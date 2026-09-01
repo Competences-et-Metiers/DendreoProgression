@@ -600,6 +600,15 @@ const InactiveManagement = () => {
             comparison = dateA - dateB;
             break;
           }
+          case 'edof_debut': {
+            // Sort by soonest EDOF start date across the participant's sessions; missing last.
+            const minDebut = (p) => {
+              const debuts = (p.edof_sessions || []).map(s => s.date_debut).filter(Boolean);
+              return debuts.length ? Math.min(...debuts.map(d => new Date(d).getTime())) : Infinity;
+            };
+            comparison = minDebut(a) - minDebut(b);
+            break;
+          }
           case 'edof_fin': {
             // Sort by soonest EDOF end date across the participant's sessions; missing last.
             const minFin = (p) => {
@@ -1064,7 +1073,10 @@ const InactiveManagement = () => {
                 { key: 'intervention', label: t('inactiveManagement.sorting.byIntervention') },
                 { key: 'date_add', label: t('inactiveManagement.sorting.byDateAdd') },
                 ...(showLatestNotes ? [{ key: 'latest_note', label: t('inactiveManagement.noteFilters.sortByNote') }] : []),
-                ...(showEdofDates ? [{ key: 'edof_fin', label: 'Fin EDOF' }] : []),
+                ...(showEdofDates ? [
+                  { key: 'edof_debut', label: 'Début EDOF' },
+                  { key: 'edof_fin', label: 'Fin EDOF' },
+                ] : []),
               ].map(({ key, label }) => (
                 <button
                   key={key}
