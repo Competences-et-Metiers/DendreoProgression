@@ -87,8 +87,8 @@ const ManagerOrAdminRoute = ({ children }) => (
     {children}
   </RoleRoute>
 );
-const BillingOrAdminRoute = ({ children }) => (
-  <RoleRoute allowedRoles={['admin', 'billing']} deniedMessage="Billing or admin access required">
+const BillingRoute = ({ children }) => (
+  <RoleRoute allowedRoles={['admin', 'manager', 'billing']} deniedMessage="Billing access required">
     {children}
   </RoleRoute>
 );
@@ -150,9 +150,9 @@ const AppContent = () => {
                     <Route
                       path="/billing"
                       element={
-                        <BillingOrAdminRoute>
+                        <BillingRoute>
                           <BillingManagement />
-                        </BillingOrAdminRoute>
+                        </BillingRoute>
                       }
                     />
                     <Route
