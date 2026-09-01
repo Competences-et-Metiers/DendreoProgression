@@ -10,7 +10,7 @@ from app.services.api_budget import check_budget
 from app.models.database import get_db
 from app.models.models import Participant, ParticipantHubspotData, ParticipantCourse, Course, User, ActionHistory
 from app.models.schemas import BillingStatusRequest, LinkDealRequest, UnlinkDealRequest
-from app.auth.dependencies import get_current_user, require_billing_or_admin
+from app.auth.dependencies import get_current_user, require_billing_access
 from app.services.cache_service import cache_service
 
 logger = logging.getLogger(__name__)
@@ -354,7 +354,7 @@ async def unlink_deal(
 async def set_billing_status(
     body: BillingStatusRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_billing_or_admin),
+    current_user: User = Depends(require_billing_access),
 ):
     """Set the billing status (HubSpot 'facturation') of an enrollment's linked deal.
 

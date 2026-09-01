@@ -44,7 +44,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
       icon: Receipt,
       path: '/billing',
       active: true,
-      roles: ['admin', 'billing'],
+      roles: ['admin', 'manager', 'billing'],
     },
     {
       id: 'adf-list',
