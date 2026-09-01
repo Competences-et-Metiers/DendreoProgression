@@ -153,6 +153,21 @@ def should_run_sync_on_deployment() -> bool:
         # In case of error, be conservative and run sync
         return True
 
+def count_hubspot_calls(stats: dict) -> int:
+    """Total HubSpot API calls made by a sync run.
+
+    Each phase that spends HubSpot calls reports its own count; summing them here
+    is what makes SyncMetadata.hubspot_api_calls_count (and therefore the API
+    budget in app/services/api_budget.py) reflect reality.
+    """
+    stats = stats or {}
+    return (
+        stats.get('autolink_hubspot_calls', 0)
+        + stats.get('deal_refresh_hubspot_calls', 0)
+        + stats.get('hubspot_updates_total', 0)
+    )
+
+
 async def run_sync_single_adf(id_action_formation: str) -> dict:
     """
     Run sync for a single ADF by its id_action_formation.
@@ -200,7 +215,7 @@ async def run_sync_single_adf(id_action_formation: str) -> dict:
                         stats['etape'] = result['etape']
                     record.stats = str(stats)
                     record.api_calls_count = result.get('rate_limiting', {}).get('total_requests', 0)
-                    record.hubspot_api_calls_count = result.get('stats', {}).get('hubspot_updates_total', 0)
+                    record.hubspot_api_calls_count = count_hubspot_calls(result.get('stats'))
                     record.duration_seconds = duration
                     record.error_message = result.get('message') if result.get('status') == 'warning' else None
                     record.updated_at = sync_end_time
@@ -382,7 +397,7 @@ async def run_sync(force: bool = False, dry_run: bool = False, only_adf_ids: lis
                     record.api_calls_count = result.get('rate_limiting', {}).get('total_requests', 0)
                     # Store HubSpot API call count from sync stats
                     sync_stats = result.get('stats', {})
-                    record.hubspot_api_calls_count = sync_stats.get('hubspot_updates_total', 0)
+                    record.hubspot_api_calls_count = count_hubspot_calls(sync_stats)
                     record.duration_seconds = duration
                     record.updated_at = sync_end_time
                     db.commit()
