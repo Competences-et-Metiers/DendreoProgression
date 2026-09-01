@@ -29,3 +29,42 @@ export const NO_STATUS_TONE =
   'bg-gray-50 dark:bg-slate-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-slate-700';
 
 export const getFacturationTone = (value) => FACTURATION_TONES[value] || NO_STATUS_TONE;
+
+// Status filter value meaning "enrollments with no linked deal at all".
+export const NO_DEAL = '__no_deal__';
+
+/**
+ * Does one billing row pass the current filters? Empty selections match
+ * everything, and multiple selections within a filter are OR'd while the
+ * filters themselves are AND'd — same semantics as Inactive Management.
+ */
+export const matchesBillingFilters = (row, filters = {}) => {
+  const {
+    courses = [],
+    formateurs = [],
+    categories = [],
+    financements = [],
+    status = '',
+    search = '',
+  } = filters;
+
+  if (courses.length > 0 && !courses.includes(row.id_action_formation)) return false;
+  if (formateurs.length > 0 && !row.formateurs?.some((f) => formateurs.includes(f.id_formateur))) {
+    return false;
+  }
+  if (categories.length > 0 && !categories.includes(row.category_name)) return false;
+  if (financements.length > 0 && !financements.includes(row.deal_type_financement)) return false;
+
+  if (status === NO_DEAL) {
+    if (row.deal_id) return false;
+  } else if (status && row.deal_facturation !== status) {
+    return false;
+  }
+
+  const term = search.trim().toLowerCase();
+  if (term) {
+    const haystack = `${row.prenom || ''} ${row.nom || ''} ${row.email || ''} ${row.course_title || ''} ${row.category_name || ''}`.toLowerCase();
+    if (!haystack.includes(term)) return false;
+  }
+  return true;
+};

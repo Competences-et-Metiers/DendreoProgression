@@ -711,6 +711,32 @@
     "clearEdofHours": "Effacer",
     "timeSpentHint": "Temps passé / durée prévue Dendreo (e-learning + classes virtuelles)",
     "resultCount": "{{shown}} inscription(s) affichée(s) sur {{total}}",
-    "noRows": "Aucune inscription ne correspond aux filtres"
+    "noRows": "Aucune inscription ne correspond aux filtres",
+    "filters": "Filtres",
+    "resetFilters": "Réinitialiser les filtres",
+    "filterByCourse": "Filtrer par formation",
+    "searchCourse": "Rechercher une formation...",
+    "noCourseFound": "Aucune formation trouvée",
+    "coursesSelected": "{{count}} formation(s) sélectionnée(s)",
+    "filterByFormateur": "Filtrer par formateur",
+    "searchFormateur": "Rechercher un formateur...",
+    "noFormateurFound": "Aucun formateur trouvé",
+    "formateursSelected": "{{count}} formateur(s) sélectionné(s)",
+    "unnamedFormateur": "Formateur sans nom",
+    "filterByCategory": "Filtrer par catégorie",
+    "searchCategory": "Rechercher une catégorie...",
+    "noCategoryFound": "Aucune catégorie trouvée",
+    "categoriesSelected": "{{count}} catégorie(s) sélectionnée(s)",
+    "filterByFinancement": "Filtrer par type de financement",
+    "searchFinancement": "Rechercher un financement...",
+    "noFinancementFound": "Aucun type de financement trouvé",
+    "financementsSelected": "{{count}} financement(s) sélectionné(s)"
+  },
+  "multiSelect": {
+    "search": "Rechercher...",
+    "selected": "Sélectionnés",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner",
+    "noResults": "Aucun résultat"
   }
 }

@@ -687,6 +687,32 @@
     "clearEdofHours": "Clear",
     "timeSpentHint": "Time spent / Dendreo planned duration (e-learning + virtual classrooms)",
     "resultCount": "{{shown}} of {{total}} enrollment(s) shown",
-    "noRows": "No enrollment matches the filters"
+    "noRows": "No enrollment matches the filters",
+    "filters": "Filters",
+    "resetFilters": "Reset filters",
+    "filterByCourse": "Filter by course",
+    "searchCourse": "Search a course...",
+    "noCourseFound": "No course found",
+    "coursesSelected": "{{count}} course(s) selected",
+    "filterByFormateur": "Filter by trainer",
+    "searchFormateur": "Search a trainer...",
+    "noFormateurFound": "No trainer found",
+    "formateursSelected": "{{count}} trainer(s) selected",
+    "unnamedFormateur": "Unnamed trainer",
+    "filterByCategory": "Filter by category",
+    "searchCategory": "Search a category...",
+    "noCategoryFound": "No category found",
+    "categoriesSelected": "{{count}} category(ies) selected",
+    "filterByFinancement": "Filter by funding type",
+    "searchFinancement": "Search a funding type...",
+    "noFinancementFound": "No funding type found",
+    "financementsSelected": "{{count}} funding type(s) selected"
+  },
+  "multiSelect": {
+    "search": "Search...",
+    "selected": "Selected",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "noResults": "No result"
   }
 }

@@ -10,15 +10,27 @@ import {
   AlertCircle,
   RefreshCw,
   X,
+  Filter,
+  ChevronDown,
+  ChevronRight,
+  BookOpen,
+  User,
+  Tag,
+  Landmark,
 } from 'lucide-react';
 import { useBillingParticipants, useSetBillingStatus } from '../hooks/useQuery';
-import { FACTURATION_VALUES, getFacturationTone } from '../utils/billing';
+import {
+  FACTURATION_VALUES,
+  NO_DEAL,
+  getFacturationTone,
+  matchesBillingFilters,
+} from '../utils/billing';
+import MultiSelectFilter from '../components/MultiSelectFilter';
 import Pagination from '../components/Pagination';
 import ProgressBar from '../components/ProgressBar';
 
 const EDOF_HOURS_KEY = 'billingManagement.edofHours';
 const PAGE_SIZE_KEY = 'billingManagement.pageSize';
-const NO_DEAL = '__no_deal__';
 
 const formatEUR = (value) => {
   if (value === null || value === undefined) return '—';
@@ -39,12 +51,33 @@ const edofRatioTone = (ratio) => {
   return 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800';
 };
 
+// Filter selections survive a reload, like the Inactive Management ones.
+const usePersistedList = (name) => {
+  const key = `billingManagement.${name}`;
+  const [value, setValue] = useState(() => {
+    try {
+      const cached = JSON.parse(localStorage.getItem(key));
+      return Array.isArray(cached) ? cached : [];
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem(key, JSON.stringify(value));
+  }, [key, value]);
+  return [value, setValue];
+};
+
 const BillingManagement = () => {
   const { t } = useTranslation();
 
   const [search, setSearch] = useState('');
-  const [courseFilter, setCourseFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedCourses, setSelectedCourses] = usePersistedList('selectedCourses');
+  const [selectedFormateurs, setSelectedFormateurs] = usePersistedList('selectedFormateurs');
+  const [selectedCategories, setSelectedCategories] = usePersistedList('selectedCategories');
+  const [selectedFinancements, setSelectedFinancements] = usePersistedList('selectedFinancements');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(() => {
     const saved = parseInt(localStorage.getItem(PAGE_SIZE_KEY), 10);
@@ -69,37 +102,99 @@ const BillingManagement = () => {
 
   const rows = useMemo(() => data?.participants || [], [data]);
 
-  const courses = useMemo(() => {
+  // Filter options are derived from the loaded rows, so they only ever offer
+  // values that can actually match something.
+  const courseOptions = useMemo(() => {
     const seen = new Map();
     rows.forEach((r) => {
       if (r.id_action_formation && !seen.has(r.id_action_formation)) {
         seen.set(r.id_action_formation, r.course_title || r.id_action_formation);
       }
     });
-    return [...seen.entries()].sort((a, b) => (a[1] || '').localeCompare(b[1] || ''));
+    return [...seen.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [rows]);
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (courseFilter && r.id_action_formation !== courseFilter) return false;
-      if (statusFilter === NO_DEAL) {
-        if (r.deal_id) return false;
-      } else if (statusFilter && r.deal_facturation !== statusFilter) {
-        return false;
-      }
-      if (term) {
-        const haystack = `${r.prenom || ''} ${r.nom || ''} ${r.email || ''} ${r.course_title || ''}`.toLowerCase();
-        if (!haystack.includes(term)) return false;
-      }
-      return true;
+  const formateurOptions = useMemo(() => {
+    const seen = new Map();
+    rows.forEach((r) => {
+      (r.formateurs || []).forEach((f) => {
+        if (f.id_formateur && !seen.has(f.id_formateur)) {
+          seen.set(f.id_formateur, {
+            value: f.id_formateur,
+            label: `${f.prenom || ''} ${f.nom || ''}`.trim() || t('billing.unnamedFormateur'),
+          });
+        }
+      });
     });
-  }, [rows, search, courseFilter, statusFilter]);
+    return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [rows, t]);
+
+  const categoryOptions = useMemo(() => {
+    const seen = new Map();
+    rows.forEach((r) => {
+      if (r.category_name && !seen.has(r.category_name)) {
+        seen.set(r.category_name, {
+          value: r.category_name,
+          label: r.category_name,
+          color: r.category_color || '',
+        });
+      }
+    });
+    return [...seen.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [rows]);
+
+  const financementOptions = useMemo(() => {
+    const seen = new Set();
+    rows.forEach((r) => {
+      if (r.deal_type_financement) seen.add(r.deal_type_financement);
+    });
+    return [...seen].sort().map((value) => ({ value, label: value }));
+  }, [rows]);
+
+  const filtered = useMemo(
+    () =>
+      rows.filter((r) =>
+        matchesBillingFilters(r, {
+          courses: selectedCourses,
+          formateurs: selectedFormateurs,
+          categories: selectedCategories,
+          financements: selectedFinancements,
+          status: statusFilter,
+          search,
+        })
+      ),
+    [
+      rows,
+      search,
+      statusFilter,
+      selectedCourses,
+      selectedFormateurs,
+      selectedCategories,
+      selectedFinancements,
+    ]
+  );
+
+  const activeFilterCount =
+    selectedCourses.length +
+    selectedFormateurs.length +
+    selectedCategories.length +
+    selectedFinancements.length;
+
+  const resetFilters = () => {
+    setSelectedCourses([]);
+    setSelectedFormateurs([]);
+    setSelectedCategories([]);
+    setSelectedFinancements([]);
+    setStatusFilter('');
+    setSearch('');
+  };
 
   // Reset to the first page whenever the filters change the result set.
   useEffect(() => {
     setPage(1);
-  }, [search, courseFilter, statusFilter]);
+  }, [search, statusFilter, selectedCourses, selectedFormateurs, selectedCategories, selectedFinancements]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   // A refetch can shrink the list under the current page; without this the user
@@ -171,16 +266,23 @@ const BillingManagement = () => {
             />
           </div>
 
-          <select
-            value={courseFilter}
-            onChange={(e) => setCourseFilter(e.target.value)}
-            className="py-2 px-3 text-sm rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-900 dark:text-white max-w-xs"
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg border transition-colors ${
+              activeFilterCount > 0
+                ? 'border-primary-300 dark:border-primary-700 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
+                : 'border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+            }`}
           >
-            <option value="">{t('billing.allCourses')}</option>
-            {courses.map(([adf, title]) => (
-              <option key={adf} value={adf}>{title}</option>
-            ))}
-          </select>
+            <Filter size={14} />
+            {t('billing.filters')}
+            {activeFilterCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/40 text-xs font-medium">
+                {activeFilterCount}
+              </span>
+            )}
+            {showFilters ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
 
           <select
             value={statusFilter}
@@ -223,9 +325,64 @@ const BillingManagement = () => {
             )}
           </div>
         </div>
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          {t('billing.resultCount', { shown: filtered.length, total: rows.length })}
-        </p>
+        {showFilters && (
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <MultiSelectFilter
+              label={t('billing.filterByCourse')}
+              icon={BookOpen}
+              options={courseOptions}
+              selected={selectedCourses}
+              onChange={setSelectedCourses}
+              searchPlaceholder={t('billing.searchCourse')}
+              emptyText={t('billing.noCourseFound')}
+              summary={(n) => t('billing.coursesSelected', { count: n })}
+            />
+            <MultiSelectFilter
+              label={t('billing.filterByFormateur')}
+              icon={User}
+              options={formateurOptions}
+              selected={selectedFormateurs}
+              onChange={setSelectedFormateurs}
+              searchPlaceholder={t('billing.searchFormateur')}
+              emptyText={t('billing.noFormateurFound')}
+              summary={(n) => t('billing.formateursSelected', { count: n })}
+            />
+            <MultiSelectFilter
+              label={t('billing.filterByCategory')}
+              icon={Tag}
+              options={categoryOptions}
+              selected={selectedCategories}
+              onChange={setSelectedCategories}
+              searchPlaceholder={t('billing.searchCategory')}
+              emptyText={t('billing.noCategoryFound')}
+              summary={(n) => t('billing.categoriesSelected', { count: n })}
+            />
+            <MultiSelectFilter
+              label={t('billing.filterByFinancement')}
+              icon={Landmark}
+              options={financementOptions}
+              selected={selectedFinancements}
+              onChange={setSelectedFinancements}
+              searchPlaceholder={t('billing.searchFinancement')}
+              emptyText={t('billing.noFinancementFound')}
+              summary={(n) => t('billing.financementsSelected', { count: n })}
+            />
+          </div>
+        )}
+
+        <div className="mt-2 flex items-center gap-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {t('billing.resultCount', { shown: filtered.length, total: rows.length })}
+          </p>
+          {(activeFilterCount > 0 || statusFilter || search) && (
+            <button
+              onClick={resetFilters}
+              className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              {t('billing.resetFilters')}
+            </button>
+          )}
+        </div>
       </div>
 
       {isLoading ? (

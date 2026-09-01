@@ -204,7 +204,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
         >
           {isDark ? <Sun size={20} className="flex-shrink-0" /> : <Moon size={20} className="flex-shrink-0" />}
           {!collapsed && (
-            <span className="ml-3 truncate">{isDark ? t('settings.lightMode') : t('settings.darkMode')} <span className="text-[10px] text-gray-400 dark:text-gray-500">(Beta)</span></span>
+            <span className="ml-3 truncate">{isDark ? t('settings.lightMode') : t('settings.darkMode')}</span>
           )}
         </button>
         <button
