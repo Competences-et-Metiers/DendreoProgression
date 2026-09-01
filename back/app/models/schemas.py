@@ -386,6 +386,21 @@ class LinkDealRequest(BaseModel):
     id_action_formation: str
     deal_id: str
 
+class BillingStatusRequest(BaseModel):
+    """Set the HubSpot deal's billing status ("facturation") for one enrollment."""
+    participant_id: int
+    id_action_formation: str
+    facturation: str
+
+    @field_validator('facturation')
+    @classmethod
+    def validate_facturation(cls, v):
+        from app.services.hubspot_client import FACTURATION_VALUES
+        if v not in FACTURATION_VALUES:
+            raise ValueError(f"facturation must be one of: {', '.join(FACTURATION_VALUES)}")
+        return v
+
+
 class UnlinkDealRequest(BaseModel):
     participant_id: int
     id_action_formation: str
