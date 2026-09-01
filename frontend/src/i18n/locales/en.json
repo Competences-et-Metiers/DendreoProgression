@@ -636,7 +636,8 @@
     "amount": "Amount",
     "typeDeFinancement": "Funding",
     "montantPec": "Covered",
-    "montantRac": "Out of pocket"
+    "montantRac": "Out of pocket",
+    "facturation": "Billing"
   },
   "adminUsers": {
     "title": "User management",

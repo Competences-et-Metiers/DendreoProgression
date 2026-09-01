@@ -122,16 +122,18 @@ class ParticipantHubspotData(Base):
     c_url_transaction_hubspot = Column(String, nullable=True)
     c_id_transaction_hubspot = Column(String, nullable=True)
     is_manual_link = Column(Boolean, default=False, nullable=False)  # True = staff-set link, sync won't overwrite
-    # EDOF session dates captured from the linked HubSpot deal (ISO "YYYY-MM-DD" strings).
-    # Populated at link time only (manual link or bulk-link script); sync never touches these.
+    # Fields mirrored from the linked HubSpot deal. Written at link time and
+    # refreshed from HubSpot by the sync's deal-refresh phase (app/services/deal_refresh.py).
     edof_date_debut = Column(String, nullable=True)  # Date Début Session EDOF (HubSpot: date_debut_formation)
     edof_date_fin = Column(String, nullable=True)  # Date Fin Session EDOF (HubSpot: date_fin_formation_edof)
-    # Financial fields captured from the linked HubSpot deal (same lifecycle as the
-    # EDOF dates: written at link time, refreshed by scripts/refresh_deal_fields.py).
     deal_amount = Column(Float, nullable=True)  # HubSpot: amount
     deal_type_financement = Column(String, nullable=True)  # HubSpot: type_de_financement
     deal_montant_pec = Column(Float, nullable=True)  # HubSpot: montant_pec
     deal_montant_rac = Column(Float, nullable=True)  # HubSpot: montant_rac
+    # Billing status. HubSpot is the source of truth: the billing team edits it here,
+    # we PATCH the deal, and the refresh phase pulls back HubSpot-side edits.
+    deal_facturation = Column(String, nullable=True)  # HubSpot: facturation
+    deal_facturation_synced_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

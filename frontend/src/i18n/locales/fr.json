@@ -660,7 +660,8 @@
     "amount": "Montant",
     "typeDeFinancement": "Financement",
     "montantPec": "PEC",
-    "montantRac": "RAC"
+    "montantRac": "RAC",
+    "facturation": "Facturation"
   },
   "adminUsers": {
     "title": "Gestion des utilisateurs",

@@ -239,6 +239,8 @@ def create_tables():
                     ("deal_type_financement", "VARCHAR"),
                     ("deal_montant_pec", "DOUBLE PRECISION"),
                     ("deal_montant_rac", "DOUBLE PRECISION"),
+                    ("deal_facturation", "VARCHAR"),
+                    ("deal_facturation_synced_at", "TIMESTAMPTZ"),
                 ):
                     conn.execute(text(
                         f"ALTER TABLE participant_hubspot_data ADD COLUMN IF NOT EXISTS {col} {sql_type}"
