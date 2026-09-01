@@ -459,6 +459,45 @@ class DendreoSync:
                 logger.error(f"❌ Auto-link phase failed: {str(e)}")
                 self.stats["autolink_error"] = str(e)
 
+            # Pull back HubSpot-side edits on the linked deals (billing status,
+            # amounts, EDOF dates). Runs after auto-link so links created in this
+            # same run are refreshed too. ~1 call per 100 distinct deals.
+            logger.info("💶 Refreshing deal fields from HubSpot...")
+            try:
+                from app.services.deal_refresh import refresh_deal_fields
+
+                remaining_hubspot = None
+                if hubspot_api_limit:
+                    if "autolink_error" in self.stats:
+                        # Auto-link raised before reporting its usage, so we don't
+                        # know what it spent. Assume the limit is gone rather than
+                        # risk overrunning it; the next sync picks the refresh up.
+                        remaining_hubspot = 0
+                    else:
+                        remaining_hubspot = max(
+                            0, hubspot_api_limit - self.stats.get("autolink_hubspot_calls", 0)
+                        )
+
+                refresh_result = await refresh_deal_fields(
+                    self.db,
+                    commit=True,
+                    max_hubspot_calls=remaining_hubspot,
+                    update_counter=True,
+                    log=logger.info,
+                )
+                self.stats["deal_refresh_updated"] = refresh_result.get("updated", 0)
+                self.stats["deal_refresh_rows"] = refresh_result.get("rows_scanned", 0)
+                self.stats["deal_refresh_hubspot_calls"] = refresh_result.get("hubspot_calls", 0)
+                logger.info(
+                    f"💶 Deal refresh: {refresh_result.get('updated', 0)} row(s) updated of "
+                    f"{refresh_result.get('rows_scanned', 0)}, "
+                    f"{refresh_result.get('hubspot_calls', 0)} HubSpot calls"
+                    + (" (budget reached)" if refresh_result.get("budget_stopped") else "")
+                )
+            except Exception as e:
+                logger.error(f"❌ Deal refresh phase failed: {str(e)}")
+                self.stats["deal_refresh_error"] = str(e)
+
             end_time = datetime.now()
             duration = (end_time - start_time).total_seconds()
 

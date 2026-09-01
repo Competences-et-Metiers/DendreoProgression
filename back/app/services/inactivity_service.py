@@ -39,11 +39,17 @@ class InactivityService:
         group_by_course: bool = False,
         course_id: Optional[int] = None,
         min_progression: Optional[float] = None,
-        max_progression: Optional[float] = None
+        max_progression: Optional[float] = None,
+        include_completed: bool = False
     ) -> InactivitySummary:
         """
-        Get all non-completed participants grouped by ADF, classified as
-        active / inactive / never_started.
+        Get participants grouped by ADF, classified as active / inactive / never_started.
+
+        Fully completed participants (100%) are dropped by default: the CSM
+        inactivity workflow has nothing left to do for them. Billing does — a
+        finished course is precisely what gets invoiced — so include_completed
+        keeps them in. The activity counts in the summary are not meaningful for
+        completed participants; callers that set the flag ignore them.
         """
         now = datetime.now(timezone.utc)
 
@@ -219,24 +225,22 @@ class InactivityService:
             if adf:
                 latest_notes_map[(pid, adf)] = latest
 
-        # Pre-build EDOF session dates map: (participant_id, adf_id) -> (debut, fin)
-        edof_map: Dict[Tuple[int, str], Tuple[Optional[str], Optional[str]]] = {}
-        edof_rows = (
-            self.db.query(
-                ParticipantHubspotData.participant_id,
-                ParticipantHubspotData.id_action_formation,
-                ParticipantHubspotData.edof_date_debut,
-                ParticipantHubspotData.edof_date_fin,
-            )
+        # Pre-build the linked-deal map: (participant_id, adf_id) -> ParticipantHubspotData
+        # row. Carries the EDOF dates plus the deal's financial and billing fields
+        # (the billing page reads those; the inactivity page ignores them).
+        deal_map: Dict[Tuple[int, str], ParticipantHubspotData] = {}
+        deal_rows = (
+            self.db.query(ParticipantHubspotData)
             .filter(
                 (ParticipantHubspotData.edof_date_debut.isnot(None))
                 | (ParticipantHubspotData.edof_date_fin.isnot(None))
+                | (ParticipantHubspotData.c_id_transaction_hubspot.isnot(None))
             )
             .all()
         )
-        for pid, adf, deb, fin in edof_rows:
-            if adf:
-                edof_map[(pid, adf)] = (deb, fin)
+        for row in deal_rows:
+            if row.id_action_formation:
+                deal_map[(row.participant_id, row.id_action_formation)] = row
 
         all_details: List[InactiveParticipantDetail] = []
         by_course_map: Dict[str, List[InactiveParticipantDetail]] = {}
@@ -323,8 +327,8 @@ class InactivityService:
             # Compute progression from all module data (same as course detail page)
             avg_progression = (progression_sum / module_count) if module_count else 0.0
 
-            # Skip fully completed participants
-            if avg_progression >= 100.0:
+            # Skip fully completed participants (kept for billing, see docstring)
+            if avg_progression >= 100.0 and not include_completed:
                 continue
 
             if min_progression is not None and avg_progression < min_progression:
@@ -360,6 +364,8 @@ class InactivityService:
             cat_id = enrollments[0]['course'].categorie_module_id
             cat_info = category_map.get(cat_id, {}) if cat_id else {}
 
+            deal = deal_map.get((participant_id, adf_id))
+
             detail = InactiveParticipantDetail(
                 id=participant.id,
                 id_participant=participant.id_participant,
@@ -391,9 +397,16 @@ class InactivityService:
                 snooze_until=snoozed_details.get((participant_id, adf_id)),
                 is_dismissed=(participant_id, adf_id) in dismissed_set,
                 latest_note_date=latest_notes_map.get((participant_id, adf_id)),
-                edof_date_debut=edof_map.get((participant_id, adf_id), (None, None))[0],
-                edof_date_fin=edof_map.get((participant_id, adf_id), (None, None))[1],
+                edof_date_debut=deal.edof_date_debut if deal else None,
+                edof_date_fin=deal.edof_date_fin if deal else None,
                 edof_sessions=participant.edof_sessions or [],
+                deal_id=deal.c_id_transaction_hubspot if deal else None,
+                deal_url=deal.c_url_transaction_hubspot if deal else None,
+                deal_amount=deal.deal_amount if deal else None,
+                deal_type_financement=deal.deal_type_financement if deal else None,
+                deal_montant_pec=deal.deal_montant_pec if deal else None,
+                deal_montant_rac=deal.deal_montant_rac if deal else None,
+                deal_facturation=deal.deal_facturation if deal else None,
             )
 
             all_details.append(detail)

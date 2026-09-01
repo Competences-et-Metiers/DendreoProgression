@@ -6,8 +6,10 @@ import Sidebar from './Sidebar';
 // Longest prefix wins. `key` is an i18n path; `literal` is a hardcoded string.
 const TITLE_BY_PREFIX = [
   { prefix: '/admin/action-history', literal: 'Admin: Historique' },
+  { prefix: '/admin/users', key: 'sidebar.adminUsers' },
   { prefix: '/admin/sync', literal: 'Admin: Sync' },
   { prefix: '/interventions', literal: 'Interventions' },
+  { prefix: '/billing', key: 'sidebar.billing' },
   { prefix: '/inactive-management', key: 'sidebar.inactiveManagement' },
   { prefix: '/module-management', key: 'sidebar.moduleManagement' },
   { prefix: '/adf-list', key: 'sidebar.dashboard' },

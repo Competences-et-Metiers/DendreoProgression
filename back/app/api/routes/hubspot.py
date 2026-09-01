@@ -9,8 +9,8 @@ from app.services.dendreo_client import DendreoClient, DendreoAPIError
 from app.services.api_budget import check_budget
 from app.models.database import get_db
 from app.models.models import Participant, ParticipantHubspotData, ParticipantCourse, Course, User, ActionHistory
-from app.models.schemas import LinkDealRequest, UnlinkDealRequest
-from app.auth.dependencies import get_current_user
+from app.models.schemas import BillingStatusRequest, LinkDealRequest, UnlinkDealRequest
+from app.auth.dependencies import get_current_user, require_billing_or_admin
 from app.services.cache_service import cache_service
 
 logger = logging.getLogger(__name__)
@@ -347,4 +347,94 @@ async def unlink_deal(
     return {
         "status": "unlinked",
         "dendreo_lap_cleared": dendreo_push_ok,
+    }
+
+
+@router.post("/billing-status")
+async def set_billing_status(
+    body: BillingStatusRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_billing_or_admin),
+):
+    """Set the billing status (HubSpot 'facturation') of an enrollment's linked deal.
+
+    HubSpot is the source of truth for this property: the deal is PATCHed first
+    and the local copy is written only if that succeeded. Doing it the other way
+    round (as link_deal does, where the local link is the record and the pushes
+    are mirrors) would show a status that the next refresh silently reverts —
+    an invisible failure on data the accounting team acts on.
+    """
+    start_time = datetime.now(timezone.utc)
+
+    hubspot_data = db.query(ParticipantHubspotData).filter(
+        ParticipantHubspotData.participant_id == body.participant_id,
+        ParticipantHubspotData.id_action_formation == body.id_action_formation,
+    ).first()
+
+    if not hubspot_data or not hubspot_data.c_id_transaction_hubspot:
+        raise HTTPException(
+            status_code=404,
+            detail="No HubSpot deal linked to this enrollment",
+        )
+
+    deal_id = hubspot_data.c_id_transaction_hubspot
+    previous = hubspot_data.deal_facturation
+
+    ok, reason = check_budget(db, dendreo_needed=0, hubspot_needed=1)
+    if not ok:
+        _record_action(
+            db, 'billing_status', current_user.id, 'blocked',
+            body.participant_id, body.id_action_formation, deal_id,
+            duration=(datetime.now(timezone.utc) - start_time).total_seconds(),
+            error=reason,
+        )
+        raise HTTPException(status_code=429, detail=reason)
+
+    pushed = await hubspot_client.update_deal_properties(
+        deal_id, {"facturation": body.facturation}
+    )
+    duration = (datetime.now(timezone.utc) - start_time).total_seconds()
+
+    if not pushed:
+        _record_action(
+            db, 'billing_status', current_user.id, 'error',
+            body.participant_id, body.id_action_formation, deal_id,
+            hubspot_calls=1, duration=duration,
+            error="HubSpot deal update failed",
+            details={"from": previous, "to": body.facturation},
+        )
+        raise HTTPException(status_code=502, detail="Failed to update the HubSpot deal")
+
+    # The status belongs to the deal, and auto-link replicates one deal across
+    # every active course of a participant. Update all rows pointing at this deal
+    # so the sibling enrollments don't keep showing the old status (and can't
+    # overwrite the one just set from their own dropdown).
+    now = datetime.now(timezone.utc)
+    siblings = db.query(ParticipantHubspotData).filter(
+        ParticipantHubspotData.c_id_transaction_hubspot == deal_id
+    ).all()
+    for row in siblings:
+        row.deal_facturation = body.facturation
+        row.deal_facturation_synced_at = now
+        row.updated_at = now
+    db.commit()
+
+    for participant_id in {row.participant_id for row in siblings}:
+        cache_service.invalidate_participant_cache(participant_id)
+
+    _record_action(
+        db, 'billing_status', current_user.id, 'success',
+        body.participant_id, body.id_action_formation, deal_id,
+        hubspot_calls=1, duration=duration,
+        details={"from": previous, "to": body.facturation, "rows_updated": len(siblings)},
+    )
+
+    logger.info(
+        f"Billing status of deal {deal_id} (participant {body.participant_id} "
+        f"ADF {body.id_action_formation}) set to '{body.facturation}' by {current_user.username}"
+    )
+    return {
+        "status": "updated",
+        "deal_id": deal_id,
+        "facturation": body.facturation,
     }

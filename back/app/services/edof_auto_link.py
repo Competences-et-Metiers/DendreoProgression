@@ -26,22 +26,19 @@ is populated.
 """
 
 import asyncio
-import json
 import logging
-import os
-import tempfile
 from typing import Any, Callable, Dict, Optional, Set
 
 from sqlalchemy.orm import Session
 
 from app.models.models import Participant, ParticipantCourse, Course, ParticipantHubspotData
 from app.services.hubspot_client import DEAL_FINANCE_FIELDS, hubspot_client
+from app.services.sync_counters import bump_hubspot_counter
 
 logger = logging.getLogger(__name__)
 
 ACTIVE_STATUSES = ("5", "6", "7")
 DEAL_URL_TMPL = "https://app-eu1.hubspot.com/contacts/25868618/record/0-3/{deal_id}"
-_COUNTERS_PATH = "/app/logs/sync_api_counters.json"
 
 # Only deals in this pipeline are eligible for auto-linking...
 EDOF_PIPELINE_ID = "1033999593"
@@ -76,22 +73,6 @@ def build_active_adf_map(db: Session) -> Dict[int, Set[str]]:
         if adf:
             out.setdefault(pid, set()).add(adf)
     return out
-
-
-def _bump_hubspot_counter(n: int) -> None:
-    """Best-effort additive update of the live sync API counter file."""
-    try:
-        current = {"dendreo": 0, "hubspot": 0}
-        if os.path.exists(_COUNTERS_PATH):
-            with open(_COUNTERS_PATH, "r") as f:
-                current = json.load(f)
-        current["hubspot"] = current.get("hubspot", 0) + n
-        fd, tmp = tempfile.mkstemp(dir="/tmp", prefix="sync_api_")
-        with os.fdopen(fd, "w") as f:
-            json.dump(current, f)
-        os.replace(tmp, _COUNTERS_PATH)
-    except Exception:
-        pass
 
 
 def _new_stats() -> Dict[str, Any]:
@@ -286,6 +267,6 @@ async def auto_link_deals(
         db.rollback()
 
     if update_counter and stats["hubspot_calls"]:
-        _bump_hubspot_counter(stats["hubspot_calls"])
+        bump_hubspot_counter(stats["hubspot_calls"])
 
     return stats

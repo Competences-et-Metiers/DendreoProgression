@@ -239,12 +239,25 @@ def create_tables():
                     ("deal_type_financement", "VARCHAR"),
                     ("deal_montant_pec", "DOUBLE PRECISION"),
                     ("deal_montant_rac", "DOUBLE PRECISION"),
+                    ("deal_facturation", "VARCHAR"),
+                    ("deal_facturation_synced_at", "TIMESTAMPTZ"),
                 ):
                     conn.execute(text(
                         f"ALTER TABLE participant_hubspot_data ADD COLUMN IF NOT EXISTS {col} {sql_type}"
                     ))
                 conn.commit()
                 logger.info("Ensured participant_hubspot_data deal financial columns exist")
+            except Exception as e:
+                logger.debug(f"Column migration note: {e}")
+
+        with engine.connect() as conn:
+            try:
+                conn.execute(text(
+                    "ALTER TABLE users "
+                    "ADD COLUMN IF NOT EXISTS role_source VARCHAR(20) NOT NULL DEFAULT 'group'"
+                ))
+                conn.commit()
+                logger.info("Ensured users.role_source column exists")
             except Exception as e:
                 logger.debug(f"Column migration note: {e}")
 

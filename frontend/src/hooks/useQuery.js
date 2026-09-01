@@ -260,6 +260,58 @@ export const useUnlinkDeal = () => {
   });
 };
 
+// Billing hooks
+export const useBillingParticipants = (filters = {}) => {
+  return useQuery({
+    queryKey: queryKeys.billingParticipants(filters),
+    queryFn: () => apiService.getBillingParticipants(filters),
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const useSetBillingStatus = (filters = {}) => {
+  const queryClient = useQueryClient();
+  const key = queryKeys.billingParticipants(filters);
+
+  return useMutation({
+    mutationFn: ({ participantId, idActionFormation, facturation }) =>
+      apiService.setBillingStatus(participantId, idActionFormation, facturation),
+    onMutate: async ({ participantId, idActionFormation, facturation, dealId }) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      // The status lives on the deal, and one deal can be linked to several of a
+      // participant's enrollments — the server updates them all, so preview that.
+      const affects = (p) =>
+        dealId
+          ? p.deal_id === dealId
+          : p.id === participantId && p.id_action_formation === idActionFormation;
+      queryClient.setQueryData(key, (old) => {
+        if (!old?.participants) return old;
+        return {
+          ...old,
+          participants: old.participants.map((p) =>
+            affects(p) ? { ...p, deal_facturation: facturation } : p
+          ),
+        };
+      });
+      return { previous };
+    },
+    // HubSpot is the source of truth: on failure nothing was written there
+    // either, so roll the row back to what it was.
+    onError: (_err, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(key, context.previous);
+    },
+    onSettled: (_data, _err, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.participantDetails(variables.participantId),
+      });
+    },
+  });
+};
+
 // Mutation hooks for cache invalidation
 export const useSyncMutation = () => {
   const queryClient = useQueryClient();

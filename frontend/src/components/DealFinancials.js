@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Euro, Landmark, Wallet, CreditCard } from 'lucide-react';
+import { Euro, Landmark, Wallet, CreditCard, Receipt } from 'lucide-react';
+import { getFacturationTone } from '../utils/billing';
 
 const formatEUR = (value) => {
   if (value === null || value === undefined || value === '') return null;
@@ -14,9 +15,9 @@ const formatEUR = (value) => {
 };
 
 /**
- * Financial fields of the HubSpot deal linked to an ADF enrollment.
- * Values are captured at link time (see ParticipantHubspotData) — fields the
- * deal doesn't carry are simply omitted.
+ * Billing status and financial fields of the HubSpot deal linked to an ADF
+ * enrollment. Values are mirrored from HubSpot (see ParticipantHubspotData) —
+ * fields the deal doesn't carry are simply omitted.
  */
 const DealFinancials = ({ deal }) => {
   const { t } = useTranslation();
@@ -35,10 +36,19 @@ const DealFinancials = ({ deal }) => {
     { key: 'rac', icon: CreditCard, label: t('hubspotDeal.montantRac'), value: formatEUR(deal.montant_rac) },
   ].filter((i) => i.value !== null);
 
-  if (items.length === 0) return null;
+  if (items.length === 0 && !deal.facturation) return null;
 
   return (
     <div className="mb-3 flex flex-wrap items-center gap-2">
+      {deal.facturation && (
+        <div
+          className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${getFacturationTone(deal.facturation)}`}
+          title={`${t('hubspotDeal.facturation')} (HubSpot)`}
+        >
+          <Receipt size={12} className="shrink-0" />
+          <span className="font-medium">{deal.facturation}</span>
+        </div>
+      )}
       {items.map(({ key, icon: Icon, label, value }) => (
         <div
           key={key}

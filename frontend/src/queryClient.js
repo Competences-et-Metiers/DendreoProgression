@@ -72,4 +72,10 @@ export const queryKeys = {
   // Admin action history
   adminActionHistory: (params) => ['admin', 'action-history', params],
   adminActionHistoryStats: ['admin', 'action-history', 'stats'],
+
+  // Admin users
+  adminUsers: ['admin', 'users'],
+
+  // Billing management
+  billingParticipants: (filters) => ['billing', 'participants', filters],
 }; 

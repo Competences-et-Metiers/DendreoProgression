@@ -110,3 +110,18 @@ async def require_manager_or_admin(
             detail="Manager or admin access required"
         )
     return current_user
+
+
+async def require_billing_or_admin(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """
+    Dependency to require billing (accounting team) or admin privileges.
+    Raises HTTPException 403 if user is neither.
+    """
+    if current_user.role not in ('admin', 'billing'):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Billing or admin access required"
+        )
+    return current_user

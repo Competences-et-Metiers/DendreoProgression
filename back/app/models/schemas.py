@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional, List
 
@@ -157,6 +157,16 @@ class InactiveParticipantDetail(BaseModel):
     # Participant-level EDOF sessions (all eligible deals): [{deal_id, date_debut, date_fin}, ...]
     edof_sessions: Optional[List[dict]] = None
 
+    # Linked HubSpot deal, mirrored from participant_hubspot_data (billing page).
+    # Defaulted so cached responses predating these fields still validate.
+    deal_id: Optional[str] = None
+    deal_url: Optional[str] = None
+    deal_amount: Optional[float] = None
+    deal_type_financement: Optional[str] = None
+    deal_montant_pec: Optional[float] = None
+    deal_montant_rac: Optional[float] = None
+    deal_facturation: Optional[str] = None
+
     class Config:
         from_attributes = True
 
@@ -241,6 +251,29 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+USER_ROLES = ('admin', 'manager', 'billing', 'user')
+
+
+class AdminUserResponse(UserResponse):
+    """User row for the admin user-management page."""
+    role_source: str = 'group'  # 'group' (from Entra ID) or 'manual' (set in-app)
+
+
+class AdminUserUpdate(BaseModel):
+    """Partial update of a user by an admin. Omitted fields are left untouched."""
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+    # Hand the role back to Entra ID group mapping (re-derived at next M365 login).
+    reset_role_to_group: Optional[bool] = None
+
+    @field_validator('role')
+    @classmethod
+    def validate_role(cls, v):
+        if v is not None and v not in USER_ROLES:
+            raise ValueError(f"role must be one of {', '.join(USER_ROLES)}")
+        return v
 
 
 class ChangePasswordRequest(BaseModel):
@@ -362,6 +395,21 @@ class LinkDealRequest(BaseModel):
     participant_id: int
     id_action_formation: str
     deal_id: str
+
+class BillingStatusRequest(BaseModel):
+    """Set the HubSpot deal's billing status ("facturation") for one enrollment."""
+    participant_id: int
+    id_action_formation: str
+    facturation: str
+
+    @field_validator('facturation')
+    @classmethod
+    def validate_facturation(cls, v):
+        from app.services.hubspot_client import FACTURATION_VALUES
+        if v not in FACTURATION_VALUES:
+            raise ValueError(f"facturation must be one of: {', '.join(FACTURATION_VALUES)}")
+        return v
+
 
 class UnlinkDealRequest(BaseModel):
     participant_id: int

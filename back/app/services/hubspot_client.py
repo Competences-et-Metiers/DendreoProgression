@@ -18,13 +18,28 @@ DEAL_TYPE_FINANCEMENT_PROP = "type_de_financement"
 DEAL_MONTANT_PEC_PROP = "montant_pec"
 DEAL_MONTANT_RAC_PROP = "montant_rac"
 
-# Keys of the financial fields as returned by this client / stored on
+# Billing status of the deal, driven by the accounting team ("Facturation").
+DEAL_FACTURATION_PROP = "facturation"
+
+# The property's enumeration, in workflow order. HubSpot uses the label as the
+# internal value, so these strings are both what we display and what we PATCH.
+FACTURATION_VALUES = (
+    "Non facturée",
+    "À facturer",
+    "Partielle",
+    "Facturée",
+    "Encaissement partiel",
+    "Encaissée",
+)
+
+# Keys of the deal fields as returned by this client / stored on
 # participant_hubspot_data (same names on both sides).
 DEAL_FINANCE_FIELDS = (
     "deal_amount",
     "deal_type_financement",
     "deal_montant_pec",
     "deal_montant_rac",
+    "deal_facturation",
 )
 
 # Properties read for every deal we fetch (link dropdown, auto-link, backfill).
@@ -33,6 +48,7 @@ DEAL_PROPERTIES = [
     "pipeline", "dealstage",
     EDOF_DATE_DEBUT_PROP, EDOF_DATE_FIN_PROP,
     DEAL_TYPE_FINANCEMENT_PROP, DEAL_MONTANT_PEC_PROP, DEAL_MONTANT_RAC_PROP,
+    DEAL_FACTURATION_PROP,
 ]
 
 
@@ -70,12 +86,14 @@ def parse_hs_number(value: Any) -> Optional[float]:
 
 
 def extract_deal_finance(props: Dict[str, Any]) -> Dict[str, Any]:
-    """Pull the financial fields off a deal's properties payload."""
+    """Pull the financial + billing fields off a deal's properties payload.
+    Keys match DEAL_FINANCE_FIELDS and the participant_hubspot_data columns."""
     return {
         "deal_amount": parse_hs_number(props.get("amount")),
         "deal_type_financement": (props.get(DEAL_TYPE_FINANCEMENT_PROP) or None),
         "deal_montant_pec": parse_hs_number(props.get(DEAL_MONTANT_PEC_PROP)),
         "deal_montant_rac": parse_hs_number(props.get(DEAL_MONTANT_RAC_PROP)),
+        "deal_facturation": (props.get(DEAL_FACTURATION_PROP) or None),
     }
 
 
@@ -330,16 +348,10 @@ class HubSpotClient:
 
     async def get_deal_link_fields(self, deal_id: str) -> Dict[str, Any]:
         """Fetch the deal fields captured on a link: EDOF session dates + financials.
-        Returns edof_date_debut/edof_date_fin (ISO dates or None) and
-        deal_amount/deal_type_financement/deal_montant_pec/deal_montant_rac."""
-        empty = {
-            "edof_date_debut": None,
-            "edof_date_fin": None,
-            "deal_amount": None,
-            "deal_type_financement": None,
-            "deal_montant_pec": None,
-            "deal_montant_rac": None,
-        }
+        Returns edof_date_debut/edof_date_fin (ISO dates or None) plus every key
+        in DEAL_FINANCE_FIELDS."""
+        empty = {"edof_date_debut": None, "edof_date_fin": None}
+        empty.update({field: None for field in DEAL_FINANCE_FIELDS})
         if not self.api_key or not deal_id:
             return empty
 

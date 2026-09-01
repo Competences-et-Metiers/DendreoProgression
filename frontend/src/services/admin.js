@@ -175,6 +175,19 @@ export const adminService = {
     const response = await api.get('/admin/action-history/stats');
     return response.data;
   },
+
+  // ─── Admin Users ───
+
+  getUsers: async () => {
+    const response = await api.get('/admin/users');
+    return response.data;
+  },
+
+  /** payload: { role?, is_active?, reset_role_to_group? } */
+  updateUser: async (userId, payload) => {
+    const response = await api.patch(`/admin/users/${userId}`, payload);
+    return response.data;
+  },
 };
 
 export default adminService;
