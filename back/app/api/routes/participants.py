@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, and_, exists, func as sa_func
 from typing import List, Optional
 from app.models.database import get_db
-from app.models.models import Participant, ParticipantCourse, Course, ModuleCategory, ParticipantHubspotData
+from app.models.models import Participant, ParticipantCourse, Course, ModuleCategory, ParticipantHubspotData, User
 from app.models.schemas import ParticipantWithProgress, ParticipantCourse as ParticipantCourseSchema, InactivitySummary, ModuleCategoryResponse
+from app.auth.dependencies import get_current_user
 from app.services.cache_service import cache_service
 from app.services.inactivity_service import InactivityService
 import logging
@@ -453,7 +454,9 @@ def get_inactive_participants(
     exclude_recent_enrollments_days: int = Query(0, ge=0, le=90),
     min_progression: Optional[float] = Query(None, ge=0, le=100),
     max_progression: Optional[float] = Query(None, ge=0, le=100),
-    db: Session = Depends(get_db)
+    include_completed: bool = Query(False),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Get participants classified by activity status.
 
@@ -464,11 +467,12 @@ def get_inactive_participants(
 
     Exclusions:
     - Participants enrolled less than exclude_recent_enrollments_days ago
-    - Participants with 100% completion
+    - Participants with 100% completion, unless include_completed (billing view,
+      which needs finished courses precisely because those are the ones to invoice)
     """
     try:
         # Build cache key from query params
-        cache_key = f"{group_by_course}:{course_id}:{inactivity_threshold_days}:{exclude_recent_enrollments_days}:{min_progression}:{max_progression}"
+        cache_key = f"{group_by_course}:{course_id}:{inactivity_threshold_days}:{exclude_recent_enrollments_days}:{min_progression}:{max_progression}:{include_completed}"
         cached = cache_service.get_inactivity_data(cache_key)
         if cached:
             logger.info("Inactivity data served from cache")
@@ -486,7 +490,8 @@ def get_inactive_participants(
             group_by_course=group_by_course,
             course_id=course_id,
             min_progression=min_progression,
-            max_progression=max_progression
+            max_progression=max_progression,
+            include_completed=include_completed
         )
 
         # Cache the result (serialize Pydantic model to dict)

@@ -157,6 +157,16 @@ class InactiveParticipantDetail(BaseModel):
     # Participant-level EDOF sessions (all eligible deals): [{deal_id, date_debut, date_fin}, ...]
     edof_sessions: Optional[List[dict]] = None
 
+    # Linked HubSpot deal, mirrored from participant_hubspot_data (billing page).
+    # Defaulted so cached responses predating these fields still validate.
+    deal_id: Optional[str] = None
+    deal_url: Optional[str] = None
+    deal_amount: Optional[float] = None
+    deal_type_financement: Optional[str] = None
+    deal_montant_pec: Optional[float] = None
+    deal_montant_rac: Optional[float] = None
+    deal_facturation: Optional[str] = None
+
     class Config:
         from_attributes = True
 
