@@ -1,5 +1,9 @@
 # Documentation
 
+## Start Here
+
+- [ONBOARDING.md](ONBOARDING.md) - **Nouveau·elle collaborateur·rice ? Lisez ceci en premier** ⭐ — vue d'ensemble de l'infrastructure, où trouver la doc, comment fonctionnent les déploiements
+
 ## Deployment Guides
 
 All deployment-related documentation is in the `deployment/` folder:
