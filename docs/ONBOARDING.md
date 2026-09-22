@@ -147,6 +147,40 @@ de tout ça n'est dans git) :
 - La clé privée age de SOPS, pour déchiffrer les secrets dans `secrets/`
 - Un compte GitHub avec accès au repo, et les secrets GitHub Actions listés en §5
 
+### Comment ces clés sont transmises
+
+Les clés Scaleway et la clé privée SOPS ne passent ni par email ni par chat : elles
+sont déposées sous forme de fichiers dans le **SharePoint, dossier IT**. Deux fichiers
+distincts :
+
+- **Clés API Scaleway** (variables d'environnement pour Terraform/Ansible et pour
+  l'API Scaleway) :
+
+  ```
+  SCW_ACCESS_KEY=
+  SCW_SECRET_KEY=
+  SCW_DEFAULT_ORGANIZATION_ID=
+  SCW_DEFAULT_PROJECT_ID=
+  Root_key=
+  ```
+
+- **Clé privée age (SOPS)** — au format généré par `age-keygen`, à placer telle quelle
+  sur la machine à `~/.config/sops/age/keys.txt` pour pouvoir déchiffrer les fichiers
+  `secrets/*.enc` :
+
+  ```
+  # created: 2026-04-01T14:53:11+02:00
+  # public key: age1XXX
+  AGE-SECRET-KEY-XXXX
+  ```
+
+⚠️ Ces fichiers contiennent un accès complet au compte Scaleway (donc à la
+facturation) et à tous les secrets chiffrés du repo — à traiter comme des mots de
+passe root. Ne jamais les copier dans le repo git, dans Slack/Teams ou dans un email.
+Une fois le nouveau collaborateur onboardé, envisager de faire tourner (régénérer) ces
+clés côté Scaleway/age plutôt que de laisser une copie indéfiniment accessible dans le
+SharePoint.
+
 ## 7. Pour aller plus loin
 
 | Sujet | Fichier |
